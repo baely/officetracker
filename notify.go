@@ -3,6 +3,8 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 )
@@ -37,6 +39,7 @@ func (p *Payload) Send() error {
 	if err != nil {
 		return err
 	}
+	slog.Debug(fmt.Sprintf("sending payload: %s", string(b)))
 	err = send(b)
 	if err != nil {
 		return err

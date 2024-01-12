@@ -38,7 +38,7 @@ jobs:
         with:
           credentials_json: "${{ secrets.SERVICE_TOKEN }}"
       - name: Deply Cloud Run
-        uses: google-github-actions/deploy-cloudrun@main
+        uses: google-github-actions/deploy-cloudrun@v2
         with:
           project_id: baileybutler-syd
           service: officetracker
