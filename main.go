@@ -24,11 +24,8 @@ type server struct {
 }
 
 func (s *server) handleNotification(w http.ResponseWriter, r *http.Request) {
-	p := NewPayload("Office Check", "Are you in the office today?")
-	slog.Info(fmt.Sprintf("request: %s %s", r.Method, r.URL.Path))
-	p.AddAction("Log it", backendEndpoint)
-	err := p.Send()
-	if err != nil {
+	p := NewPayload("Office Check", "Are you in the office today?", backendEndpoint)
+	if err := p.Send(); err != nil {
 		slog.Error(fmt.Sprintf("failed to send notification: %v", err))
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -59,7 +56,7 @@ func (s *server) handleEntry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	http.Redirect(w, r, "/form", http.StatusSeeOther)
+	http.Redirect(w, r, "form", http.StatusSeeOther)
 }
 
 func (s *server) logRequest(next http.Handler) http.Handler {
@@ -84,7 +81,7 @@ func newServer(port string) *server {
 	r := chi.NewMux().With(s.logRequest)
 
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, "/form", http.StatusTemporaryRedirect)
+		http.Redirect(w, r, "form", http.StatusTemporaryRedirect)
 	})
 	r.Get("/notify", s.handleNotification)
 	r.Get("/form", s.handleForm)

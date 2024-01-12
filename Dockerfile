@@ -5,7 +5,6 @@ WORKDIR /app
 COPY ./go.mod ./go.mod
 COPY ./go.sum ./go.sum
 
-COPY ./index.html ./index.html
 COPY ./main.go ./main.go
 COPY ./db.go ./db.go
 COPY ./notify.go ./notify.go

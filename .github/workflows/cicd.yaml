@@ -28,6 +28,7 @@ jobs:
   deploy:
     name: "Deploy"
     runs-on: ubuntu-latest
+    environment: cloud
     needs:
       - build
     steps:
@@ -38,7 +39,7 @@ jobs:
         with:
           credentials_json: "${{ secrets.SERVICE_TOKEN }}"
       - name: Deply Cloud Run
-        uses: google-github-actions/deploy-cloudrun@main
+        uses: google-github-actions/deploy-cloudrun@v2
         with:
           project_id: baileybutler-syd
           service: officetracker
@@ -47,6 +48,6 @@ jobs:
           env_vars: |
             PROJECT_ID=baileybutler-syd
             COLLECTION_ID=officetracker
-            NTFY_ENTRYPOINT=https://ntfy.sh/xbd_au
+            NTFY_TOPIC=xbd_au
             BACKEND_ENTRYPOINT=https://xbd.au
           flags: "--allow-unauthenticated"
