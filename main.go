@@ -56,7 +56,7 @@ func (s *server) handleEntry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	http.Redirect(w, r, "/form", http.StatusSeeOther)
+	http.Redirect(w, r, "form", http.StatusSeeOther)
 }
 
 func (s *server) logRequest(next http.Handler) http.Handler {
@@ -81,7 +81,7 @@ func newServer(port string) *server {
 	r := chi.NewMux().With(s.logRequest)
 
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, "/form", http.StatusTemporaryRedirect)
+		http.Redirect(w, r, "form", http.StatusTemporaryRedirect)
 	})
 	r.Get("/notify", s.handleNotification)
 	r.Get("/form", s.handleForm)
