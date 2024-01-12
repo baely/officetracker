@@ -28,6 +28,7 @@ jobs:
   deploy:
     name: "Deploy"
     runs-on: ubuntu-latest
+    environment: cloud
     needs:
       - build
     steps:
