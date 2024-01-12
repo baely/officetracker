@@ -90,7 +90,7 @@ func send(headers map[string][]string, msg []byte) error {
 		}
 	}
 
-	slog.Info(fmt.Sprintf("sending request: %v", req))
+	slog.Debug(fmt.Sprintf("sending request: %v", req))
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return err
