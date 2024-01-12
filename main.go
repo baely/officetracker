@@ -12,10 +12,10 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-type entry struct {
-	date    time.Time
-	present string
-	reason  string
+type Entry struct {
+	Date     time.Time
+	Presence string
+	Reason   string
 }
 
 type server struct {
@@ -37,20 +37,19 @@ func (s *server) handleNotification(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) handleForm(w http.ResponseWriter, r *http.Request) {
-	http.ServeFile(w, r, "index.html")
+	http.ServeFile(w, r, "/app/index.html")
 }
 
 func (s *server) handleEntry(w http.ResponseWriter, r *http.Request) {
 	presence := r.FormValue("presence")
 	note := r.FormValue("note")
 
-	e := entry{
-		date:    time.Now(),
-		present: presence,
-		reason:  note,
+	e := Entry{
+		Date:     time.Now(),
+		Presence: presence,
+		Reason:   note,
 	}
-
-	slog.Info(fmt.Sprintf("%+v", e))
+	slog.Debug(fmt.Sprintf("%+v", e))
 
 	err := s.saveEntry(e)
 	if err != nil {
@@ -58,6 +57,8 @@ func (s *server) handleEntry(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	http.Redirect(w, r, "/form", http.StatusSeeOther)
 }
 
 func (s *server) logRequest(next http.Handler) http.Handler {
@@ -67,9 +68,9 @@ func (s *server) logRequest(next http.Handler) http.Handler {
 	})
 }
 
-func (s *server) saveEntry(e entry) error {
+func (s *server) saveEntry(e Entry) error {
 	ctx := context.Background()
-	_, _, err := s.db.Collection("entries").Add(ctx, e)
+	_, _, err := s.db.Collection(collection).Add(ctx, e)
 	if err != nil {
 		return fmt.Errorf("failed to save entry: %v", err)
 	}
@@ -81,6 +82,9 @@ func newServer(port string) *server {
 
 	r := chi.NewMux().With(s.logRequest)
 
+	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/form", http.StatusTemporaryRedirect)
+	})
 	r.Get("/notify", s.handleNotification)
 	r.Get("/form", s.handleForm)
 	r.Post("/submit", s.handleEntry)
@@ -89,7 +93,7 @@ func newServer(port string) *server {
 	})
 
 	s.Server = http.Server{
-		Addr:    fmt.Sprintf("127.0.0.1:%s", port),
+		Addr:    fmt.Sprintf(":%s", port),
 		Handler: r,
 	}
 

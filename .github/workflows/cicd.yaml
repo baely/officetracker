@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  deploy:
+  build:
     name: "Build"
     runs-on: ubuntu-latest
     steps:
@@ -24,3 +24,29 @@ jobs:
           gcloud auth configure-docker -q
       - name: Publish image
         run:  docker push gcr.io/baileybutler-syd/officetracker:${{ github.sha }}
+
+  deploy:
+    name: "Deploy"
+    runs-on: ubuntu-latest
+    needs:
+      - build
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Authenticate Google Cloud Platform
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: "${{ secrets.SERVICE_TOKEN }}"
+      - name: Deply Cloud Run
+        uses: google-github-actions/deploy-cloudrun@main
+        with:
+          project_id: baileybutler-syd
+          service: officetracker
+          image: gcr.io/baileybutler-syd/officetracker:${{ github.sha }}
+          region: asia-southeast1
+          env_vars: |
+            PROJECT_ID=baileybutler-syd
+            COLLECTION_ID=officetracker
+            NTFY_ENTRYPOINT=https://ntfy.sh/xbd_au
+            BACKEND_ENTRYPOINT=https://xbd.au
+          flags: "--allow-unauthenticated"
