@@ -24,9 +24,8 @@ type server struct {
 }
 
 func (s *server) handleNotification(w http.ResponseWriter, r *http.Request) {
-	p := NewPayload("Office Check", "Are you in the office today?")
+	p := NewPayload("Office Check", "Are you in the office today?", backendEndpoint)
 	slog.Info(fmt.Sprintf("request: %s %s", r.Method, r.URL.Path))
-	p.AddAction("Log it", backendEndpoint)
 	err := p.Send()
 	if err != nil {
 		slog.Error(fmt.Sprintf("failed to send notification: %v", err))

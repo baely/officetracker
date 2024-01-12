@@ -2,65 +2,42 @@ package main
 
 import (
 	"bytes"
-	"fmt"
-	"log/slog"
+	"encoding/json"
 	"net/http"
 	"os"
-	"strings"
+)
+
+const (
+	ntfyEndpoint = "https://ntfy.sh/"
 )
 
 var (
-	ntfyEndpoint    = os.Getenv("NTFY_ENDPOINT")
+	ntfyTopic       = os.Getenv("NTFY_TOPIC")
 	backendEndpoint = os.Getenv("BACKEND_ENDPOINT")
 )
 
-type Action struct {
-	Action string `json:"action"`
-	Label  string `json:"label"`
-	Url    string `json:"url"`
-	Clear  bool   `json:"clear,omitempty"`
-}
-
-func (a Action) asHeader() string {
-	s := a.Action + ", " + a.Label + ", " + a.Url
-
-	if a.Clear {
-		s += ", " + "clear=true"
-	} else {
-		s += "," + "clear=false"
-	}
-
-	return s
-}
-
 type Payload struct {
-	Topic   string   `json:"topic"`
-	Message string   `json:"message"`
-	Actions []Action `json:"actions"`
+	Topic   string `json:"topic"`
+	Message string `json:"message"`
+	Title   string `json:"title"`
+	Click   string `json:"click"`
 }
 
-func NewPayload(topic, message string) *Payload {
+func NewPayload(title, message, click string) *Payload {
 	return &Payload{
-		Topic:   topic,
+		Topic:   ntfyTopic,
+		Title:   title,
 		Message: message,
+		Click:   click,
 	}
-}
-
-func (p *Payload) AddAction(label, url string) {
-	a := Action{
-		Action: "view",
-		Label:  label,
-		Url:    url,
-		Clear:  false,
-	}
-
-	p.Actions = append(p.Actions, a)
 }
 
 func (p *Payload) Send() error {
-	b := []byte(p.Message)
-
-	err := send(map[string][]string{"Actions": {p.formActions()}}, b)
+	b, err := json.Marshal(p)
+	if err != nil {
+		return err
+	}
+	err = send(b)
 	if err != nil {
 		return err
 	}
@@ -68,35 +45,11 @@ func (p *Payload) Send() error {
 	return nil
 }
 
-func (p *Payload) formActions() string {
-	var actions []string
-	for _, action := range p.Actions {
-		actions = append(actions, action.asHeader())
-	}
-	h := strings.Join(actions, ";")
-	return h
-}
-
-func send(headers map[string][]string, msg []byte) error {
+func send(msg []byte) error {
 	r := bytes.NewReader(msg)
-	req, err := http.NewRequest(http.MethodPost, ntfyEndpoint, r)
+	_, err := http.Post(ntfyEndpoint, "application/json", r)
 	if err != nil {
 		return err
-	}
-
-	for header, values := range headers {
-		for _, value := range values {
-			req.Header.Add(header, value)
-		}
-	}
-
-	slog.Info(fmt.Sprintf("sending request: %v", req))
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return err
-	}
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("failed to send notification: %v", resp.Status)
 	}
 
 	return nil
