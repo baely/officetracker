@@ -17,6 +17,6 @@ FROM alpine
 WORKDIR /app
 
 COPY --from=builder /tracker /tracker
-COPY --from=builder ./index.html ./index.html
+COPY ./index.html ./index.html
 
 ENTRYPOINT ["/tracker"]

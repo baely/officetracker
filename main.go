@@ -38,7 +38,7 @@ func (s *server) handleNotification(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) handleForm(w http.ResponseWriter, r *http.Request) {
-	http.ServeFile(w, r, "index.html")
+	http.ServeFile(w, r, "/app/index.html")
 }
 
 func (s *server) handleEntry(w http.ResponseWriter, r *http.Request) {
