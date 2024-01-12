@@ -33,7 +33,7 @@ func NewPayload(title, message, click string) *Payload {
 }
 
 func (p *Payload) Send() error {
-	b, err := json.Marshal(p)
+	b, err := json.Marshal(*p)
 	if err != nil {
 		return err
 	}
@@ -51,6 +51,6 @@ func send(msg []byte) error {
 	if err != nil {
 		return err
 	}
-	
+
 	return nil
 }
