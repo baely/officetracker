@@ -44,5 +44,9 @@ jobs:
           service: officetracker
           image: gcr.io/baileybutler-syd/officetracker:${{ github.sha }}
           region: asia-southeast1
-          allow-unauthenticated: true
-          env: PROJECT_ID=baileybutler-syd,COLLECTION_ID=officetracker,NTFY_ENTRYPOINT=https://ntfy.sh/xbd_au,BACKEND_ENTRYPOINT=https://xbd.au
+          env_vars: |
+            PROJECT_ID=baileybutler-syd
+            COLLECTION_ID=officetracker
+            NTFY_ENTRYPOINT=https://ntfy.sh/xbd_au
+            BACKEND_ENTRYPOINT=https://xbd.au
+          flags: "--allow-unauthenticated"
