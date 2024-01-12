@@ -50,8 +50,7 @@ func (s *server) handleEntry(w http.ResponseWriter, r *http.Request) {
 		Presence: presence,
 		Reason:   note,
 	}
-
-	slog.Info(fmt.Sprintf("%+v", e))
+	slog.Debug(fmt.Sprintf("%+v", e))
 
 	err := s.saveEntry(e)
 	if err != nil {
@@ -72,7 +71,7 @@ func (s *server) logRequest(next http.Handler) http.Handler {
 
 func (s *server) saveEntry(e Entry) error {
 	ctx := context.Background()
-	_, _, err := s.db.Collection("entries").Add(ctx, e)
+	_, _, err := s.db.Collection(collection).Add(ctx, e)
 	if err != nil {
 		return fmt.Errorf("failed to save entry: %v", err)
 	}
