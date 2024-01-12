@@ -90,7 +90,7 @@ func newServer(port string) *server {
 	})
 
 	s.Server = http.Server{
-		Addr:    fmt.Sprintf("127.0.0.1:%s", port),
+		Addr:    fmt.Sprintf(":%s", port),
 		Handler: r,
 	}
 
