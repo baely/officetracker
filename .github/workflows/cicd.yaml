@@ -1,0 +1,26 @@
+name: CICD
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: "Build"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Authenticate Google Cloud Platform
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: "${{ secrets.SERVICE_TOKEN }}"
+      - name: Build docker image
+        run:  docker build -t gcr.io/baileybutler-syd/officetracker:${{ github.sha }} .
+      - name: Authorise docker
+        run: |
+          gcloud auth configure-docker -q
+      - name: Publish image
+        run:  docker push gcr.io/baileybutler-syd/officetracker:${{ github.sha }}
