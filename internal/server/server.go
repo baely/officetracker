@@ -40,11 +40,11 @@ func (s *Server) handleNotification(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
-	http.ServeFile(w, r, "./app/login.html")
+	http.ServeFile(w, r, "/app/login.html")
 }
 
 func (s *Server) handleForm(w http.ResponseWriter, r *http.Request) {
-	http.ServeFile(w, r, "./app/index.html")
+	http.ServeFile(w, r, "/app/index.html")
 }
 
 func (s *Server) handleEntry(w http.ResponseWriter, r *http.Request) {
