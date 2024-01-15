@@ -13,8 +13,8 @@ var (
 	melbourneLocation, _ = time.LoadLocation("Australia/Melbourne")
 )
 
-func GenerateCsv(db *database.Client) ([]byte, error) {
-	entries, err := db.GetEntries()
+func GenerateCsv(db *database.Client, userId string) ([]byte, error) {
+	entries, err := db.GetEntries(userId)
 	if err != nil {
 		return nil, err
 	}

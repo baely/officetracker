@@ -9,6 +9,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"github.com/baely/officetracker/internal/auth"
 	"github.com/baely/officetracker/internal/data"
 	db "github.com/baely/officetracker/internal/database"
 	"github.com/baely/officetracker/internal/integration"
@@ -38,8 +39,12 @@ func (s *Server) handleNotification(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("OK"))
 }
 
+func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
+	http.ServeFile(w, r, "/app/login.html")
+}
+
 func (s *Server) handleForm(w http.ResponseWriter, r *http.Request) {
-	http.ServeFile(w, r, "./app/index.html")
+	http.ServeFile(w, r, "/app/index.html")
 }
 
 func (s *Server) handleEntry(w http.ResponseWriter, r *http.Request) {
@@ -55,6 +60,7 @@ func (s *Server) handleEntry(w http.ResponseWriter, r *http.Request) {
 	e := db.Entry{
 		Date:        date,
 		CreatedDate: time.Now(),
+		User:        auth.GetUserID(r),
 		Presence:    presence,
 		Reason:      note,
 	}
@@ -72,7 +78,9 @@ func (s *Server) handleEntry(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleDownload(w http.ResponseWriter, r *http.Request) {
-	b, err := data.GenerateCsv(s.db)
+	u := auth.GetUserID(r)
+
+	b, err := data.GenerateCsv(s.db, u)
 	if err != nil {
 		slog.Error(fmt.Sprintf("failed to generate excel: %v", err))
 		http.Error(w, internalErrorMsg, http.StatusInternalServerError)
@@ -99,13 +107,13 @@ func NewServer(port string) *Server {
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "form", http.StatusTemporaryRedirect)
 	})
+	r.Get("/login", s.handleLogin)
 	r.Get("/notify", s.handleNotification)
-	r.Get("/form", s.handleForm)
-	r.Post("/submit", s.handleEntry)
-	r.Get("/download", s.handleDownload)
-	r.NotFound(func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
-	})
+	r.With(auth.Middleware).Get("/form", s.handleForm)
+	r.With(auth.Middleware).Post("/submit", s.handleEntry)
+	r.With(auth.Middleware).Get("/download", s.handleDownload)
+	r.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.Dir("/app/static"))))
+	r.Route("/auth", auth.Router())
 
 	s.Server = http.Server{
 		Addr:    fmt.Sprintf(":%s", port),
