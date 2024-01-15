@@ -53,5 +53,5 @@ jobs:
             GH_CLIENT_ID=927f8338aecb75c09854
           secrets: |
             SIGNING_KEY=${{ secrets.SIGNING_KEY }}:latest
-            GITHUB_SECRET=${{ secrets.GH_SECRET }}:latest
+            GH_SECRET=${{ secrets.GH_SECRET }}:latest
           flags: "--allow-unauthenticated"
