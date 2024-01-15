@@ -44,6 +44,7 @@ func handleGithubCallback(w http.ResponseWriter, r *http.Request) {
 
 	token, err := ghOauthCfg.Exchange(r.Context(), code)
 	if err != nil {
+		slog.Error(fmt.Sprintf("failed to exchange code: %v", err))
 		githubRedirect(w, r)
 		return
 	}
