@@ -39,11 +39,17 @@ func (s *server) handleForm(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) handleEntry(w http.ResponseWriter, r *http.Request) {
+	dateString := r.FormValue("date")
 	presence := r.FormValue("presence")
 	note := r.FormValue("note")
 
+	date, _ := time.Parse("2006-01-02", dateString)
+	if date.IsZero() {
+		date = time.Now()
+	}
+
 	e := Entry{
-		Date:     time.Now(),
+		Date:     date,
 		Presence: presence,
 		Reason:   note,
 	}

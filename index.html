@@ -69,10 +69,17 @@
         <label><input type="radio" name="presence" value="other"> Other</label>
     </div>
     <div class="form-group">
+        <label for="date">Date:</label>
+        <input type="date" id="date" name="date">
+    </div>
+    <div class="form-group">
         <label for="note">Note:</label>
         <input type="text" id="note" name="note">
     </div>
     <input type="submit" value="Submit">
 </form>
+<script>
+    document.getElementById("date").value = new Date().toISOString().split('T')[0]
+</script>
 </body>
 </html>
