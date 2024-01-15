@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+	"html/template"
 	"log/slog"
 	"net/http"
 	"os"
@@ -41,6 +42,10 @@ func (s *Server) handleNotification(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, "/app/login.html")
+}
+
+func (s *Server) handleSetup(w http.ResponseWriter, r *http.Request) {
+	http.ServeFile(w, r, "/app/setup.html")
 }
 
 func (s *Server) handleForm(w http.ResponseWriter, r *http.Request) {
@@ -92,6 +97,24 @@ func (s *Server) handleDownload(w http.ResponseWriter, r *http.Request) {
 	w.Write(b)
 }
 
+func (s *Server) handleSummary(w http.ResponseWriter, r *http.Request) {
+	u := auth.GetUserID(r)
+
+	summary, err := data.GenerateSummary(s.db, u)
+	if err != nil {
+		slog.Error(fmt.Sprintf("failed to generate summary: %v", err))
+		http.Error(w, internalErrorMsg, http.StatusInternalServerError)
+		return
+	}
+
+	tmpl := template.Must(template.ParseFiles("/app/summary.html"))
+	if err := tmpl.Execute(w, summary); err != nil {
+		slog.Error(fmt.Sprintf("failed to render summary: %v", err))
+		http.Error(w, internalErrorMsg, http.StatusInternalServerError)
+		return
+	}
+}
+
 func (s *Server) logRequest(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		slog.Info(fmt.Sprintf("request: %s %s", r.Method, r.URL.Path))
@@ -108,10 +131,12 @@ func NewServer(port string) *Server {
 		http.Redirect(w, r, "form", http.StatusTemporaryRedirect)
 	})
 	r.Get("/login", s.handleLogin)
+	r.Get("/setup", s.handleSetup)
 	r.Get("/notify", s.handleNotification)
 	r.With(auth.Middleware).Get("/form", s.handleForm)
 	r.With(auth.Middleware).Post("/submit", s.handleEntry)
 	r.With(auth.Middleware).Get("/download", s.handleDownload)
+	r.With(auth.Middleware).Get("/summary", s.handleSummary)
 	r.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.Dir("/app/static"))))
 	r.Route("/auth", auth.Router())
 

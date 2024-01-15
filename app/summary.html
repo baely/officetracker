@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Summary</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f4f4;
+      padding: 10px;
+      display: flex;
+      justify-content: center;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+    }
+    .summary-container {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      width: 360px; /* Width set to 540px */
+      margin-bottom: 20px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: left;
+    }
+    th {
+      background-color: #f4f4f4;
+    }
+    .btn {
+      display: block;
+      padding: 10px;
+      margin-top: 10px;
+      text-align: center;
+      border-radius: 4px;
+      background-color: #007bff;
+      color: white;
+      text-decoration: none;
+      box-sizing: border-box;
+    }
+    .btn:hover {
+      background-color: #0056b3;
+    }
+    .btn-download {
+      background-color: #28a745;
+    }
+    .btn-download:hover {
+      background-color: #218838;
+    }
+  </style>
+</head>
+<body>
+<div class="summary-container">
+  <h2>Summary</h2>
+  <p>Present in office for {{.TotalPresent}} out of {{.TotalDays}} days. ({{.Percent}}%)</p>
+  <table>
+    <tr>
+      <th>Month</th>
+      <th>Present</th>
+      <th>Total</th>
+      <th>Percent</th>
+    </tr>
+    {{range $month, $data := .MonthData}}
+    <tr>
+      <td>{{$month}}</td>
+        <td>{{$data.TotalPresent}}</td>
+        <td>{{$data.TotalDays}}</td>
+        <td>{{$data.Percent}}%</td>
+    </tr>
+    {{end}}
+  </table>
+  <a href="form" class="btn">Back</a>
+  <a href="download" class="btn btn-download">Download Data</a>
+</div>
+</body>
+</html>

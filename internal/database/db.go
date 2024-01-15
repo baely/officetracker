@@ -74,3 +74,23 @@ func (c *Client) GetEntries(userId string) ([]Entry, error) {
 	}
 	return entries, nil
 }
+
+func (c *Client) GetLatestEntries(userId string) ([]Entry, error) {
+	allEntries, err := c.GetEntries(userId)
+	if err != nil {
+		return nil, err
+	}
+
+	var entries []Entry
+	lastDate := time.Time{}
+	for _, e := range allEntries {
+		if e.Date != lastDate {
+			entries = append(entries, e)
+			lastDate = e.Date
+		} else {
+			entries[len(entries)-1] = e
+		}
+	}
+
+	return entries, nil
+}
