@@ -1,4 +1,4 @@
-package main
+package integration
 
 import (
 	"bytes"
@@ -14,8 +14,7 @@ const (
 )
 
 var (
-	ntfyTopic       = os.Getenv("NTFY_TOPIC")
-	backendEndpoint = os.Getenv("BACKEND_ENDPOINT")
+	ntfyTopic = os.Getenv("NTFY_TOPIC")
 )
 
 type Payload struct {
