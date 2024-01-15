@@ -5,9 +5,7 @@ WORKDIR /app
 COPY ./go.mod ./go.mod
 COPY ./go.sum ./go.sum
 
-COPY ./main.go ./main.go
-COPY ./db.go ./db.go
-COPY ./notify.go ./notify.go
+COPY . .
 
 RUN go build -o /tracker .
 
@@ -16,6 +14,6 @@ FROM alpine
 WORKDIR /app
 
 COPY --from=builder /tracker /tracker
-COPY ./index.html ./index.html
+COPY ./app/index.html ./index.html
 
 ENTRYPOINT ["/tracker"]
