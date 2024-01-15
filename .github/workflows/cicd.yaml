@@ -50,4 +50,8 @@ jobs:
             COLLECTION_ID=officetracker
             NTFY_TOPIC=xbd_au
             BACKEND_ENTRYPOINT=https://xbd.au
+            GH_CLIENT_ID=927f8338aecb75c09854
+          secrets: |
+            SIGNING_KEY=${{ secrets.SIGNING_KEY }}
+            GITHUB_SECRET=${{ secrets.GITHUB_SECRET }}
           flags: "--allow-unauthenticated"

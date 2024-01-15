@@ -16,4 +16,6 @@ WORKDIR /app
 COPY --from=builder /tracker /tracker
 COPY ./app/index.html ./index.html
 
+RUN apk --no-cache add tzdata
+
 ENTRYPOINT ["/tracker"]

@@ -21,6 +21,7 @@ type Client struct {
 }
 
 type Entry struct {
+	User        string
 	Date        time.Time
 	CreatedDate time.Time
 	Presence    string
@@ -46,9 +47,13 @@ func (c *Client) SaveEntry(e Entry) (string, error) {
 	return id, nil
 }
 
-func (c *Client) GetEntries() ([]Entry, error) {
+func (c *Client) GetEntries(userId string) ([]Entry, error) {
 	ctx := context.Background()
-	iter := c.Collection(collection).OrderBy("Date", firestore.Asc).OrderBy("CreatedDate", firestore.Asc).Documents(ctx)
+	iter := c.Collection(collection).
+		Where("User", "==", userId).
+		OrderBy("Date", firestore.Asc).
+		OrderBy("CreatedDate", firestore.Asc).
+		Documents(ctx)
 	defer iter.Stop()
 
 	var entries []Entry
