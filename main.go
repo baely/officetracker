@@ -13,9 +13,10 @@ import (
 )
 
 type Entry struct {
-	Date     time.Time
-	Presence string
-	Reason   string
+	Date        time.Time
+	CreatedDate time.Time
+	Presence    string
+	Reason      string
 }
 
 type server struct {
@@ -49,9 +50,10 @@ func (s *server) handleEntry(w http.ResponseWriter, r *http.Request) {
 	}
 
 	e := Entry{
-		Date:     date,
-		Presence: presence,
-		Reason:   note,
+		Date:        date,
+		CreatedDate: time.Now(),
+		Presence:    presence,
+		Reason:      note,
 	}
 	slog.Debug(fmt.Sprintf("%+v", e))
 
