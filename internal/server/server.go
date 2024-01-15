@@ -112,7 +112,7 @@ func NewServer(port string) *Server {
 	r.With(auth.Middleware).Get("/form", s.handleForm)
 	r.With(auth.Middleware).Post("/submit", s.handleEntry)
 	r.With(auth.Middleware).Get("/download", s.handleDownload)
-	r.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.Dir("./app/static"))))
+	r.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.Dir("/app/static"))))
 	r.Route("/auth", auth.Router())
 
 	s.Server = http.Server{
