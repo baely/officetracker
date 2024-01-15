@@ -63,7 +63,7 @@ func handleGithubCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
+	http.Redirect(w, r, "/setup", http.StatusTemporaryRedirect)
 }
 
 func getGithubData(accessToken string) (string, error) {

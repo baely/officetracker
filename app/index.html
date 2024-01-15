@@ -12,12 +12,15 @@
             justify-content: center;
             align-items: center;
             height: 100vh;
+            flex-direction: column;
         }
-        form {
+        form, .additional-buttons {
             background: white;
             padding: 20px;
             border-radius: 8px;
             box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            width: 360px; /* Width increased to 540px */
+            margin-bottom: 20px; /* Spacing between form and new section */
         }
         .form-group {
             margin-bottom: 20px;
@@ -33,7 +36,7 @@
             border: 1px solid #ddd;
             box-sizing: border-box;
         }
-        input[type="submit"] {
+        input[type="submit"], .btn {
             width: 100%;
             padding: 10px;
             border-radius: 4px;
@@ -43,7 +46,7 @@
             cursor: pointer;
             font-size: inherit;
         }
-        input[type="submit"]:hover {
+        input[type="submit"]:hover, .btn:hover {
             background-color: #0056b3;
         }
         .checkbox-group label {
@@ -56,9 +59,8 @@
         .radio-group label {
             margin: 5px 0;
         }
-        .btn-link {
+        .btn {
             display: block;
-            width: 100%;
             padding: 10px;
             margin-top: 10px;
             text-align: center;
@@ -68,8 +70,11 @@
             text-decoration: none;
             box-sizing: border-box;
         }
-        .btn-link:hover {
-            background-color: #218838;
+        .btn-setup {
+            background-color: #6c757d; /* Different color for setup button */
+        }
+        .btn-setup:hover {
+            background-color: #5a6268;
         }
     </style>
 </head>
@@ -89,8 +94,14 @@
         <input type="text" id="note" name="note">
     </div>
     <input type="submit" value="Submit">
-    <a href="download" class="btn-link">Download</a>
 </form>
+<!-- New section for additional buttons -->
+<div class="additional-buttons">
+    <a href="summary" class="btn">View Summary</a>
+    <a href="download" class="btn">Download Data</a>
+    <a href="setup" class="btn btn-setup">Setup</a>
+</div>
+
 <script>
     document.getElementById("date").valueAsDate = new Date();
 </script>
