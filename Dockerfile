@@ -16,6 +16,8 @@ WORKDIR /app
 COPY --from=builder /tracker /tracker
 COPY ./app/index.html ./index.html
 COPY ./app/login.html ./login.html
+COPY ./app/setup.html ./setup.html
+COPY ./app/summary.html ./summary.html
 COPY ./app/static ./static
 
 RUN apk --no-cache add tzdata
