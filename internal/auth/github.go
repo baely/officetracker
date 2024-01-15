@@ -18,7 +18,7 @@ var (
 		ClientID:     ghClientID,
 		ClientSecret: ghSecret,
 		Endpoint:     github.Endpoint,
-		RedirectURL:  "http://localhost:8080/auth/callback/github",
+		RedirectURL:  "https://projects.xbd.au/officetracker/auth/callback/github",
 		Scopes:       []string{"read:user"},
 	}
 )
@@ -62,7 +62,7 @@ func handleGithubCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	http.Redirect(w, r, "http://localhost:8080/", http.StatusTemporaryRedirect)
+	http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
 }
 
 func getGithubData(accessToken string) (string, error) {

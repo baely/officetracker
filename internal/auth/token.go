@@ -59,9 +59,9 @@ func issueToken(w http.ResponseWriter, userID string) error {
 	cookie := http.Cookie{
 		Name:     userCookie,
 		Value:    token,
-		Path:     "/",
+		Path:     "/officetracker/",
 		Expires:  time.Now().Add(loginExpiration),
-		Domain:   "localhost",
+		Domain:   "projects.xbd.au",
 		HttpOnly: true,
 		Secure:   true,
 	}
