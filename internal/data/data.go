@@ -14,6 +14,7 @@ var (
 )
 
 type MonthSummary struct {
+	MonthUri     string
 	TotalDays    int
 	TotalPresent int
 	Percent      string
@@ -38,7 +39,9 @@ func GenerateSummary(db *database.Client, userId string) (Summary, error) {
 	for _, e := range entries {
 		month := e.Date.Format("January 2006")
 		if _, ok := monthData[month]; !ok {
-			monthData[month] = &MonthSummary{}
+			monthData[month] = &MonthSummary{
+				MonthUri: fmt.Sprintf("/%s", e.Date.Format("2006-01")),
+			}
 		}
 		data, _ := monthData[month]
 

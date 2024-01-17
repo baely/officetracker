@@ -17,7 +17,8 @@ func Middleware(next http.Handler) http.Handler {
 			return
 		}
 		if err = cookie.Valid(); err != nil {
-			githubRedirect(w, r)
+			slog.Error(fmt.Sprintf("failed to validate cookie: %v", err))
+			http.Redirect(w, r, "/login", http.StatusTemporaryRedirect)
 			return
 		}
 
@@ -34,7 +35,6 @@ func Middleware(next http.Handler) http.Handler {
 
 func Router() func(r chi.Router) {
 	return func(r chi.Router) {
-		r.Get("/login/github", githubRedirect)
 		r.Get("/callback/github", handleGithubCallback)
 	}
 }

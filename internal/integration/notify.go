@@ -13,10 +13,6 @@ const (
 	ntfyEndpoint = "https://ntfy.sh/"
 )
 
-var (
-	ntfyTopic = os.Getenv("NTFY_TOPIC")
-)
-
 type Payload struct {
 	Topic   string `json:"topic"`
 	Message string `json:"message"`
@@ -25,6 +21,7 @@ type Payload struct {
 }
 
 func NewPayload(title, message, click string) *Payload {
+	ntfyTopic := os.Getenv("NTFY_TOPIC")
 	return &Payload{
 		Topic:   ntfyTopic,
 		Title:   title,
