@@ -45,7 +45,7 @@ jobs:
           service: officetracker
           image: gcr.io/baileybutler-syd/officetracker:${{ github.sha }}
           region: asia-southeast1
-          env_vars_file: config/deploy/cloud.env
+          env_vars_file: config/cloud.env
           secrets: |
             SIGNING_KEY=${{ secrets.SIGNING_KEY }}:latest
             GH_SECRET=${{ secrets.GH_SECRET }}:latest
