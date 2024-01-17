@@ -3,17 +3,11 @@ package database
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 	"time"
 
 	"cloud.google.com/go/firestore"
 	"google.golang.org/api/iterator"
-)
-
-var (
-	projectID  = os.Getenv("PROJECT_ID")
-	collection = os.Getenv("COLLECTION_ID")
 )
 
 type Client struct {
@@ -28,17 +22,19 @@ type Entry struct {
 	Reason      string
 }
 
-func NewFirestoreClient() *Client {
+func NewFirestoreClient() (*Client, error) {
 	ctx := context.Background()
+	projectID := os.Getenv("PROJECT_ID")
 	client, err := firestore.NewClient(ctx, projectID)
 	if err != nil {
-		log.Fatalf("Failed to create firestore client: %v", err)
+		return nil, fmt.Errorf("failed to create firestore client: %v", err)
 	}
-	return &Client{client}
+	return &Client{client}, nil
 }
 
 func (c *Client) SaveEntry(e Entry) (string, error) {
 	ctx := context.Background()
+	collection := os.Getenv("COLLECTION_ID")
 	doc, _, err := c.Collection(collection).Add(ctx, e)
 	if err != nil {
 		return "", fmt.Errorf("failed to save entry: %v", err)
@@ -49,6 +45,7 @@ func (c *Client) SaveEntry(e Entry) (string, error) {
 
 func (c *Client) GetEntries(userId string) ([]Entry, error) {
 	ctx := context.Background()
+	collection := os.Getenv("COLLECTION_ID")
 	iter := c.Collection(collection).
 		Where("User", "==", userId).
 		OrderBy("Date", firestore.Asc).

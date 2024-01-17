@@ -20,16 +20,13 @@ const (
 	internalErrorMsg = "Internal server error"
 )
 
-var (
-	backendEndpoint = os.Getenv("BACKEND_ENDPOINT")
-)
-
 type Server struct {
 	http.Server
 	db *db.Client
 }
 
 func (s *Server) handleNotification(w http.ResponseWriter, r *http.Request) {
+	backendEndpoint := os.Getenv("BACKEND_ENDPOINT")
 	p := integration.NewPayload("Office Check", "Are you in the office today?", backendEndpoint)
 	if err := p.Send(); err != nil {
 		slog.Error(fmt.Sprintf("failed to send notification: %v", err))
@@ -41,15 +38,20 @@ func (s *Server) handleNotification(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
-	http.ServeFile(w, r, "/app/login.html")
+	tmpl := template.Must(template.ParseFiles("./app/login.html"))
+	if err := tmpl.Execute(w, struct{ SSOLink string }{auth.GitHubAuthUri()}); err != nil {
+		slog.Error(fmt.Sprintf("failed to render login: %v", err))
+		http.Error(w, internalErrorMsg, http.StatusInternalServerError)
+		return
+	}
 }
 
 func (s *Server) handleSetup(w http.ResponseWriter, r *http.Request) {
-	http.ServeFile(w, r, "/app/setup.html")
+	http.ServeFile(w, r, "./app/setup.html")
 }
 
 func (s *Server) handleForm(w http.ResponseWriter, r *http.Request) {
-	http.ServeFile(w, r, "/app/index.html")
+	http.ServeFile(w, r, "./app/index.html")
 }
 
 func (s *Server) handleEntry(w http.ResponseWriter, r *http.Request) {
@@ -107,7 +109,7 @@ func (s *Server) handleSummary(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tmpl := template.Must(template.ParseFiles("/app/summary.html"))
+	tmpl := template.Must(template.ParseFiles("./app/summary.html"))
 	if err := tmpl.Execute(w, summary); err != nil {
 		slog.Error(fmt.Sprintf("failed to render summary: %v", err))
 		http.Error(w, internalErrorMsg, http.StatusInternalServerError)
@@ -122,7 +124,7 @@ func (s *Server) logRequest(next http.Handler) http.Handler {
 	})
 }
 
-func NewServer(port string) *Server {
+func NewServer(port string) (*Server, error) {
 	s := &Server{}
 
 	r := chi.NewMux().With(s.logRequest)
@@ -137,7 +139,7 @@ func NewServer(port string) *Server {
 	r.With(auth.Middleware).Post("/submit", s.handleEntry)
 	r.With(auth.Middleware).Get("/download", s.handleDownload)
 	r.With(auth.Middleware).Get("/summary", s.handleSummary)
-	r.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.Dir("/app/static"))))
+	r.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.Dir("./app/static"))))
 	r.Route("/auth", auth.Router())
 
 	s.Server = http.Server{
@@ -145,9 +147,13 @@ func NewServer(port string) *Server {
 		Handler: r,
 	}
 
-	s.db = db.NewFirestoreClient()
+	var err error
+	s.db, err = db.NewFirestoreClient()
+	if err != nil {
+		return nil, err
+	}
 
-	return s
+	return s, nil
 }
 
 func (s *Server) Run() error {

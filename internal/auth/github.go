@@ -9,18 +9,12 @@ import (
 
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/github"
+
+	"github.com/baely/officetracker/internal/util"
 )
 
-var (
-	ghClientID = os.Getenv("GH_CLIENT_ID")
-	ghSecret   = os.Getenv("GH_SECRET")
-	ghOauthCfg = &oauth2.Config{
-		ClientID:     ghClientID,
-		ClientSecret: ghSecret,
-		Endpoint:     github.Endpoint,
-		RedirectURL:  "https://projects.xbd.au/officetracker/auth/callback/github",
-		Scopes:       []string{"read:user"},
-	}
+const (
+	githubUserEndpoint = "https://api.github.com/user"
 )
 
 type GithubUserResponse struct {
@@ -28,10 +22,23 @@ type GithubUserResponse struct {
 	Id    int    `json:"id"`
 }
 
-func githubRedirect(w http.ResponseWriter, r *http.Request) {
+func ghOauthCfg() *oauth2.Config {
+	ghClientID := os.Getenv("GH_CLIENT_ID")
+	ghSecret := os.Getenv("GH_SECRET")
+	return &oauth2.Config{
+		ClientID:     ghClientID,
+		ClientSecret: ghSecret,
+		Endpoint:     github.Endpoint,
+		RedirectURL:  fmt.Sprintf("%sauth/callback/github", util.BaseUri()),
+		Scopes:       []string{"read:user"},
+	}
+}
+
+func GitHubAuthUri() string {
 	state := "state"
-	url := ghOauthCfg.AuthCodeURL(state)
-	http.Redirect(w, r, url, http.StatusTemporaryRedirect)
+	slog.Info(fmt.Sprintf("redirecting to github with state: %s", state))
+	slog.Info(fmt.Sprintf("redirecting to github: %+v", ghOauthCfg()))
+	return ghOauthCfg().AuthCodeURL(state)
 }
 
 func handleGithubCallback(w http.ResponseWriter, r *http.Request) {
@@ -42,10 +49,10 @@ func handleGithubCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := ghOauthCfg.Exchange(r.Context(), code)
+	token, err := ghOauthCfg().Exchange(r.Context(), code)
 	if err != nil {
 		slog.Error(fmt.Sprintf("failed to exchange code: %v", err))
-		githubRedirect(w, r)
+		http.Redirect(w, r, "/login", http.StatusTemporaryRedirect)
 		return
 	}
 
@@ -67,8 +74,7 @@ func handleGithubCallback(w http.ResponseWriter, r *http.Request) {
 }
 
 func getGithubData(accessToken string) (string, error) {
-	endpoint := "https://api.github.com/user"
-	req, err := http.NewRequest("GET", endpoint, nil)
+	req, err := http.NewRequest("GET", githubUserEndpoint, nil)
 	if err != nil {
 		return "", err
 	}

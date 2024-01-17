@@ -2,11 +2,14 @@ package auth
 
 import (
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+
+	"github.com/baely/officetracker/internal/util"
 )
 
 const (
@@ -14,13 +17,16 @@ const (
 )
 
 var (
-	signingKey      = []byte(os.Getenv("SIGNING_KEY"))
 	loginExpiration = time.Hour * 24 * 30
 )
 
 type tokenClaims struct {
 	jwt.RegisteredClaims
 	User string `json:"user"`
+}
+
+func signingKey() []byte {
+	return []byte(os.Getenv("SIGNING_KEY"))
 }
 
 func GetUserID(r *http.Request) string {
@@ -42,7 +48,7 @@ func generateToken(userID string) (string, error) {
 		"user": userID,
 	})
 
-	tokenString, err := token.SignedString(signingKey)
+	tokenString, err := token.SignedString(signingKey())
 	if err != nil {
 		return "", err
 	}
@@ -56,16 +62,23 @@ func issueToken(w http.ResponseWriter, userID string) error {
 		return err
 	}
 
+	domain := util.QualifiedDomain()
+	if domain == "localhost" {
+		domain = ""
+	}
+
 	cookie := http.Cookie{
 		Name:     userCookie,
 		Value:    token,
-		Path:     "/officetracker/",
+		Path:     util.BasePath(),
 		Expires:  time.Now().Add(loginExpiration),
-		Domain:   "projects.xbd.au",
+		Domain:   util.QualifiedDomain(),
 		HttpOnly: true,
-		Secure:   true,
+		Secure:   false,
 	}
 	http.SetCookie(w, &cookie)
+
+	slog.Info(fmt.Sprintf("issued token: %+v", cookie))
 
 	return nil
 }
@@ -74,7 +87,7 @@ func validateToken(token string) error {
 	claims := &tokenClaims{}
 
 	t, err := jwt.ParseWithClaims(token, claims, func(t *jwt.Token) (interface{}, error) {
-		return signingKey, nil
+		return signingKey(), nil
 	})
 	if err != nil {
 		return err
@@ -90,7 +103,7 @@ func getUserIDFromToken(token string) (string, error) {
 	claims := &tokenClaims{}
 
 	t, err := jwt.ParseWithClaims(token, claims, func(t *jwt.Token) (interface{}, error) {
-		return signingKey, nil
+		return signingKey(), nil
 	})
 	if err != nil {
 		return "", err
