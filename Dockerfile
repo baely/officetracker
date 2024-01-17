@@ -22,8 +22,6 @@ COPY --from=builder /tracker /tracker
 COPY ./config ./config
 COPY ./app ./app
 
-COPY config/local.env ./.env
-
 RUN apk --no-cache add tzdata
 
 ENTRYPOINT ["/tracker"]
