@@ -261,7 +261,7 @@
 
         const url = window.location.href;
         const urlParts = url.split("/");
-        const yearMonth = urlParts[-1];
+        const yearMonth = urlParts[urlParts.length - 1];
         const year = parseInt(yearMonth.substring(0, 4));
         const month = parseInt(yearMonth.substring(5, 7)) - 1;
         if (!isNaN(year) && !isNaN(month)) {
