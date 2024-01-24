@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Office Tracker</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f4f4;
+            padding: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            flex-direction: column;
+        }
+
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            width: 360px; /* Width set to 540px */
+            margin-bottom: 20px;
+        }
+
+        #calendar-nav {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        #calendar-nav #month-year {
+            font-weight: bold;
+            font-size: 1.5em;
+            margin: 10px;
+        }
+
+        #calendar {
+            display: grid;
+            /*grid-template-columns: repeat(7, 1fr); !* 7 columns for the days of the week *!*/
+            gap: 0.5rem;
+            margin: auto;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .weekday-header, .day {
+            border: 1px solid #dee2e6; /* Bootstrap-like border color */
+            padding: 0.5rem;
+            text-align: center;
+            background-color: #f8f9fa; /* Bootstrap-like background color */
+        }
+
+        .weekday-header {
+            font-weight: bold;
+            color: #495057; /* Bootstrap-like text color */
+        }
+
+        .day {
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        button {
+            color: #fff;
+            background-color: #007bff; /* Bootstrap primary color */
+            border: 1px solid #007bff;
+            padding: 0.375rem 0.75rem;
+            font-size: 1rem;
+            line-height: 1.5;
+            border-radius: 0.25rem;
+            cursor: pointer;
+            transition: background-color 0.15s ease-in-out, border-color 0.15s ease-in-out;
+        }
+
+        button:hover {
+            background-color: #0069d9; /* Darken on hover */
+            border-color: #0062cc;
+        }
+
+        button:focus {
+            outline: none;
+            box-shadow: 0 0 0 0.2rem rgba(38, 143, 255, 0.5);
+        }
+
+        .legend {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 1rem;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-right: 1rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .legend-color {
+            width: 1rem;
+            height: 1rem;
+            border: 1px solid #dee2e6;
+            margin-right: 0.5rem;
+        }
+
+        .summary-container table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .summary-container th, .summary-container td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        .summary-container th {
+            background-color: #f4f4f4;
+        }
+
+        .additional-buttons {
+        }
+
+        .additional-buttons .btn {
+            display: block;
+            padding: 10px;
+            margin-top: 10px;
+            text-align: center;
+            border-radius: 4px;
+            background-color: #28a745;
+            color: white;
+            text-decoration: none;
+            box-sizing: border-box;
+        }
+        .additional-buttons .btn:hover {
+            background-color: #218838;
+        }
+        .additional-buttons .btn-setup {
+            background-color: #007bff;
+        }
+        .additional-buttons .btn-setup:hover {
+            background-color: #0056b3;
+        }
+
+        .untracked { background-color: #FFFFFF; } /* White, as requested */
+        .present { background-color: #4CAF50; } /* A softer green */
+        .not-present { background-color: #F44336; } /* A slightly muted red */
+        .other { background-color: #2196F3; } /* A vibrant but not too bright blue */
+        .today { border: 5px solid #FFC107; font-weight: bold; padding: 3px; } /* A golden yellow for emphasis */
+
+        @media (max-width: 600px) {
+            #calendar {
+                grid-template-columns: repeat(3, 1fr); /* For smaller screens, show fewer columns */
+            }
+
+            .btn {
+                padding: 0.25rem 0.5rem;
+                font-size: 0.8rem;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 0 10px;
+            }
+        }
+
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <!-- All your content goes here -->
+
+    <div id="calendar-nav">
+        <button id="prev-month">Previous</button>
+        <span id="month-year"></span>
+        <button id="next-month">Next</button>
+    </div>
+
+    <div id="calendar"></div>
+
+    <div id="legend" class="legend">
+        <div class="legend-item">
+            <span class="legend-color untracked"></span> Untracked
+        </div>
+        <div class="legend-item">
+            <span class="legend-color present"></span> Work from Home
+        </div>
+        <div class="legend-item">
+            <span class="legend-color not-present"></span> In office
+        </div>
+        <div class="legend-item">
+            <span class="legend-color other"></span> Other (Untracked)
+        </div>
+    </div>
+
+    <div class="summary-container">
+        <h2>Summary</h2>
+        <p>Present in office for {{.Summary.TotalPresent}} out of {{.Summary.TotalDays}} days. ({{.Summary.Percent}}%)</p>
+        <table>
+            <tr>
+                <th>Month</th>
+                <th>Present</th>
+                <th>Total</th>
+                <th>Percent</th>
+            </tr>
+            {{range $month, $data := .Summary.MonthData}}
+            <tr>
+                <td>{{$data.MonthLabel}}</td>
+                <td>{{$data.TotalPresent}}</td>
+                <td>{{$data.TotalDays}}</td>
+                <td>{{$data.Percent}}%</td>
+            </tr>
+            {{end}}
+        </table>
+    </div>
+    <div class="additional-buttons">
+        <a href="setup" class="btn btn-setup">Setup</a>
+        <a href="download" class="btn">Download CSV</a>
+    </div>
+</div>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        let state = Array(31).fill(0);
+
+        const states = ["untracked", "present", "not present", "other"];
+        let currentMonth = new Date().getMonth(); // 0-11 for January to December
+        let currentYear = new Date().getFullYear();
+
+        const url = window.location.href;
+        const urlParts = url.split("/");
+        if (urlParts.length === 5) {
+            const yearMonth = urlParts[4];
+            const year = parseInt(yearMonth.substring(0, 4));
+            const month = parseInt(yearMonth.substring(5, 7)) - 1;
+            if (!isNaN(year) && !isNaN(month)) {
+                currentMonth = month;
+                currentYear = year;
+            }
+        }
+
+        const calendar = document.getElementById('calendar');
+        const monthYearDisplay = document.getElementById('month-year');
+
+        document.getElementById('prev-month').addEventListener('click', function () {
+            changeMonth(-1);
+        });
+
+        document.getElementById('next-month').addEventListener('click', function () {
+            changeMonth(1);
+        });
+
+        function changeMonth(delta) {
+            currentMonth += delta;
+            if (currentMonth < 0) {
+                currentMonth = 11;
+                currentYear--;
+            } else if (currentMonth > 11) {
+                currentMonth = 0;
+                currentYear++;
+            }
+            window.location.href = "../form/" + formatDate(currentYear, currentMonth);
+        }
+
+        fetch("../user-state/" + formatDate(currentYear, currentMonth))
+            .then(response => response.json())
+            .then(data => {
+                if (data.length > 0) {
+                    state = data;
+                    generateCalendar(currentMonth, currentYear);
+                }
+            });
+
+        const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September",
+            "October", "November", "December"];
+
+        function generateCalendar(month, year) {
+            calendar.innerHTML = ''; // Clear existing calendar
+            monthYearDisplay.textContent = months[month] + " " + year;
+
+            let table = document.createElement('table');
+            let thead = document.createElement('thead');
+            let tbody = document.createElement('tbody');
+
+            // Weekday headers
+            const weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+            let row = document.createElement('tr');
+            weekdays.forEach(day => {
+                let th = document.createElement('th');
+                th.textContent = day;
+                row.appendChild(th);
+            });
+            thead.appendChild(row);
+            table.appendChild(thead);
+
+            // Days of the month
+            let firstDayOfMonth = new Date(year, month, 1);
+            let startingDayOfWeek = firstDayOfMonth.getDay() || 7; // Convert Sunday from 0 to 7
+            let currentDate = new Date(year, month, 1 - (startingDayOfWeek - 1));
+            let today = new Date();
+            today = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+            let first = true;
+            while (first || currentDate.getMonth() === month || currentDate.getDay() !== 1) {
+                first = false;
+                row = document.createElement('tr');
+                for (let i = 0; i < 7; i++) {
+                    let td = document.createElement('td');
+                    if (currentDate.getMonth() === month) {
+                        td.textContent = currentDate.getDate();
+                        // td.className = 'day';
+                        td.classList.add('day');
+                        td.dataset.state = state[currentDate.getDate()]; // Initial state
+                        // td.style.backgroundColor = getColorForState(states[td.dataset.state]);
+                        td.classList.add(getClassForState(states[td.dataset.state]));
+
+                        if (currentDate.getTime() === today.getTime()) {
+                            td.classList.add('today');
+                        }
+
+                        td.addEventListener('click', function () {
+                            cycleState(this, 1);
+                        });
+
+                        td.addEventListener('contextmenu', function (event) {
+                            event.preventDefault();
+                            cycleState(this, -1);
+                        });
+                    }
+                    row.appendChild(td);
+                    currentDate.setDate(currentDate.getDate() + 1);
+                }
+                tbody.appendChild(row);
+            }
+
+            table.appendChild(tbody);
+            calendar.appendChild(table);
+        }
+
+        function cycleState(dayElement, direction) {
+            let previousState = parseInt(dayElement.dataset.state);
+            let currentState = (previousState + direction + states.length) % states.length;
+            dayElement.dataset.state = currentState;
+            dayElement.classList.remove(getClassForState(states[previousState]));
+            dayElement.classList.add(getClassForState(states[currentState]));
+            updateBackend(dayElement.textContent, currentState);
+        }
+
+        function getClassForState(state) {
+            switch (state) {
+                case "untracked":
+                    return "untracked";
+                case "present":
+                    return "present";
+                case "not present":
+                    return "not-present";
+                case "other":
+                    return "other";
+                default:
+                    return "untracked";
+            }
+        }
+
+        function updateBackend(day, numState) {
+            // console.log(`Updating backend: Day ${day}, State: ${state}`, JSON.stringify({day, state}));
+            let month = "" + (currentMonth + 1);
+            let year = "" + currentYear;
+            let state = "" +  numState;
+            let obj = {day, month, year, state};
+            fetch("../submit", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(obj),
+                credentials: "include"
+            });
+        }
+
+        function formatDate(year, month) {
+            return year + "-" + (month + 1).toString().padStart(2, "0");
+        }
+
+        generateCalendar(currentMonth, currentYear); // Generate initial calendar
+    });
+</script>
+</body>
+</html>

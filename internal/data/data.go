@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/baely/officetracker/internal/database"
+	"github.com/baely/officetracker/internal/util"
 )
 
 var (
@@ -15,6 +16,7 @@ var (
 
 type MonthSummary struct {
 	MonthUri     string
+	MonthLabel   string
 	TotalDays    int
 	TotalPresent int
 	Percent      string
@@ -24,33 +26,55 @@ type Summary struct {
 	TotalDays    int
 	TotalPresent int
 	Percent      string
-	MonthData    map[string]*MonthSummary
+	MonthData    []*MonthSummary
+	MonthKeys    []string
 }
 
-func GenerateSummary(db *database.Client, userId string) (Summary, error) {
-	entries, err := db.GetLatestEntries(userId)
+func GenerateSummary(db *database.Client, userId string, month, year int) (Summary, error) {
+	bankYear := year
+	if month >= 10 {
+		bankYear++
+	}
+
+	entries, err := db.GetEntriesForBankYear(userId, bankYear)
 	if err != nil {
 		return Summary{}, err
 	}
 
-	monthData := make(map[string]*MonthSummary)
+	monthSet := make(map[string]bool)
+	var monthData []*MonthSummary
+
+	monthIter := -1
 
 	var totalDays, totalPresent int
 	for _, e := range entries {
-		month := e.Date.Format("January 2006")
-		if _, ok := monthData[month]; !ok {
-			monthData[month] = &MonthSummary{
-				MonthUri: fmt.Sprintf("/%s", e.Date.Format("2006-01")),
-			}
+		if e.State < 1 || e.State > 2 {
+			continue
 		}
-		data, _ := monthData[month]
 
-		if e.Presence == "office" {
+		entryMonth := fmt.Sprintf("%s %d", time.Month(e.Month).String(), e.Year)
+		if _, ok := monthSet[entryMonth]; !ok {
+			monthIter++
+			monthSet[entryMonth] = true
+			monthData = append(monthData, &MonthSummary{
+				MonthUri:   fmt.Sprintf("/%d/%d", e.Year, e.Month),
+				MonthLabel: entryMonth,
+			})
+		}
+
+		data := monthData[monthIter]
+
+		if e.State == 1 {
 			totalPresent++
 			data.TotalPresent++
+
+			totalDays++
+			data.TotalDays++
 		}
-		totalDays++
-		data.TotalDays++
+		if e.State == 2 {
+			totalDays++
+			data.TotalDays++
+		}
 	}
 
 	for _, data := range monthData {
@@ -74,10 +98,11 @@ func GenerateCsv(db *database.Client, userId string) ([]byte, error) {
 	var b bytes.Buffer
 	w := bufio.NewWriter(&b)
 
-	fmt.Fprintf(w, "%s,%s,%s,%s\n", "Date", "Created Date", "Presence", "Reason")
+	fmt.Fprintf(w, "%s,%s,%s\n", "Date", "Created Date", "Presence")
 
 	for _, e := range entries {
-		fmt.Fprintf(w, "%s,%s,%s,%s\n", e.Date.Format("2006-01-02"), e.CreatedDate.In(melbourneLocation).Format("2006-01-02 15:04:05"), e.Presence, e.Reason)
+		explanation := util.StateToString(e.State)
+		fmt.Fprintf(w, "%d-%d-%d,%s,%s\n", e.Year, e.Month, e.Day, e.CreateDate.In(melbourneLocation).Format("2006-01-02 15:04:05"), explanation)
 	}
 
 	w.Flush()
