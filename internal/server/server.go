@@ -63,7 +63,7 @@ func (s *Server) handleSetup(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleForm(w http.ResponseWriter, r *http.Request) {
 	month := chi.URLParam(r, "month")
 
-	if month == "summary" || month == "download" {
+	if month == "setup" || month == "download" {
 		http.Redirect(w, r, fmt.Sprintf("/%s", month), http.StatusTemporaryRedirect)
 	}
 

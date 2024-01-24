@@ -22,7 +22,7 @@
             background: white;
             padding: 20px;
             border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
             width: 360px; /* Width set to 540px */
             margin-bottom: 20px;
         }
@@ -112,11 +112,13 @@
             width: 100%;
             border-collapse: collapse;
         }
+
         .summary-container th, .summary-container td {
             border: 1px solid #ddd;
             padding: 8px;
             text-align: left;
         }
+
         .summary-container th {
             background-color: #f4f4f4;
         }
@@ -135,21 +137,46 @@
             text-decoration: none;
             box-sizing: border-box;
         }
+
         .additional-buttons .btn:hover {
             background-color: #218838;
         }
+
         .additional-buttons .btn-setup {
             background-color: #007bff;
         }
+
         .additional-buttons .btn-setup:hover {
             background-color: #0056b3;
         }
 
-        .untracked { background-color: #FFFFFF; } /* White, as requested */
-        .present { background-color: #4CAF50; } /* A softer green */
-        .not-present { background-color: #F44336; } /* A slightly muted red */
-        .other { background-color: #2196F3; } /* A vibrant but not too bright blue */
-        .today { border: 5px solid #FFC107; font-weight: bold; padding: 3px; } /* A golden yellow for emphasis */
+        .untracked {
+            background-color: #FFFFFF;
+        }
+
+        /* White, as requested */
+        .present {
+            background-color: #4CAF50;
+        }
+
+        /* A softer green */
+        .not-present {
+            background-color: #F44336;
+        }
+
+        /* A slightly muted red */
+        .other {
+            background-color: #2196F3;
+        }
+
+        /* A vibrant but not too bright blue */
+        .today {
+            border: 5px solid #FFC107;
+            font-weight: bold;
+            padding: 3px;
+        }
+
+        /* A golden yellow for emphasis */
 
         @media (max-width: 600px) {
             #calendar {
@@ -200,7 +227,8 @@
 
     <div class="summary-container">
         <h2>Summary</h2>
-        <p>Present in office for {{.Summary.TotalPresent}} out of {{.Summary.TotalDays}} days. ({{.Summary.Percent}}%)</p>
+        <p>Present in office for {{.Summary.TotalPresent}} out of {{.Summary.TotalDays}} days.
+            ({{.Summary.Percent}}%)</p>
         <table>
             <tr>
                 <th>Month</th>
@@ -233,16 +261,14 @@
 
         const url = window.location.href;
         const urlParts = url.split("/");
-        if (urlParts.length === 5) {
-            const yearMonth = urlParts[4];
-            const year = parseInt(yearMonth.substring(0, 4));
-            const month = parseInt(yearMonth.substring(5, 7)) - 1;
-            if (!isNaN(year) && !isNaN(month)) {
-                currentMonth = month;
-                currentYear = year;
-            }
+        const yearMonth = urlParts[4];
+        const year = parseInt(yearMonth.substring(0, 4));
+        const month = parseInt(yearMonth.substring(5, 7)) - 1;
+        if (!isNaN(year) && !isNaN(month)) {
+            currentMonth = month;
+            currentYear = year;
         }
-
+        
         const calendar = document.getElementById('calendar');
         const monthYearDisplay = document.getElementById('month-year');
 
@@ -369,7 +395,7 @@
             // console.log(`Updating backend: Day ${day}, State: ${state}`, JSON.stringify({day, state}));
             let month = "" + (currentMonth + 1);
             let year = "" + currentYear;
-            let state = "" +  numState;
+            let state = "" + numState;
             let obj = {day, month, year, state};
             fetch("../submit", {
                 method: 'POST',
