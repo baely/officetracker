@@ -64,14 +64,14 @@ func GenerateSummary(db *database.Client, userId string, month, year int) (Summa
 
 		data := monthData[monthIter]
 
-		if e.State == 1 {
+		if e.State == util.Office {
 			totalPresent++
 			data.TotalPresent++
 
 			totalDays++
 			data.TotalDays++
 		}
-		if e.State == 2 {
+		if e.State == util.WFH {
 			totalDays++
 			data.TotalDays++
 		}
