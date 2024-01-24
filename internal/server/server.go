@@ -69,6 +69,7 @@ func (s *Server) handleForm(w http.ResponseWriter, r *http.Request) {
 
 	if month == "" {
 		month = time.Now().Format("2006-01")
+		http.Redirect(w, r, fmt.Sprintf("/form/%s", month), http.StatusTemporaryRedirect)
 	}
 	t, err := time.Parse("2006-01", month)
 	if err != nil {
