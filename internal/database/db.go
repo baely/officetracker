@@ -15,11 +15,18 @@ type Client struct {
 }
 
 type Entry struct {
-	User        string
-	Date        time.Time
-	CreatedDate time.Time
-	Presence    string
-	Reason      string
+	User             string
+	CreateDate       time.Time
+	Day, Month, Year int
+	State            int
+}
+
+func buildDocumentId(e Entry) string {
+	return fmt.Sprintf("%s-%d-%d-%d", e.User, e.Day, e.Month, e.Year)
+}
+
+func generateDocumentId(userID string, day, month, year int) string {
+	return fmt.Sprintf("%s-%d-%d-%d", userID, day, month, year)
 }
 
 func NewFirestoreClient() (*Client, error) {
@@ -35,21 +42,52 @@ func NewFirestoreClient() (*Client, error) {
 func (c *Client) SaveEntry(e Entry) (string, error) {
 	ctx := context.Background()
 	collection := os.Getenv("COLLECTION_ID")
-	doc, _, err := c.Collection(collection).Add(ctx, e)
+	docId := buildDocumentId(e)
+	_, err := c.Collection(collection).Doc(docId).Set(ctx, e)
 	if err != nil {
 		return "", fmt.Errorf("failed to save entry: %v", err)
 	}
-	id := doc.ID
-	return id, nil
+	return docId, nil
 }
 
-func (c *Client) GetEntries(userId string) ([]Entry, error) {
+func (c *Client) GetEntries(userId string, month, year int) ([]Entry, error) {
 	ctx := context.Background()
 	collection := os.Getenv("COLLECTION_ID")
 	iter := c.Collection(collection).
 		Where("User", "==", userId).
-		OrderBy("Date", firestore.Asc).
-		OrderBy("CreatedDate", firestore.Asc).
+		Where("Month", "==", month).
+		Where("Year", "==", year).
+		OrderBy("Day", firestore.Asc).
+		Documents(ctx)
+	defer iter.Stop()
+
+	var entries []Entry
+	for {
+		doc, err := iter.Next()
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			return entries, fmt.Errorf("failed to iterate entries: %v", err)
+		}
+
+		var e Entry
+		if err := doc.DataTo(&e); err != nil {
+			return entries, fmt.Errorf("failed to convert entry: %v", err)
+		}
+		entries = append(entries, e)
+	}
+	return entries, nil
+}
+
+func (c *Client) GetAllEntries(userId string) ([]Entry, error) {
+	ctx := context.Background()
+	collection := os.Getenv("COLLECTION_ID")
+	iter := c.Collection(collection).
+		Where("User", "==", userId).
+		OrderBy("Year", firestore.Asc).
+		OrderBy("Month", firestore.Asc).
+		OrderBy("Day", firestore.Asc).
 		Documents(ctx)
 	defer iter.Stop()
 
@@ -73,20 +111,68 @@ func (c *Client) GetEntries(userId string) ([]Entry, error) {
 }
 
 func (c *Client) GetLatestEntries(userId string) ([]Entry, error) {
-	allEntries, err := c.GetEntries(userId)
+	allEntries, err := c.GetAllEntries(userId)
 	if err != nil {
 		return nil, err
 	}
 
 	var entries []Entry
-	lastDate := time.Time{}
 	for _, e := range allEntries {
-		if e.Date != lastDate {
-			entries = append(entries, e)
-			lastDate = e.Date
-		} else {
-			entries[len(entries)-1] = e
+		entries = append(entries, e)
+	}
+
+	return entries, nil
+}
+
+func (c *Client) GetEntriesForBankYear(userID string, bankYear int) ([]Entry, error) {
+	ctx := context.Background()
+	collection := os.Getenv("COLLECTION_ID")
+	var entries []Entry
+
+	iterPrev := c.Collection(collection).
+		Where("User", "==", userID).
+		Where("Year", "==", bankYear-1).
+		Where("Month", ">=", 10).
+		OrderBy("Month", firestore.Asc).
+		Documents(ctx)
+
+	for {
+		doc, err := iterPrev.Next()
+		if err == iterator.Done {
+			break
 		}
+		if err != nil {
+			return entries, fmt.Errorf("failed to iterate entries: %v", err)
+		}
+
+		var e Entry
+		if err := doc.DataTo(&e); err != nil {
+			return entries, fmt.Errorf("failed to convert entry: %v", err)
+		}
+		entries = append(entries, e)
+	}
+
+	iter := c.Collection(collection).
+		Where("User", "==", userID).
+		Where("Year", "==", bankYear).
+		Where("Month", "<=", 9).
+		OrderBy("Month", firestore.Asc).
+		Documents(ctx)
+
+	for {
+		doc, err := iter.Next()
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			return entries, fmt.Errorf("failed to iterate entries: %v", err)
+		}
+
+		var e Entry
+		if err := doc.DataTo(&e); err != nil {
+			return entries, fmt.Errorf("failed to convert entry: %v", err)
+		}
+		entries = append(entries, e)
 	}
 
 	return entries, nil
