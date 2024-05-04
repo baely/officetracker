@@ -294,6 +294,11 @@
             Array.from(summaryTable.querySelectorAll("tr")).filter(
                 e => !(e.querySelectorAll("td").length === 0 || e.querySelectorAll("td")[0].textContent !== monthYearDisplay.textContent)
             )[0];
+
+        if (thisMonth == null) {
+            return;
+        }
+
         let thisMonthCells = thisMonth.querySelectorAll("td");
 
         thisMonthCells[1].textContent = stats[1];
