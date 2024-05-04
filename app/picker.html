@@ -266,10 +266,6 @@
             currentYear = year;
         }
 
-        console.log(currentMonth, currentYear);
-        console.log(urlParts);
-        console.log(year, month);
-
         const calendar = document.getElementById('calendar');
         const monthYearDisplay = document.getElementById('month-year');
 
@@ -396,8 +392,16 @@
             // console.log(`Updating backend: Day ${day}, State: ${state}`, JSON.stringify({day, state}));
             let month = "" + (currentMonth + 1);
             let year = "" + currentYear;
-            let state = "" + numState;
-            let obj = {day, month, year, state};
+
+            let days = [];
+
+            state.forEach((i, s) => {
+                days.push({
+                    "day": "" + i, "state": "" + s,
+                })
+            });
+
+            let obj = {day, month, year, days};
             fetch("../submit", {
                 method: 'POST',
                 headers: {

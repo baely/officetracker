@@ -29,10 +29,12 @@ type Server struct {
 }
 
 type submission struct {
-	Day   string `json:"day"`
 	Month string `json:"month"`
 	Year  string `json:"year"`
-	State string `json:"state"`
+	Days  []struct {
+		Day   string `json:"day"`
+		State string `json:"state"`
+	} `json:"days"`
 }
 
 func (s *Server) handleNotification(w http.ResponseWriter, r *http.Request) {
@@ -103,7 +105,7 @@ func (s *Server) handleState(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	entries, err := s.db.GetEntries(auth.GetUserID(r), int(t.Month()), t.Year())
+	entry, err := s.db.GetEntries(auth.GetUserID(r), int(t.Month()), t.Year())
 	if err != nil {
 		slog.Error(fmt.Sprintf("failed to get entries: %v", err))
 		http.Error(w, internalErrorMsg, http.StatusInternalServerError)
@@ -111,8 +113,9 @@ func (s *Server) handleState(w http.ResponseWriter, r *http.Request) {
 	}
 
 	state := make([]int, 32)
-	for _, e := range entries {
-		state[e.Day] = e.State
+	for day, dayState := range entry.Days {
+		dd, _ := strconv.Atoi(day)
+		state[dd] = dayState
 	}
 
 	b, err := json.Marshal(state)
@@ -142,12 +145,6 @@ func (s *Server) handleEntry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	day, err := strconv.Atoi(sub.Day)
-	if err != nil {
-		slog.Error(fmt.Sprintf("failed to parse day: %v", err))
-		http.Error(w, "bad date part", http.StatusBadRequest)
-		return
-	}
 	month, err := strconv.Atoi(sub.Month)
 	if err != nil {
 		slog.Error(fmt.Sprintf("failed to parse month: %v", err))
@@ -160,20 +157,26 @@ func (s *Server) handleEntry(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "bad date part", http.StatusBadRequest)
 		return
 	}
-	state, err := strconv.Atoi(sub.State)
-	if err != nil {
-		slog.Error(fmt.Sprintf("failed to parse state: %v", err))
-		http.Error(w, "bad state", http.StatusBadRequest)
-		return
+
+	days := make(map[string]int)
+
+	for _, daySub := range sub.Days {
+		state, err := strconv.Atoi(daySub.State)
+		if err != nil {
+			slog.Error(fmt.Sprintf("failed to parse state: %v", err))
+			http.Error(w, "bad state", http.StatusBadRequest)
+			return
+		}
+
+		days[daySub.Day] = state
 	}
 
 	e := db.Entry{
 		User:       auth.GetUserID(r),
 		CreateDate: time.Now(),
-		Day:        day,
 		Month:      month,
 		Year:       year,
-		State:      state,
+		Days:       days,
 	}
 	id, err := s.db.SaveEntry(e)
 	if err != nil {

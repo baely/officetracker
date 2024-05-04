@@ -48,32 +48,34 @@ func GenerateSummary(db *database.Client, userId string, month, year int) (Summa
 
 	var totalDays, totalPresent int
 	for _, e := range entries {
-		if e.State < 1 || e.State > 2 {
-			continue
-		}
+		for _, state := range e.Days {
+			if state < 1 || state > 2 {
+				continue
+			}
 
-		entryMonth := fmt.Sprintf("%s %d", time.Month(e.Month).String(), e.Year)
-		if _, ok := monthSet[entryMonth]; !ok {
-			monthIter++
-			monthSet[entryMonth] = true
-			monthData = append(monthData, &MonthSummary{
-				MonthUri:   fmt.Sprintf("/%d/%d", e.Year, e.Month),
-				MonthLabel: entryMonth,
-			})
-		}
+			entryMonth := fmt.Sprintf("%s %d", time.Month(e.Month).String(), e.Year)
+			if _, ok := monthSet[entryMonth]; !ok {
+				monthIter++
+				monthSet[entryMonth] = true
+				monthData = append(monthData, &MonthSummary{
+					MonthUri:   fmt.Sprintf("/%d/%d", e.Year, e.Month),
+					MonthLabel: entryMonth,
+				})
+			}
 
-		data := monthData[monthIter]
+			data := monthData[monthIter]
 
-		if e.State == util.Office {
-			totalPresent++
-			data.TotalPresent++
+			if state == util.Office {
+				totalPresent++
+				data.TotalPresent++
 
-			totalDays++
-			data.TotalDays++
-		}
-		if e.State == util.WFH {
-			totalDays++
-			data.TotalDays++
+				totalDays++
+				data.TotalDays++
+			}
+			if state == util.WFH {
+				totalDays++
+				data.TotalDays++
+			}
 		}
 	}
 
@@ -101,8 +103,10 @@ func GenerateCsv(db *database.Client, userId string) ([]byte, error) {
 	fmt.Fprintf(w, "%s,%s,%s\n", "Date", "Created Date", "Presence")
 
 	for _, e := range entries {
-		explanation := util.StateToString(e.State)
-		fmt.Fprintf(w, "%d-%d-%d,%s,%s\n", e.Year, e.Month, e.Day, e.CreateDate.In(melbourneLocation).Format("2006-01-02 15:04:05"), explanation)
+		for day, state := range e.Days {
+			explanation := util.StateToString(state)
+			fmt.Fprintf(w, "%d-%d-%d,%s,%s\n", e.Year, e.Month, day, e.CreateDate.In(melbourneLocation).Format("2006-01-02 15:04:05"), explanation)
+		}
 	}
 
 	w.Flush()
