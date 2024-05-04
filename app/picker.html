@@ -289,9 +289,9 @@
         if (thisMonth == null) { return; }
         let thisMonthCells = thisMonth.querySelectorAll("td");
 
-        thisMonthCells[1].textContent = stats[1];
+        thisMonthCells[1].textContent = stats[2];
         thisMonthCells[2].textContent = stats[1] + stats[2];
-        thisMonthCells[3].textContent = (stats[1] / (stats[1] + stats[2]) * 100).toFixed(2) + "%";
+        thisMonthCells[3].textContent = (stats[2] / (stats[1] + stats[2]) * 100).toFixed(2) + "%";
     }
 
     function generateCalendar(month, year) {
