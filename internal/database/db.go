@@ -53,15 +53,12 @@ func (c *Client) SaveEntry(e Entry) (string, error) {
 func (c *Client) GetEntries(userId string, month, year int) (Entry, error) {
 	ctx := context.Background()
 	collection := os.Getenv("COLLECTION_ID")
-	iter := c.Collection(collection).
-		Where("User", "==", userId).
-		Where("Month", "==", month).
-		Where("Year", "==", year).
-		OrderBy("Day", firestore.Asc).
-		Documents(ctx)
-	defer iter.Stop()
-
-	doc, err := iter.Next()
+	docTitle := buildDocumentId(Entry{
+		User:  userId,
+		Month: month,
+		Year:  year,
+	})
+	doc, err := c.Collection(collection).Doc(docTitle).Get(ctx)
 	if err != nil {
 		return Entry{}, fmt.Errorf("failed to fetch entry: %v", err)
 	}
