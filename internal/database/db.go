@@ -15,14 +15,14 @@ type Client struct {
 }
 
 type Entry struct {
-	User             string
-	CreateDate       time.Time
-	Day, Month, Year int
-	State            int
+	User        string
+	CreateDate  time.Time
+	Month, Year int
+	Days        map[string]int
 }
 
 func buildDocumentId(e Entry) string {
-	return fmt.Sprintf("%s-%d-%d-%d", e.User, e.Day, e.Month, e.Year)
+	return fmt.Sprintf("%s-%d-%d", e.User, e.Month, e.Year)
 }
 
 func generateDocumentId(userID string, day, month, year int) string {
@@ -50,34 +50,25 @@ func (c *Client) SaveEntry(e Entry) (string, error) {
 	return docId, nil
 }
 
-func (c *Client) GetEntries(userId string, month, year int) ([]Entry, error) {
+func (c *Client) GetEntries(userId string, month, year int) (Entry, error) {
 	ctx := context.Background()
 	collection := os.Getenv("COLLECTION_ID")
-	iter := c.Collection(collection).
-		Where("User", "==", userId).
-		Where("Month", "==", month).
-		Where("Year", "==", year).
-		OrderBy("Day", firestore.Asc).
-		Documents(ctx)
-	defer iter.Stop()
-
-	var entries []Entry
-	for {
-		doc, err := iter.Next()
-		if err == iterator.Done {
-			break
-		}
-		if err != nil {
-			return entries, fmt.Errorf("failed to iterate entries: %v", err)
-		}
-
-		var e Entry
-		if err := doc.DataTo(&e); err != nil {
-			return entries, fmt.Errorf("failed to convert entry: %v", err)
-		}
-		entries = append(entries, e)
+	docTitle := buildDocumentId(Entry{
+		User:  userId,
+		Month: month,
+		Year:  year,
+	})
+	doc, err := c.Collection(collection).Doc(docTitle).Get(ctx)
+	if err != nil {
+		return Entry{}, fmt.Errorf("failed to fetch entry: %v", err)
 	}
-	return entries, nil
+
+	var e Entry
+	if err := doc.DataTo(&e); err != nil {
+		return Entry{}, fmt.Errorf("failed to fetch entry: %v", err)
+	}
+
+	return e, nil
 }
 
 func (c *Client) GetAllEntries(userId string) ([]Entry, error) {

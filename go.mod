@@ -1,6 +1,6 @@
 module github.com/baely/officetracker
 
-go 1.21
+go 1.22
 
 require (
 	cloud.google.com/go/firestore v1.14.0

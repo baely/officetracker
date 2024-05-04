@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <title>Office Tracker</title>
     <style>
@@ -249,29 +249,170 @@
     </div>
 </div>
 <script>
-    document.addEventListener('DOMContentLoaded', function () {
-        let state = Array(31).fill(0);
+    let state = Array(31).fill(0);
+    let loaded = false;
 
-        const states = ["untracked", "present", "not present", "other"];
-        let currentMonth = new Date().getMonth(); // 0-11 for January to December
-        let currentYear = new Date().getFullYear();
+    const states = ["untracked", "present", "not present", "other"];
+    let currentMonth = new Date().getMonth(); // 0-11 for January to December
+    let currentYear = new Date().getFullYear();
 
-        const url = window.location.href;
-        const urlParts = url.split("/");
-        const yearMonth = urlParts[urlParts.length - 1];
-        const year = parseInt(yearMonth.substring(0, 4));
-        const month = parseInt(yearMonth.substring(5, 7)) - 1;
-        if (!isNaN(year) && !isNaN(month)) {
-            currentMonth = month;
-            currentYear = year;
+    const url = window.location.href;
+    const urlParts = url.split("/");
+    const yearMonth = urlParts[urlParts.length - 1];
+    const year = parseInt(yearMonth.substring(0, 4));
+    const month = parseInt(yearMonth.substring(5, 7)) - 1;
+    if (!isNaN(year) && !isNaN(month)) {
+        currentMonth = month;
+        currentYear = year;
+    }
+
+    function changeMonth(delta) {
+        currentMonth += delta;
+        if (currentMonth < 0) {
+            currentMonth = 11;
+            currentYear--;
+        } else if (currentMonth > 11) {
+            currentMonth = 0;
+            currentYear++;
         }
+        window.location.href = "../form/" + formatDate(currentYear, currentMonth);
+    }
 
-        console.log(currentMonth, currentYear);
-        console.log(urlParts);
-        console.log(year, month);
-
+    function generateCalendar(month, year) {
         const calendar = document.getElementById('calendar');
         const monthYearDisplay = document.getElementById('month-year');
+
+        calendar.innerHTML = ''; // Clear existing calendar
+        monthYearDisplay.textContent = months[month] + " " + year;
+
+        let table = document.createElement('table');
+        let thead = document.createElement('thead');
+        let tbody = document.createElement('tbody');
+
+        // Weekday headers
+        const weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+        let row = document.createElement('tr');
+        weekdays.forEach(day => {
+            let th = document.createElement('th');
+            th.textContent = day;
+            row.appendChild(th);
+        });
+        thead.appendChild(row);
+        table.appendChild(thead);
+
+        // Days of the month
+        let firstDayOfMonth = new Date(year, month, 1);
+        let startingDayOfWeek = firstDayOfMonth.getDay() || 7; // Convert Sunday from 0 to 7
+        let currentDate = new Date(year, month, 1 - (startingDayOfWeek - 1));
+        let today = new Date();
+        today = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+        let first = true;
+        while (first || currentDate.getMonth() === month || currentDate.getDay() !== 1) {
+            first = false;
+            row = document.createElement('tr');
+            for (let i = 0; i < 7; i++) {
+                let td = document.createElement('td');
+                if (currentDate.getMonth() === month) {
+                    td.textContent = currentDate.getDate();
+                    // td.className = 'day';
+                    td.classList.add('day');
+                    td.dataset.state = state[currentDate.getDate()]; // Initial state
+                    // td.style.backgroundColor = getColorForState(states[td.dataset.state]);
+                    td.classList.add(getClassForState(states[td.dataset.state]));
+
+                    if (currentDate.getTime() === today.getTime()) {
+                        td.classList.add('today');
+                    }
+
+                    td.addEventListener('click', function () {
+                        cycleState(this, 1);
+                    });
+
+                    td.addEventListener('contextmenu', function (event) {
+                        event.preventDefault();
+                        cycleState(this, -1);
+                    });
+                }
+                row.appendChild(td);
+                currentDate.setDate(currentDate.getDate() + 1);
+            }
+            tbody.appendChild(row);
+        }
+
+        table.appendChild(tbody);
+        calendar.appendChild(table);
+    }
+
+    const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September",
+        "October", "November", "December"];
+
+    function cycleState(dayElement, direction) {
+        let previousState = parseInt(dayElement.dataset.state);
+        let currentState = (previousState + direction + states.length) % states.length;
+        dayElement.dataset.state = currentState;
+        state[dayElement.textContent] = currentState;
+        dayElement.classList.remove(getClassForState(states[previousState]));
+        dayElement.classList.add(getClassForState(states[currentState]));
+        updateBackend(dayElement.textContent, currentState);
+    }
+
+    function getClassForState(state) {
+        switch (state) {
+            case "untracked":
+                return "untracked";
+            case "present":
+                return "present";
+            case "not present":
+                return "not-present";
+            case "other":
+                return "other";
+            default:
+                return "untracked";
+        }
+    }
+
+    function updateBackend(day, numState) {
+        // console.log(`Updating backend: Day ${day}, State: ${state}`, JSON.stringify({day, state}));
+        let month = "" + (currentMonth + 1);
+        let year = "" + currentYear;
+
+        let days = [];
+
+        state.forEach((s, i) => {
+            days.push({
+                "day": "" + i, "state": "" + s,
+            })
+        });
+
+        let obj = {month, year, days};
+        fetch("../submit", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(obj),
+            credentials: "include"
+        });
+    }
+
+    function formatDate(year, month) {
+        return year + "-" + (month + 1).toString().padStart(2, "0");
+    }
+
+    fetch("../user-state/" + formatDate(currentYear, currentMonth))
+        .then(response => response.json())
+        .then(data => {
+            if (data.length > 0) {
+                state = data;
+                if (loaded) {
+                    generateCalendar(currentMonth, currentYear);
+                }
+            }
+        });
+
+    document.addEventListener('DOMContentLoaded', function () {
+        loaded = true;
 
         document.getElementById('prev-month').addEventListener('click', function () {
             changeMonth(-1);
@@ -280,137 +421,6 @@
         document.getElementById('next-month').addEventListener('click', function () {
             changeMonth(1);
         });
-
-        function changeMonth(delta) {
-            currentMonth += delta;
-            if (currentMonth < 0) {
-                currentMonth = 11;
-                currentYear--;
-            } else if (currentMonth > 11) {
-                currentMonth = 0;
-                currentYear++;
-            }
-            window.location.href = "../form/" + formatDate(currentYear, currentMonth);
-        }
-
-        fetch("../user-state/" + formatDate(currentYear, currentMonth))
-            .then(response => response.json())
-            .then(data => {
-                if (data.length > 0) {
-                    state = data;
-                    generateCalendar(currentMonth, currentYear);
-                }
-            });
-
-        const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September",
-            "October", "November", "December"];
-
-        function generateCalendar(month, year) {
-            calendar.innerHTML = ''; // Clear existing calendar
-            monthYearDisplay.textContent = months[month] + " " + year;
-
-            let table = document.createElement('table');
-            let thead = document.createElement('thead');
-            let tbody = document.createElement('tbody');
-
-            // Weekday headers
-            const weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-            let row = document.createElement('tr');
-            weekdays.forEach(day => {
-                let th = document.createElement('th');
-                th.textContent = day;
-                row.appendChild(th);
-            });
-            thead.appendChild(row);
-            table.appendChild(thead);
-
-            // Days of the month
-            let firstDayOfMonth = new Date(year, month, 1);
-            let startingDayOfWeek = firstDayOfMonth.getDay() || 7; // Convert Sunday from 0 to 7
-            let currentDate = new Date(year, month, 1 - (startingDayOfWeek - 1));
-            let today = new Date();
-            today = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-
-            let first = true;
-            while (first || currentDate.getMonth() === month || currentDate.getDay() !== 1) {
-                first = false;
-                row = document.createElement('tr');
-                for (let i = 0; i < 7; i++) {
-                    let td = document.createElement('td');
-                    if (currentDate.getMonth() === month) {
-                        td.textContent = currentDate.getDate();
-                        // td.className = 'day';
-                        td.classList.add('day');
-                        td.dataset.state = state[currentDate.getDate()]; // Initial state
-                        // td.style.backgroundColor = getColorForState(states[td.dataset.state]);
-                        td.classList.add(getClassForState(states[td.dataset.state]));
-
-                        if (currentDate.getTime() === today.getTime()) {
-                            td.classList.add('today');
-                        }
-
-                        td.addEventListener('click', function () {
-                            cycleState(this, 1);
-                        });
-
-                        td.addEventListener('contextmenu', function (event) {
-                            event.preventDefault();
-                            cycleState(this, -1);
-                        });
-                    }
-                    row.appendChild(td);
-                    currentDate.setDate(currentDate.getDate() + 1);
-                }
-                tbody.appendChild(row);
-            }
-
-            table.appendChild(tbody);
-            calendar.appendChild(table);
-        }
-
-        function cycleState(dayElement, direction) {
-            let previousState = parseInt(dayElement.dataset.state);
-            let currentState = (previousState + direction + states.length) % states.length;
-            dayElement.dataset.state = currentState;
-            dayElement.classList.remove(getClassForState(states[previousState]));
-            dayElement.classList.add(getClassForState(states[currentState]));
-            updateBackend(dayElement.textContent, currentState);
-        }
-
-        function getClassForState(state) {
-            switch (state) {
-                case "untracked":
-                    return "untracked";
-                case "present":
-                    return "present";
-                case "not present":
-                    return "not-present";
-                case "other":
-                    return "other";
-                default:
-                    return "untracked";
-            }
-        }
-
-        function updateBackend(day, numState) {
-            // console.log(`Updating backend: Day ${day}, State: ${state}`, JSON.stringify({day, state}));
-            let month = "" + (currentMonth + 1);
-            let year = "" + currentYear;
-            let state = "" + numState;
-            let obj = {day, month, year, state};
-            fetch("../submit", {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(obj),
-                credentials: "include"
-            });
-        }
-
-        function formatDate(year, month) {
-            return year + "-" + (month + 1).toString().padStart(2, "0");
-        }
 
         generateCalendar(currentMonth, currentYear); // Generate initial calendar
     });
