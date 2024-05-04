@@ -279,26 +279,14 @@
     }
 
     function updateStats() {
-        let stats = {
-            0: 0, 1: 0, 2: 0, 3: 0,
-        };
-        state.forEach(s => {
-            stats[s] += 1;
-        })
+        let stats = { 0: 0, 1: 0, 2: 0, 3: 0 };
+        state.forEach(s => { stats[s] += 1; })
 
         const monthYearDisplay = document.getElementById('month-year');
         const summaryTable = document.getElementById("summary-table");
 
-        // Array.from($$("table")[1].querySelectorAll("tr")).filter(e => !(e.querySelectorAll("td").length == 0 || e.querySelectorAll("td")[0].textContent != monthYearDisplay.textContent))[0]
-        let thisMonth =
-            Array.from(summaryTable.querySelectorAll("tr")).filter(
-                e => !(e.querySelectorAll("td").length === 0 || e.querySelectorAll("td")[0].textContent !== monthYearDisplay.textContent)
-            )[0];
-
-        if (thisMonth == null) {
-            return;
-        }
-
+        let thisMonth = Array.from(summaryTable.querySelectorAll("tr")).filter(e => !(e.querySelectorAll("td").length === 0 || e.querySelectorAll("td")[0].textContent !== monthYearDisplay.textContent))[0];
+        if (thisMonth == null) { return; }
         let thisMonthCells = thisMonth.querySelectorAll("td");
 
         thisMonthCells[1].textContent = stats[1];
