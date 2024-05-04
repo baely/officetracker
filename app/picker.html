@@ -291,7 +291,7 @@
 
         // Array.from($$("table")[1].querySelectorAll("tr")).filter(e => !(e.querySelectorAll("td").length == 0 || e.querySelectorAll("td")[0].textContent != monthYearDisplay.textContent))[0]
         let thisMonth =
-            Array.from(document.getElementById("summary-table").querySelectorAll("tr")).filter(
+            Array.from(summaryTable.querySelectorAll("tr")).filter(
                 e => !(e.querySelectorAll("td").length === 0 || e.querySelectorAll("td")[0].textContent !== monthYearDisplay.textContent)
             )[0];
         let thisMonthCells = thisMonth.querySelectorAll("td");
@@ -377,6 +377,7 @@
         state[dayElement.textContent] = currentState;
         dayElement.classList.remove(getClassForState(states[previousState]));
         dayElement.classList.add(getClassForState(states[currentState]));
+        updateStats();
         updateBackend(dayElement.textContent, currentState);
     }
 
