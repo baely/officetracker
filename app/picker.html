@@ -351,6 +351,7 @@
         let previousState = parseInt(dayElement.dataset.state);
         let currentState = (previousState + direction + states.length) % states.length;
         dayElement.dataset.state = currentState;
+        state[dayElement.textContent] = currentState;
         dayElement.classList.remove(getClassForState(states[previousState]));
         dayElement.classList.add(getClassForState(states[currentState]));
         updateBackend(dayElement.textContent, currentState);
