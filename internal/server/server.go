@@ -29,12 +29,15 @@ type Server struct {
 }
 
 type submission struct {
-	Month string `json:"month"`
-	Year  string `json:"year"`
-	Days  []struct {
-		Day   string `json:"day"`
-		State string `json:"state"`
-	} `json:"days"`
+	Month string      `json:"month"`
+	Year  string      `json:"year"`
+	Days  map[int]int `json:"days"`
+	Notes string      `json:"notes"`
+}
+
+type response struct {
+	State []int  `json:"state"`
+	Notes string `json:"notes"`
 }
 
 func (s *Server) handleNotification(w http.ResponseWriter, r *http.Request) {
@@ -112,13 +115,17 @@ func (s *Server) handleState(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	state := make([]int, 32)
-	for day, dayState := range entry.Days {
-		dd, _ := strconv.Atoi(day)
-		state[dd] = dayState
+	resp := response{
+		State: make([]int, 32),
+		Notes: entry.Notes,
 	}
 
-	b, err := json.Marshal(state)
+	for day, dayState := range entry.Days {
+		dd, _ := strconv.Atoi(day)
+		resp.State[dd] = dayState
+	}
+
+	b, err := json.Marshal(resp)
 	if err != nil {
 		slog.Error(fmt.Sprintf("failed to marshal state: %v", err))
 		http.Error(w, internalErrorMsg, http.StatusInternalServerError)
@@ -160,15 +167,8 @@ func (s *Server) handleEntry(w http.ResponseWriter, r *http.Request) {
 
 	days := make(map[string]int)
 
-	for _, daySub := range sub.Days {
-		state, err := strconv.Atoi(daySub.State)
-		if err != nil {
-			slog.Error(fmt.Sprintf("failed to parse state: %v", err))
-			http.Error(w, "bad state", http.StatusBadRequest)
-			return
-		}
-
-		days[daySub.Day] = state
+	for day, state := range sub.Days {
+		days[fmt.Sprintf("%d", day)] = state
 	}
 
 	e := db.Entry{
@@ -177,6 +177,7 @@ func (s *Server) handleEntry(w http.ResponseWriter, r *http.Request) {
 		Month:      month,
 		Year:       year,
 		Days:       days,
+		Notes:      sub.Notes,
 	}
 	id, err := s.db.SaveEntry(e)
 	if err != nil {
