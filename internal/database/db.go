@@ -19,6 +19,7 @@ type Entry struct {
 	CreateDate  time.Time
 	Month, Year int
 	Days        map[string]int
+	Notes       string
 }
 
 func buildDocumentId(e Entry) string {
@@ -59,6 +60,9 @@ func (c *Client) GetEntries(userId string, month, year int) (Entry, error) {
 		Year:  year,
 	})
 	doc, err := c.Collection(collection).Doc(docTitle).Get(ctx)
+	if !doc.Exists() {
+		return Entry{}, nil
+	}
 	if err != nil {
 		return Entry{}, fmt.Errorf("failed to fetch entry: %v", err)
 	}

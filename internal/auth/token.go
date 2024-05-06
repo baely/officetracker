@@ -30,6 +30,10 @@ func signingKey() []byte {
 }
 
 func GetUserID(r *http.Request) string {
+	if util.Demo() {
+		return util.DemoUserId
+	}
+
 	cookie, err := r.Cookie(userCookie)
 	if err != nil {
 		return ""

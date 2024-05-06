@@ -176,6 +176,20 @@
             padding: 3px;
         }
 
+        textarea#notes {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            font-family: Arial, sans-serif;
+            font-size: 1rem;
+            line-height: 1.5;
+            color: #495057;
+            background-color: #f8f9fa;
+            box-sizing: border-box;
+            resize: vertical;
+        }
+
         /* A golden yellow for emphasis */
 
         @media (max-width: 600px) {
@@ -222,6 +236,13 @@
         </div>
     </div>
 
+    <div>
+        <h2>Notes</h2>
+        <p>
+            <textarea name="notes" id="notes"></textarea>
+        </p>
+    </div>
+
     <div class="summary-container">
         <h2>Summary</h2>
         <p>Present in office for {{.Summary.TotalPresent}} out of {{.Summary.TotalDays}} days.
@@ -256,15 +277,38 @@
     let currentMonth = new Date().getMonth(); // 0-11 for January to December
     let currentYear = new Date().getFullYear();
 
-    const url = window.location.href;
-    const urlParts = url.split("/");
-    const yearMonth = urlParts[urlParts.length - 1];
-    const year = parseInt(yearMonth.substring(0, 4));
-    const month = parseInt(yearMonth.substring(5, 7)) - 1;
-    if (!isNaN(year) && !isNaN(month)) {
-        currentMonth = month;
-        currentYear = year;
+    function updateDate() {
+        const url = window.location.href;
+        const urlParts = url.split("/");
+        const yearMonth = urlParts[urlParts.length - 1];
+        const year = parseInt(yearMonth.substring(0, 4));
+        const month = parseInt(yearMonth.substring(5, 7)) - 1;
+        if (!isNaN(year) && !isNaN(month)) {
+            currentMonth = month;
+            currentYear = year;
+        }
     }
+
+    updateDate();
+
+    function updateData() {
+        fetch("../user-state/" + formatDate(currentYear, currentMonth))
+            .then(response => response.json())
+            .then(payload => {
+                let data = payload.state;
+                if (data.length > 0) {
+                    state = data;
+                    if (loaded) {
+                        generateCalendar(currentMonth, currentYear);
+                    } else {
+                        console.log("Not loaded yet");
+                    }
+                }
+                document.getElementById("notes").value = payload.notes;
+            });
+    }
+
+    updateData();
 
     function changeMonth(delta) {
         currentMonth += delta;
@@ -275,7 +319,8 @@
             currentMonth = 0;
             currentYear++;
         }
-        window.location.href = "../form/" + formatDate(currentYear, currentMonth);
+        window.history.pushState({}, "", "../form/" + formatDate(currentYear, currentMonth));
+        updateData();
     }
 
     function updateStats() {
@@ -390,19 +435,19 @@
     }
 
     function updateBackend(day, numState) {
-        // console.log(`Updating backend: Day ${day}, State: ${state}`, JSON.stringify({day, state}));
         let month = "" + (currentMonth + 1);
         let year = "" + currentYear;
 
-        let days = [];
+        let days = {};
 
         state.forEach((s, i) => {
-            days.push({
-                "day": "" + i, "state": "" + s,
-            })
+            i = ""+i;
+            days[i] = s;
         });
 
-        let obj = {month, year, days};
+        let notes = document.getElementById("notes").value;
+
+        let obj = {month, year, days, notes};
         fetch("../submit", {
             method: 'POST',
             headers: {
@@ -439,7 +484,16 @@
             changeMonth(1);
         });
 
+        document.getElementById('notes').addEventListener('blur', function () {
+            updateBackend();
+        });
+
         generateCalendar(currentMonth, currentYear); // Generate initial calendar
+    });
+
+    window.addEventListener('popstate', function() {
+        updateDate();
+        updateData();
     });
 </script>
 </body>

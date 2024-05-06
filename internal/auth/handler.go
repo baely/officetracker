@@ -2,6 +2,7 @@ package auth
 
 import (
 	"fmt"
+	"github.com/baely/officetracker/internal/util"
 	"log/slog"
 	"net/http"
 
@@ -10,6 +11,11 @@ import (
 
 func Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if util.Demo() {
+			next.ServeHTTP(w, r)
+			return
+		}
+
 		cookie, err := r.Cookie(userCookie)
 		if err != nil {
 			slog.Error(fmt.Sprintf("failed to get cookie: %v", err))
