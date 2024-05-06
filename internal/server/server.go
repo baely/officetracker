@@ -17,6 +17,7 @@ import (
 	"github.com/baely/officetracker/internal/data"
 	db "github.com/baely/officetracker/internal/database"
 	"github.com/baely/officetracker/internal/integration"
+	"github.com/baely/officetracker/internal/util"
 )
 
 const (
@@ -212,10 +213,21 @@ func (s *Server) logRequest(next http.Handler) http.Handler {
 	})
 }
 
+func (s *Server) redirectOldUrl(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Host != util.QualifiedDomain() {
+			http.Redirect(w, r, util.BaseUri(), http.StatusPermanentRedirect)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
 func NewServer(port string) (*Server, error) {
 	s := &Server{}
 
-	r := chi.NewMux().With(s.logRequest)
+	r := chi.NewMux().With(s.logRequest, s.redirectOldUrl)
 
 	// Anonymous routes
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
