@@ -17,6 +17,7 @@ import (
 	"github.com/baely/officetracker/internal/data"
 	db "github.com/baely/officetracker/internal/database"
 	"github.com/baely/officetracker/internal/integration"
+	"github.com/baely/officetracker/internal/util"
 )
 
 const (
@@ -208,6 +209,17 @@ func (s *Server) handleDownload(w http.ResponseWriter, r *http.Request) {
 func (s *Server) logRequest(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		slog.Info(fmt.Sprintf("request: %s %s", r.Method, r.URL.Path))
+		next.ServeHTTP(w, r)
+	})
+}
+
+func (s *Server) redirectOldUrl(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Host != util.QualifiedDomain() {
+			http.Redirect(w, r, util.BaseUri(), http.StatusPermanentRedirect)
+			return
+		}
+
 		next.ServeHTTP(w, r)
 	})
 }
