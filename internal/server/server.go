@@ -227,7 +227,7 @@ func (s *Server) redirectOldUrl(next http.Handler) http.Handler {
 func NewServer(port string) (*Server, error) {
 	s := &Server{}
 
-	r := chi.NewMux().With(s.logRequest)
+	r := chi.NewMux().With(s.logRequest, s.redirectOldUrl)
 
 	// Anonymous routes
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
