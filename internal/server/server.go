@@ -7,7 +7,6 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
-	"os"
 	"strconv"
 	"time"
 
@@ -16,7 +15,6 @@ import (
 	"github.com/baely/officetracker/internal/auth"
 	"github.com/baely/officetracker/internal/data"
 	db "github.com/baely/officetracker/internal/database"
-	"github.com/baely/officetracker/internal/integration"
 	"github.com/baely/officetracker/internal/util"
 )
 
@@ -39,18 +37,6 @@ type submission struct {
 type response struct {
 	State []int  `json:"state"`
 	Notes string `json:"notes"`
-}
-
-func (s *Server) handleNotification(w http.ResponseWriter, r *http.Request) {
-	backendEndpoint := os.Getenv("BACKEND_ENDPOINT")
-	p := integration.NewPayload("Office Check", "Are you in the office today?", backendEndpoint)
-	if err := p.Send(); err != nil {
-		slog.Error(fmt.Sprintf("failed to send notification: %v", err))
-		http.Error(w, internalErrorMsg, http.StatusInternalServerError)
-		return
-	}
-
-	w.Write([]byte("OK"))
 }
 
 func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
@@ -234,7 +220,6 @@ func NewServer(port string) (*Server, error) {
 		http.Redirect(w, r, "form", http.StatusTemporaryRedirect)
 	})
 	r.Get("/login", s.handleLogin)
-	r.Get("/notify", s.handleNotification)
 
 	// User routes
 	r.With(auth.Middleware).Get("/form", s.handleForm)
