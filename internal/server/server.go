@@ -3,6 +3,7 @@ package server
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/baely/officetracker/internal/models"
 	"html/template"
 	"io"
 	"log/slog"
@@ -14,7 +15,7 @@ import (
 
 	"github.com/baely/officetracker/internal/auth"
 	"github.com/baely/officetracker/internal/data"
-	db "github.com/baely/officetracker/internal/database"
+	"github.com/baely/officetracker/internal/database"
 	"github.com/baely/officetracker/internal/util"
 )
 
@@ -24,7 +25,7 @@ const (
 
 type Server struct {
 	http.Server
-	db *db.Client
+	db database.Databaser
 }
 
 type submission struct {
@@ -78,7 +79,7 @@ func (s *Server) handleForm(w http.ResponseWriter, r *http.Request) {
 	}
 
 	tmpl := template.Must(template.ParseFiles("./app/picker.html"))
-	if err := tmpl.Execute(w, struct{ Summary data.Summary }{Summary: summary}); err != nil {
+	if err := tmpl.Execute(w, struct{ Summary models.Summary }{Summary: summary}); err != nil {
 		slog.Error(fmt.Sprintf("failed to render form: %v", err))
 		http.Error(w, internalErrorMsg, http.StatusInternalServerError)
 		return
@@ -158,7 +159,7 @@ func (s *Server) handleEntry(w http.ResponseWriter, r *http.Request) {
 		days[fmt.Sprintf("%d", day)] = state
 	}
 
-	e := db.Entry{
+	e := models.Entry{
 		User:       auth.GetUserID(r),
 		CreateDate: time.Now(),
 		Month:      month,
@@ -166,14 +167,12 @@ func (s *Server) handleEntry(w http.ResponseWriter, r *http.Request) {
 		Days:       days,
 		Notes:      sub.Notes,
 	}
-	id, err := s.db.SaveEntry(e)
-	if err != nil {
+	if err = s.db.SaveEntry(e); err != nil {
 		slog.Error(fmt.Sprintf("failed to save entry: %v", err))
 		http.Error(w, internalErrorMsg, http.StatusInternalServerError)
 		return
 	}
 
-	slog.Info(fmt.Sprintf("saved entry with id: %s", id))
 	w.Write([]byte("OK"))
 }
 
@@ -210,8 +209,10 @@ func (s *Server) redirectOldUrl(next http.Handler) http.Handler {
 	})
 }
 
-func NewServer(port string) (*Server, error) {
-	s := &Server{}
+func NewServer(port string, db database.Databaser) (*Server, error) {
+	s := &Server{
+		db: db,
+	}
 
 	r := chi.NewMux().With(s.logRequest, s.redirectOldUrl)
 
@@ -238,12 +239,6 @@ func NewServer(port string) (*Server, error) {
 	s.Server = http.Server{
 		Addr:    fmt.Sprintf(":%s", port),
 		Handler: r,
-	}
-
-	var err error
-	s.db, err = db.NewFirestoreClient()
-	if err != nil {
-		return nil, err
 	}
 
 	return s, nil

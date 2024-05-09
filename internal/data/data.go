@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"github.com/baely/officetracker/internal/models"
 	"time"
 
 	"github.com/baely/officetracker/internal/database"
@@ -14,23 +15,7 @@ var (
 	melbourneLocation, _ = time.LoadLocation("Australia/Melbourne")
 )
 
-type MonthSummary struct {
-	MonthUri     string
-	MonthLabel   string
-	TotalDays    int
-	TotalPresent int
-	Percent      string
-}
-
-type Summary struct {
-	TotalDays    int
-	TotalPresent int
-	Percent      string
-	MonthData    []*MonthSummary
-	MonthKeys    []string
-}
-
-func GenerateSummary(db *database.Client, userId string, month, year int) (Summary, error) {
+func GenerateSummary(db database.Databaser, userId string, month, year int) (models.Summary, error) {
 	bankYear := year
 	if month >= 10 {
 		bankYear++
@@ -38,11 +23,11 @@ func GenerateSummary(db *database.Client, userId string, month, year int) (Summa
 
 	entries, err := db.GetEntriesForBankYear(userId, bankYear)
 	if err != nil {
-		return Summary{}, err
+		return models.Summary{}, err
 	}
 
 	monthSet := make(map[string]bool)
-	var monthData []*MonthSummary
+	var monthData []*models.MonthSummary
 
 	monthIter := -1
 
@@ -57,7 +42,7 @@ func GenerateSummary(db *database.Client, userId string, month, year int) (Summa
 			if _, ok := monthSet[entryMonth]; !ok {
 				monthIter++
 				monthSet[entryMonth] = true
-				monthData = append(monthData, &MonthSummary{
+				monthData = append(monthData, &models.MonthSummary{
 					MonthUri:   fmt.Sprintf("/%d/%d", e.Year, e.Month),
 					MonthLabel: entryMonth,
 				})
@@ -83,7 +68,7 @@ func GenerateSummary(db *database.Client, userId string, month, year int) (Summa
 		data.Percent = fmt.Sprintf("%.2f", float64(data.TotalPresent)/float64(data.TotalDays)*100)
 	}
 
-	return Summary{
+	return models.Summary{
 		TotalDays:    totalDays,
 		TotalPresent: totalPresent,
 		Percent:      fmt.Sprintf("%.2f", float64(totalPresent)/float64(totalDays)*100),
@@ -91,8 +76,8 @@ func GenerateSummary(db *database.Client, userId string, month, year int) (Summa
 	}, nil
 }
 
-func GenerateCsv(db *database.Client, userId string) ([]byte, error) {
-	entries, err := db.GetLatestEntries(userId)
+func GenerateCsv(db database.Databaser, userId string) ([]byte, error) {
+	entries, err := db.GetAllEntries(userId)
 	if err != nil {
 		return nil, err
 	}

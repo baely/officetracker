@@ -1,6 +1,8 @@
 package main
 
 import (
+	"flag"
+	"github.com/baely/officetracker/internal/database"
 	"os"
 
 	"github.com/baely/officetracker/internal/server"
@@ -10,12 +12,17 @@ import (
 func main() {
 	util.LoadEnv()
 
+	standalone := flag.Bool("standalone", false, "run in standalone mode")
+
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
 	}
 
-	s, err := server.NewServer(port)
+	var db database.Databaser
+	db := database.NewClient(standalone)
+
+	s, err := server.NewServer(port, db)
 	if err != nil {
 		panic(err)
 	}
