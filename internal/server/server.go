@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -91,8 +92,24 @@ func (s *Server) handleForm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	entry, err := s.db.GetEntries(auth.GetUserID(r), int(t.Month()), t.Year())
+	if err != nil {
+		slog.Error(fmt.Sprintf("failed to get entries: %v", err))
+		http.Error(w, internalErrorMsg, http.StatusInternalServerError)
+		return
+	}
+	state := make([]string, 32)
+	for day, dayState := range entry.Days {
+		dd, _ := strconv.Atoi(day)
+		state[dd] = fmt.Sprintf("%d", dayState)
+	}
+	stateStr := template.JS("[" + strings.Join(state, ",") + "]")
+
 	tmpl := template.Must(template.ParseFiles("./app/picker.html"))
-	if err := tmpl.Execute(w, struct{ Summary data.Summary }{Summary: summary}); err != nil {
+	if err := tmpl.Execute(w, struct {
+		Summary data.Summary
+		State   template.JS
+	}{Summary: summary, State: stateStr}); err != nil {
 		slog.Error(fmt.Sprintf("failed to render form: %v", err))
 		http.Error(w, internalErrorMsg, http.StatusInternalServerError)
 		return
@@ -227,7 +244,7 @@ func (s *Server) redirectOldUrl(next http.Handler) http.Handler {
 func NewServer(port string) (*Server, error) {
 	s := &Server{}
 
-	r := chi.NewMux().With(s.logRequest, s.redirectOldUrl)
+	r := chi.NewMux().With(s.logRequest)
 
 	// Anonymous routes
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
