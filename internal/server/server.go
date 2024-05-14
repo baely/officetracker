@@ -11,15 +11,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/baely/officetracker/internal/config"
-	"github.com/baely/officetracker/internal/models"
-
 	"github.com/go-chi/chi/v5"
 
 	"github.com/baely/officetracker/internal/auth"
+	"github.com/baely/officetracker/internal/config"
 	"github.com/baely/officetracker/internal/data"
 	"github.com/baely/officetracker/internal/database"
-	"github.com/baely/officetracker/internal/util"
+	"github.com/baely/officetracker/internal/models"
 )
 
 const (
@@ -28,7 +26,7 @@ const (
 
 type Server struct {
 	http.Server
-	cfg config.IntegratedApp
+	cfg config.AppConfigurer
 	db  database.Databaser
 }
 
@@ -46,7 +44,8 @@ type response struct {
 
 func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	tmpl := template.Must(template.ParseFiles("./app/login.html"))
-	if err := tmpl.Execute(w, struct{ SSOLink string }{auth.GitHubAuthUri(s.cfg)}); err != nil {
+	cfg := s.cfg.(config.IntegratedApp)
+	if err := tmpl.Execute(w, struct{ SSOLink string }{auth.GitHubAuthUri(cfg)}); err != nil {
 		slog.Error(fmt.Sprintf("failed to render login: %v", err))
 		http.Error(w, internalErrorMsg, http.StatusInternalServerError)
 		return
@@ -75,14 +74,14 @@ func (s *Server) handleForm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	summary, err := data.GenerateSummary(s.db, auth.GetUserID(s.cfg, r), int(t.Month()), t.Year())
+	summary, err := data.GenerateSummary(s.db, s.getUserID(r), int(t.Month()), t.Year())
 	if err != nil {
 		slog.Error(fmt.Sprintf("failed to generate summary: %v", err))
 		http.Error(w, internalErrorMsg, http.StatusInternalServerError)
 		return
 	}
 
-	entry, err := s.db.GetEntries(auth.GetUserID(s.cfg, r), int(t.Month()), t.Year())
+	entry, err := s.db.GetEntries(s.getUserID(r), int(t.Month()), t.Year())
 	if err != nil {
 		slog.Error(fmt.Sprintf("failed to get entries: %v", err))
 		http.Error(w, internalErrorMsg, http.StatusInternalServerError)
@@ -116,7 +115,7 @@ func (s *Server) handleState(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	entry, err := s.db.GetEntries(auth.GetUserID(s.cfg, r), int(t.Month()), t.Year())
+	entry, err := s.db.GetEntries(s.getUserID(r), int(t.Month()), t.Year())
 	if err != nil {
 		slog.Error(fmt.Sprintf("failed to get entries: %v", err))
 		http.Error(w, internalErrorMsg, http.StatusInternalServerError)
@@ -180,7 +179,7 @@ func (s *Server) handleEntry(w http.ResponseWriter, r *http.Request) {
 	}
 
 	e := models.Entry{
-		User:       auth.GetUserID(s.cfg, r),
+		User:       s.getUserID(r),
 		CreateDate: time.Now(),
 		Month:      month,
 		Year:       year,
@@ -197,7 +196,7 @@ func (s *Server) handleEntry(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleDownload(w http.ResponseWriter, r *http.Request) {
-	u := auth.GetUserID(s.cfg, r)
+	u := s.getUserID(r)
 
 	b, err := data.GenerateCsv(s.db, u)
 	if err != nil {
@@ -218,15 +217,15 @@ func (s *Server) logRequest(next http.Handler) http.Handler {
 	})
 }
 
-func (s *Server) redirectOldUrl(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Host != util.QualifiedDomain(s.cfg.Domain) {
-			http.Redirect(w, r, util.BaseUri(s.cfg), http.StatusPermanentRedirect)
-			return
-		}
-
-		next.ServeHTTP(w, r)
-	})
+func (s *Server) getUserID(r *http.Request) string {
+	switch cfg := s.cfg.(type) {
+	case config.IntegratedApp:
+		return auth.GetUserID(cfg, r)
+	case config.StandaloneApp:
+		return ""
+	default:
+		return ""
+	}
 }
 
 func NewServer(cfg config.IntegratedApp, db database.Databaser) (*Server, error) {
@@ -255,6 +254,40 @@ func NewServer(cfg config.IntegratedApp, db database.Databaser) (*Server, error)
 
 	// Subroutes
 	r.Route("/auth", auth.Router(cfg))
+
+	port := cfg.App.Port
+	if port == "" {
+		port = "8080"
+	}
+	s.Server = http.Server{
+		Addr:    fmt.Sprintf(":%s", port),
+		Handler: r,
+	}
+
+	return s, nil
+}
+
+func NewStandaloneServer(cfg config.StandaloneApp, db database.Databaser) (*Server, error) {
+	s := &Server{
+		db: db,
+	}
+
+	r := chi.NewMux().With(s.logRequest)
+
+	// Anonymous routes
+	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "form", http.StatusTemporaryRedirect)
+	})
+
+	// User routes
+	r.Get("/form", s.handleForm)
+	r.Get("/form/{month}", s.handleForm)
+	r.Get("/user-state/{month}", s.handleState)
+	r.Post("/submit", s.handleEntry)
+	r.Get("/download", s.handleDownload)
+
+	// Static routes
+	r.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.Dir("./app/static"))))
 
 	port := cfg.App.Port
 	if port == "" {

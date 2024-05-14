@@ -4,10 +4,10 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
-	"github.com/baely/officetracker/internal/models"
 	"time"
 
 	"github.com/baely/officetracker/internal/database"
+	"github.com/baely/officetracker/internal/models"
 	"github.com/baely/officetracker/internal/util"
 )
 

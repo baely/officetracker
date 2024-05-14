@@ -4,6 +4,10 @@ import (
 	"github.com/kelseyhightower/envconfig"
 )
 
+type AppConfigurer interface {
+	GetApp() App
+}
+
 type IntegratedApp struct {
 	App        App
 	Domain     Domain
@@ -12,9 +16,17 @@ type IntegratedApp struct {
 	SigningKey string
 }
 
+func (a IntegratedApp) GetApp() App {
+	return a.App
+}
+
 type StandaloneApp struct {
 	App    App
 	SQLite SQLite
+}
+
+func (a StandaloneApp) GetApp() App {
+	return a.App
 }
 
 type App struct {
