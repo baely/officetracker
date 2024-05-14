@@ -12,7 +12,7 @@ import (
 
 func main() {
 	port := flag.String("port", "8080", "port to run the server on")
-	dbLoc := flag.String("database", "sqlite", "database to use")
+	dbLoc := flag.String("database", "", "database to use")
 	flag.Parse()
 
 	cfg := config.StandaloneApp{
