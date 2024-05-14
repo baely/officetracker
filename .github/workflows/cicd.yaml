@@ -48,5 +48,5 @@ jobs:
           env_vars_file: config/cloud.env
           secrets: |
             SIGNING_KEY=${{ secrets.SIGNING_KEY }}:latest
-            GH_SECRET=${{ secrets.GH_SECRET }}:latest
+            GITHUB_SECRET=${{ secrets.GH_SECRET }}:latest
           flags: "--allow-unauthenticated"

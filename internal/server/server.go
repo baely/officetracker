@@ -7,7 +7,6 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -15,10 +14,10 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/baely/officetracker/internal/auth"
+	"github.com/baely/officetracker/internal/config"
 	"github.com/baely/officetracker/internal/data"
-	db "github.com/baely/officetracker/internal/database"
-	"github.com/baely/officetracker/internal/integration"
-	"github.com/baely/officetracker/internal/util"
+	"github.com/baely/officetracker/internal/database"
+	"github.com/baely/officetracker/internal/models"
 )
 
 const (
@@ -27,7 +26,8 @@ const (
 
 type Server struct {
 	http.Server
-	db *db.Client
+	cfg config.AppConfigurer
+	db  database.Databaser
 }
 
 type submission struct {
@@ -42,21 +42,10 @@ type response struct {
 	Notes string `json:"notes"`
 }
 
-func (s *Server) handleNotification(w http.ResponseWriter, r *http.Request) {
-	backendEndpoint := os.Getenv("BACKEND_ENDPOINT")
-	p := integration.NewPayload("Office Check", "Are you in the office today?", backendEndpoint)
-	if err := p.Send(); err != nil {
-		slog.Error(fmt.Sprintf("failed to send notification: %v", err))
-		http.Error(w, internalErrorMsg, http.StatusInternalServerError)
-		return
-	}
-
-	w.Write([]byte("OK"))
-}
-
 func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	tmpl := template.Must(template.ParseFiles("./app/login.html"))
-	if err := tmpl.Execute(w, struct{ SSOLink string }{auth.GitHubAuthUri()}); err != nil {
+	cfg := s.cfg.(config.IntegratedApp)
+	if err := tmpl.Execute(w, struct{ SSOLink string }{auth.GitHubAuthUri(cfg)}); err != nil {
 		slog.Error(fmt.Sprintf("failed to render login: %v", err))
 		http.Error(w, internalErrorMsg, http.StatusInternalServerError)
 		return
@@ -85,14 +74,14 @@ func (s *Server) handleForm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	summary, err := data.GenerateSummary(s.db, auth.GetUserID(r), int(t.Month()), t.Year())
+	summary, err := data.GenerateSummary(s.db, s.getUserID(r), int(t.Month()), t.Year())
 	if err != nil {
 		slog.Error(fmt.Sprintf("failed to generate summary: %v", err))
 		http.Error(w, internalErrorMsg, http.StatusInternalServerError)
 		return
 	}
 
-	entry, err := s.db.GetEntries(auth.GetUserID(r), int(t.Month()), t.Year())
+	entry, err := s.db.GetEntries(s.getUserID(r), int(t.Month()), t.Year())
 	if err != nil {
 		slog.Error(fmt.Sprintf("failed to get entries: %v", err))
 		http.Error(w, internalErrorMsg, http.StatusInternalServerError)
@@ -107,7 +96,7 @@ func (s *Server) handleForm(w http.ResponseWriter, r *http.Request) {
 
 	tmpl := template.Must(template.ParseFiles("./app/picker.html"))
 	if err := tmpl.Execute(w, struct {
-		Summary data.Summary
+		Summary models.Summary
 		State   template.JS
 	}{Summary: summary, State: stateStr}); err != nil {
 		slog.Error(fmt.Sprintf("failed to render form: %v", err))
@@ -126,7 +115,7 @@ func (s *Server) handleState(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	entry, err := s.db.GetEntries(auth.GetUserID(r), int(t.Month()), t.Year())
+	entry, err := s.db.GetEntries(s.getUserID(r), int(t.Month()), t.Year())
 	if err != nil {
 		slog.Error(fmt.Sprintf("failed to get entries: %v", err))
 		http.Error(w, internalErrorMsg, http.StatusInternalServerError)
@@ -189,27 +178,25 @@ func (s *Server) handleEntry(w http.ResponseWriter, r *http.Request) {
 		days[fmt.Sprintf("%d", day)] = state
 	}
 
-	e := db.Entry{
-		User:       auth.GetUserID(r),
+	e := models.Entry{
+		User:       s.getUserID(r),
 		CreateDate: time.Now(),
 		Month:      month,
 		Year:       year,
 		Days:       days,
 		Notes:      sub.Notes,
 	}
-	id, err := s.db.SaveEntry(e)
-	if err != nil {
+	if err = s.db.SaveEntry(e); err != nil {
 		slog.Error(fmt.Sprintf("failed to save entry: %v", err))
 		http.Error(w, internalErrorMsg, http.StatusInternalServerError)
 		return
 	}
 
-	slog.Info(fmt.Sprintf("saved entry with id: %s", id))
 	w.Write([]byte("OK"))
 }
 
 func (s *Server) handleDownload(w http.ResponseWriter, r *http.Request) {
-	u := auth.GetUserID(r)
+	u := s.getUserID(r)
 
 	b, err := data.GenerateCsv(s.db, u)
 	if err != nil {
@@ -230,19 +217,22 @@ func (s *Server) logRequest(next http.Handler) http.Handler {
 	})
 }
 
-func (s *Server) redirectOldUrl(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Host != util.QualifiedDomain() {
-			http.Redirect(w, r, util.BaseUri(), http.StatusPermanentRedirect)
-			return
-		}
-
-		next.ServeHTTP(w, r)
-	})
+func (s *Server) getUserID(r *http.Request) string {
+	switch cfg := s.cfg.(type) {
+	case config.IntegratedApp:
+		return auth.GetUserID(cfg, r)
+	case config.StandaloneApp:
+		return ""
+	default:
+		return ""
+	}
 }
 
-func NewServer(port string) (*Server, error) {
-	s := &Server{}
+func NewServer(cfg config.IntegratedApp, db database.Databaser) (*Server, error) {
+	s := &Server{
+		db:  db,
+		cfg: cfg,
+	}
 
 	r := chi.NewMux().With(s.logRequest)
 
@@ -251,31 +241,63 @@ func NewServer(port string) (*Server, error) {
 		http.Redirect(w, r, "form", http.StatusTemporaryRedirect)
 	})
 	r.Get("/login", s.handleLogin)
-	r.Get("/notify", s.handleNotification)
 
 	// User routes
-	r.With(auth.Middleware).Get("/form", s.handleForm)
-	r.With(auth.Middleware).Get("/form/{month}", s.handleForm)
-	r.With(auth.Middleware).Get("/user-state/{month}", s.handleState)
-	r.With(auth.Middleware).Post("/submit", s.handleEntry)
-	r.With(auth.Middleware).Get("/setup", s.handleSetup)
-	r.With(auth.Middleware).Get("/download", s.handleDownload)
+	r.With(auth.Middleware(cfg)).Get("/form", s.handleForm)
+	r.With(auth.Middleware(cfg)).Get("/form/{month}", s.handleForm)
+	r.With(auth.Middleware(cfg)).Get("/user-state/{month}", s.handleState)
+	r.With(auth.Middleware(cfg)).Post("/submit", s.handleEntry)
+	r.With(auth.Middleware(cfg)).Get("/setup", s.handleSetup)
+	r.With(auth.Middleware(cfg)).Get("/download", s.handleDownload)
 
 	// Static routes
 	r.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.Dir("./app/static"))))
 
 	// Subroutes
-	r.Route("/auth", auth.Router())
+	r.Route("/auth", auth.Router(cfg))
 
+	port := cfg.App.Port
+	if port == "" {
+		port = "8080"
+	}
 	s.Server = http.Server{
 		Addr:    fmt.Sprintf(":%s", port),
 		Handler: r,
 	}
 
-	var err error
-	s.db, err = db.NewFirestoreClient()
-	if err != nil {
-		return nil, err
+	return s, nil
+}
+
+func NewStandaloneServer(cfg config.StandaloneApp, db database.Databaser) (*Server, error) {
+	s := &Server{
+		db:  db,
+		cfg: cfg,
+	}
+
+	r := chi.NewMux().With(s.logRequest)
+
+	// Anonymous routes
+	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "form", http.StatusTemporaryRedirect)
+	})
+
+	// User routes
+	r.Get("/form", s.handleForm)
+	r.Get("/form/{month}", s.handleForm)
+	r.Get("/user-state/{month}", s.handleState)
+	r.Post("/submit", s.handleEntry)
+	r.Get("/download", s.handleDownload)
+
+	// Static routes
+	r.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.Dir("./app/static"))))
+
+	port := cfg.App.Port
+	if port == "" {
+		port = "8080"
+	}
+	s.Server = http.Server{
+		Addr:    fmt.Sprintf(":%s", port),
+		Handler: r,
 	}
 
 	return s, nil

@@ -10,7 +10,7 @@ import (
 )
 
 func LoadEnv() {
-	env := os.Getenv("ENV")
+	env := os.Getenv("APP_ENV")
 	fn := fmt.Sprintf("%s.env", env)
 	p := path.Join("config", fn)
 	err := godotenv.Load(p)
