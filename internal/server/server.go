@@ -230,7 +230,8 @@ func (s *Server) getUserID(r *http.Request) string {
 
 func NewServer(cfg config.IntegratedApp, db database.Databaser) (*Server, error) {
 	s := &Server{
-		db: db,
+		db:  db,
+		cfg: cfg,
 	}
 
 	r := chi.NewMux().With(s.logRequest)
@@ -269,7 +270,8 @@ func NewServer(cfg config.IntegratedApp, db database.Databaser) (*Server, error)
 
 func NewStandaloneServer(cfg config.StandaloneApp, db database.Databaser) (*Server, error) {
 	s := &Server{
-		db: db,
+		db:  db,
+		cfg: cfg,
 	}
 
 	r := chi.NewMux().With(s.logRequest)
