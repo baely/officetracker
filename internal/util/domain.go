@@ -2,32 +2,28 @@ package util
 
 import (
 	"fmt"
-	"os"
+
+	"github.com/baely/officetracker/internal/config"
 )
 
-func QualifiedDomain() string {
-	domain := os.Getenv("DOMAIN")
-
-	subdomain := os.Getenv("SUBDOMAIN")
-	if subdomain != "" {
-		domain = fmt.Sprintf("%s.%s", subdomain, domain)
+func QualifiedDomain(cfg config.Domain) string {
+	domain := cfg.Domain
+	if cfg.Subdomain != "" {
+		domain = fmt.Sprintf("%s.%s", cfg.Subdomain, domain)
 	}
 
 	return domain
 }
 
-func BaseUri() string {
-	protocol := os.Getenv("PROTOCOL")
-	port := os.Getenv("APP_PORT")
-	path := os.Getenv("BASE_PATH")
-	domain := QualifiedDomain()
+func BaseUri(cfg config.IntegratedApp) string {
+	domain := QualifiedDomain(cfg.Domain)
 	if domain == "localhost" {
-		domain = fmt.Sprintf("%s:%s", domain, port)
+		domain = fmt.Sprintf("%s:%s", domain, cfg.Port)
 	}
 
-	return fmt.Sprintf("%s://%s%s", protocol, domain, path)
+	return fmt.Sprintf("%s://%s%s", cfg.Domain.Protocol, domain, cfg.Domain.BasePath)
 }
 
-func BasePath() string {
-	return os.Getenv("BASE_PATH")
+func BasePath(cfg config.Domain) string {
+	return cfg.BasePath
 }

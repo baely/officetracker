@@ -9,11 +9,13 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 
+	"github.com/baely/officetracker/internal/config"
 	"github.com/baely/officetracker/internal/util"
 )
 
 const (
 	userCookie = "user"
+	demoUserId = "42069"
 )
 
 var (
@@ -29,9 +31,9 @@ func signingKey() []byte {
 	return []byte(os.Getenv("SIGNING_KEY"))
 }
 
-func GetUserID(r *http.Request) string {
-	if util.Demo() {
-		return util.DemoUserId
+func GetUserID(cfg config.App, r *http.Request) string {
+	if cfg.Demo {
+		return demoUserId
 	}
 
 	cookie, err := r.Cookie(userCookie)
@@ -60,13 +62,13 @@ func generateToken(userID string) (string, error) {
 	return tokenString, nil
 }
 
-func issueToken(w http.ResponseWriter, userID string) error {
+func issueToken(cfg config.Domain, w http.ResponseWriter, userID string) error {
 	token, err := generateToken(userID)
 	if err != nil {
 		return err
 	}
 
-	domain := util.QualifiedDomain()
+	domain := util.QualifiedDomain(cfg)
 	if domain == "localhost" {
 		domain = ""
 	}
@@ -74,9 +76,9 @@ func issueToken(w http.ResponseWriter, userID string) error {
 	cookie := http.Cookie{
 		Name:     userCookie,
 		Value:    token,
-		Path:     util.BasePath(),
+		Path:     util.BasePath(cfg),
 		Expires:  time.Now().Add(loginExpiration),
-		Domain:   util.QualifiedDomain(),
+		Domain:   util.QualifiedDomain(cfg),
 		HttpOnly: true,
 		Secure:   false,
 	}

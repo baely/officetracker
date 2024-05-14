@@ -1,9 +1,8 @@
- package server
+package server
 
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/baely/officetracker/internal/models"
 	"html/template"
 	"io"
 	"log/slog"
@@ -11,6 +10,9 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/baely/officetracker/internal/config"
+	"github.com/baely/officetracker/internal/models"
 
 	"github.com/go-chi/chi/v5"
 
@@ -26,7 +28,8 @@ const (
 
 type Server struct {
 	http.Server
-	db database.Databaser
+	cfg config.IntegratedApp
+	db  database.Databaser
 }
 
 type submission struct {
@@ -43,7 +46,7 @@ type response struct {
 
 func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	tmpl := template.Must(template.ParseFiles("./app/login.html"))
-	if err := tmpl.Execute(w, struct{ SSOLink string }{auth.GitHubAuthUri()}); err != nil {
+	if err := tmpl.Execute(w, struct{ SSOLink string }{auth.GitHubAuthUri(s.cfg)}); err != nil {
 		slog.Error(fmt.Sprintf("failed to render login: %v", err))
 		http.Error(w, internalErrorMsg, http.StatusInternalServerError)
 		return
@@ -72,14 +75,14 @@ func (s *Server) handleForm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	summary, err := data.GenerateSummary(s.db, auth.GetUserID(r), int(t.Month()), t.Year())
+	summary, err := data.GenerateSummary(s.db, auth.GetUserID(s.cfg.App, r), int(t.Month()), t.Year())
 	if err != nil {
 		slog.Error(fmt.Sprintf("failed to generate summary: %v", err))
 		http.Error(w, internalErrorMsg, http.StatusInternalServerError)
 		return
 	}
 
-	entry, err := s.db.GetEntries(auth.GetUserID(r), int(t.Month()), t.Year())
+	entry, err := s.db.GetEntries(auth.GetUserID(s.cfg.App, r), int(t.Month()), t.Year())
 	if err != nil {
 		slog.Error(fmt.Sprintf("failed to get entries: %v", err))
 		http.Error(w, internalErrorMsg, http.StatusInternalServerError)
@@ -94,7 +97,7 @@ func (s *Server) handleForm(w http.ResponseWriter, r *http.Request) {
 
 	tmpl := template.Must(template.ParseFiles("./app/picker.html"))
 	if err := tmpl.Execute(w, struct {
-		Summary data.Summary
+		Summary models.Summary
 		State   template.JS
 	}{Summary: summary, State: stateStr}); err != nil {
 		slog.Error(fmt.Sprintf("failed to render form: %v", err))
@@ -113,7 +116,7 @@ func (s *Server) handleState(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	entry, err := s.db.GetEntries(auth.GetUserID(r), int(t.Month()), t.Year())
+	entry, err := s.db.GetEntries(auth.GetUserID(s.cfg.App, r), int(t.Month()), t.Year())
 	if err != nil {
 		slog.Error(fmt.Sprintf("failed to get entries: %v", err))
 		http.Error(w, internalErrorMsg, http.StatusInternalServerError)
@@ -177,7 +180,7 @@ func (s *Server) handleEntry(w http.ResponseWriter, r *http.Request) {
 	}
 
 	e := models.Entry{
-		User:       auth.GetUserID(r),
+		User:       auth.GetUserID(s.cfg.App, r),
 		CreateDate: time.Now(),
 		Month:      month,
 		Year:       year,
@@ -194,7 +197,7 @@ func (s *Server) handleEntry(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleDownload(w http.ResponseWriter, r *http.Request) {
-	u := auth.GetUserID(r)
+	u := auth.GetUserID(s.cfg.App, r)
 
 	b, err := data.GenerateCsv(s.db, u)
 	if err != nil {
@@ -217,8 +220,8 @@ func (s *Server) logRequest(next http.Handler) http.Handler {
 
 func (s *Server) redirectOldUrl(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Host != util.QualifiedDomain() {
-			http.Redirect(w, r, util.BaseUri(), http.StatusPermanentRedirect)
+		if r.Host != util.QualifiedDomain(s.cfg.Domain) {
+			http.Redirect(w, r, util.BaseUri(s.cfg), http.StatusPermanentRedirect)
 			return
 		}
 
@@ -226,7 +229,7 @@ func (s *Server) redirectOldUrl(next http.Handler) http.Handler {
 	})
 }
 
-func NewServer(port string, db database.Databaser) (*Server, error) {
+func NewServer(cfg config.IntegratedApp, db database.Databaser) (*Server, error) {
 	s := &Server{
 		db: db,
 	}
@@ -240,19 +243,23 @@ func NewServer(port string, db database.Databaser) (*Server, error) {
 	r.Get("/login", s.handleLogin)
 
 	// User routes
-	r.With(auth.Middleware).Get("/form", s.handleForm)
-	r.With(auth.Middleware).Get("/form/{month}", s.handleForm)
-	r.With(auth.Middleware).Get("/user-state/{month}", s.handleState)
-	r.With(auth.Middleware).Post("/submit", s.handleEntry)
-	r.With(auth.Middleware).Get("/setup", s.handleSetup)
-	r.With(auth.Middleware).Get("/download", s.handleDownload)
+	r.With(auth.Middleware(cfg.App)).Get("/form", s.handleForm)
+	r.With(auth.Middleware(cfg.App)).Get("/form/{month}", s.handleForm)
+	r.With(auth.Middleware(cfg.App)).Get("/user-state/{month}", s.handleState)
+	r.With(auth.Middleware(cfg.App)).Post("/submit", s.handleEntry)
+	r.With(auth.Middleware(cfg.App)).Get("/setup", s.handleSetup)
+	r.With(auth.Middleware(cfg.App)).Get("/download", s.handleDownload)
 
 	// Static routes
 	r.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.Dir("./app/static"))))
 
 	// Subroutes
-	r.Route("/auth", auth.Router())
+	r.Route("/auth", auth.Router(cfg))
 
+	port := cfg.Port
+	if port == "" {
+		port = "8080"
+	}
 	s.Server = http.Server{
 		Addr:    fmt.Sprintf(":%s", port),
 		Handler: r,

@@ -1,31 +1,34 @@
 //go:build integrated
-// +build integrated
 
 package main
 
 import (
-	"os"
-
+	"github.com/baely/officetracker/internal/config"
 	"github.com/baely/officetracker/internal/database"
+	"github.com/baely/officetracker/internal/util"
 
 	"github.com/baely/officetracker/internal/server"
-	"github.com/baely/officetracker/internal/util"
 )
 
 func main() {
 	util.LoadEnv()
 
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
-	}
-
-	db, err := database.NewFirestoreClient()
+	cfg, err := config.LoadIntegratedApp()
 	if err != nil {
 		panic(err)
 	}
 
-	s, err := server.NewServer(port, db)
+	port := cfg.Port
+	if port == "" {
+		port = "8080"
+	}
+
+	db, err := database.NewFirestoreClient(cfg.Firestore)
+	if err != nil {
+		panic(err)
+	}
+
+	s, err := server.NewServer(cfg, db)
 	if err != nil {
 		panic(err)
 	}
