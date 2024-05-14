@@ -5,7 +5,7 @@ import "github.com/baely/officetracker/internal/models"
 type sqliteClient struct {
 }
 
-func newSQLiteClient() (Databaser, error) {
+func NewSQLiteClient() (Databaser, error) {
 	return &sqliteClient{}, nil
 }
 

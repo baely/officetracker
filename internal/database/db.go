@@ -10,11 +10,3 @@ type Databaser interface {
 	GetAllEntries(userID string) ([]models.Entry, error)
 	GetEntriesForBankYear(userID string, bankYear int) ([]models.Entry, error)
 }
-
-func NewClient(standalone bool) (Databaser, error) {
-	if standalone {
-		return newSQLiteClient()
-	}
-
-	return newFirestoreClient()
-}

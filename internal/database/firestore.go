@@ -1,13 +1,15 @@
 package database
 
 import (
-	"cloud.google.com/go/firestore"
 	"context"
 	"fmt"
-	"github.com/baely/officetracker/internal/models"
-	"google.golang.org/api/iterator"
 	"log/slog"
 	"os"
+
+	"cloud.google.com/go/firestore"
+	"google.golang.org/api/iterator"
+
+	"github.com/baely/officetracker/internal/models"
 )
 
 type Firestore struct {
@@ -18,7 +20,7 @@ func buildDocumentId(e models.Entry) string {
 	return fmt.Sprintf("%s-%d-%d", e.User, e.Month, e.Year)
 }
 
-func newFirestoreClient() (*Firestore, error) {
+func NewFirestoreClient() (*Firestore, error) {
 	ctx := context.Background()
 	projectID := os.Getenv("PROJECT_ID")
 	client, err := firestore.NewClient(ctx, projectID)

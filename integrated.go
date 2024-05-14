@@ -1,9 +1,12 @@
+//go:build integrated
+// +build integrated
+
 package main
 
 import (
-	"flag"
-	"github.com/baely/officetracker/internal/database"
 	"os"
+
+	"github.com/baely/officetracker/internal/database"
 
 	"github.com/baely/officetracker/internal/server"
 	"github.com/baely/officetracker/internal/util"
@@ -12,15 +15,15 @@ import (
 func main() {
 	util.LoadEnv()
 
-	standalone := flag.Bool("standalone", false, "run in standalone mode")
-
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
 	}
 
-	var db database.Databaser
-	db := database.NewClient(standalone)
+	db, err := database.NewFirestoreClient()
+	if err != nil {
+		panic(err)
+	}
 
 	s, err := server.NewServer(port, db)
 	if err != nil {
