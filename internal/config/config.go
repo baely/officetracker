@@ -5,14 +5,16 @@ import (
 )
 
 type IntegratedApp struct {
-	App
-	Domain    Domain
-	Firestore Firestore
-	Github    Github
+	App        App
+	Domain     Domain
+	Firestore  Firestore
+	Github     Github
+	SigningKey string
 }
 
 type StandaloneApp struct {
-	App
+	App    App
+	SQLite SQLite
 }
 
 type App struct {
@@ -29,6 +31,12 @@ type Domain struct {
 }
 
 type Firestore struct {
+	ProjectID    string
+	CollectionID string
+}
+
+type SQLite struct {
+	Location string
 }
 
 type Github struct {

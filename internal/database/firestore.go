@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"os"
 
 	"cloud.google.com/go/firestore"
 	"google.golang.org/api/iterator"
@@ -15,6 +14,7 @@ import (
 
 type Firestore struct {
 	*firestore.Client
+	cfg config.Firestore
 }
 
 func buildDocumentId(e models.Entry) string {
@@ -23,17 +23,17 @@ func buildDocumentId(e models.Entry) string {
 
 func NewFirestoreClient(cfg config.Firestore) (*Firestore, error) {
 	ctx := context.Background()
-	projectID := os.Getenv("PROJECT_ID")
+	projectID := cfg.ProjectID
 	client, err := firestore.NewClient(ctx, projectID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create firestore client: %v", err)
 	}
-	return &Firestore{client}, nil
+	return &Firestore{client, cfg}, nil
 }
 
 func (c *Firestore) SaveEntry(e models.Entry) error {
 	ctx := context.Background()
-	collection := os.Getenv("COLLECTION_ID")
+	collection := c.cfg.CollectionID
 	docId := buildDocumentId(e)
 	_, err := c.Collection(collection).Doc(docId).Set(ctx, e)
 	if err != nil {
@@ -45,7 +45,7 @@ func (c *Firestore) SaveEntry(e models.Entry) error {
 
 func (c *Firestore) GetEntries(userId string, month, year int) (models.Entry, error) {
 	ctx := context.Background()
-	collection := os.Getenv("COLLECTION_ID")
+	collection := c.cfg.CollectionID
 	docTitle := buildDocumentId(models.Entry{
 		User:  userId,
 		Month: month,
@@ -69,7 +69,7 @@ func (c *Firestore) GetEntries(userId string, month, year int) (models.Entry, er
 
 func (c *Firestore) GetAllEntries(userId string) ([]models.Entry, error) {
 	ctx := context.Background()
-	collection := os.Getenv("COLLECTION_ID")
+	collection := c.cfg.CollectionID
 	iter := c.Collection(collection).
 		Where("User", "==", userId).
 		OrderBy("Year", firestore.Asc).
@@ -99,7 +99,7 @@ func (c *Firestore) GetAllEntries(userId string) ([]models.Entry, error) {
 
 func (c *Firestore) GetEntriesForBankYear(userID string, bankYear int) ([]models.Entry, error) {
 	ctx := context.Background()
-	collection := os.Getenv("COLLECTION_ID")
+	collection := c.cfg.CollectionID
 	var entries []models.Entry
 
 	iterPrev := c.Collection(collection).

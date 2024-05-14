@@ -62,7 +62,7 @@ func handleGithubCallback(cfg config.IntegratedApp) func(http.ResponseWriter, *h
 			return
 		}
 
-		err = issueToken(cfg.Domain, w, userID)
+		err = issueToken(cfg, w, userID)
 		if err != nil {
 			slog.Error(fmt.Sprintf("failed to issue token: %v", err))
 			http.Error(w, "Internal server error", http.StatusInternalServerError)

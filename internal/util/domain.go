@@ -18,7 +18,7 @@ func QualifiedDomain(cfg config.Domain) string {
 func BaseUri(cfg config.IntegratedApp) string {
 	domain := QualifiedDomain(cfg.Domain)
 	if domain == "localhost" {
-		domain = fmt.Sprintf("%s:%s", domain, cfg.Port)
+		domain = fmt.Sprintf("%s:%s", domain, cfg.App.Port)
 	}
 
 	return fmt.Sprintf("%s://%s%s", cfg.Domain.Protocol, domain, cfg.Domain.BasePath)

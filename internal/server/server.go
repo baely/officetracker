@@ -75,14 +75,14 @@ func (s *Server) handleForm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	summary, err := data.GenerateSummary(s.db, auth.GetUserID(s.cfg.App, r), int(t.Month()), t.Year())
+	summary, err := data.GenerateSummary(s.db, auth.GetUserID(s.cfg, r), int(t.Month()), t.Year())
 	if err != nil {
 		slog.Error(fmt.Sprintf("failed to generate summary: %v", err))
 		http.Error(w, internalErrorMsg, http.StatusInternalServerError)
 		return
 	}
 
-	entry, err := s.db.GetEntries(auth.GetUserID(s.cfg.App, r), int(t.Month()), t.Year())
+	entry, err := s.db.GetEntries(auth.GetUserID(s.cfg, r), int(t.Month()), t.Year())
 	if err != nil {
 		slog.Error(fmt.Sprintf("failed to get entries: %v", err))
 		http.Error(w, internalErrorMsg, http.StatusInternalServerError)
@@ -116,7 +116,7 @@ func (s *Server) handleState(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	entry, err := s.db.GetEntries(auth.GetUserID(s.cfg.App, r), int(t.Month()), t.Year())
+	entry, err := s.db.GetEntries(auth.GetUserID(s.cfg, r), int(t.Month()), t.Year())
 	if err != nil {
 		slog.Error(fmt.Sprintf("failed to get entries: %v", err))
 		http.Error(w, internalErrorMsg, http.StatusInternalServerError)
@@ -180,7 +180,7 @@ func (s *Server) handleEntry(w http.ResponseWriter, r *http.Request) {
 	}
 
 	e := models.Entry{
-		User:       auth.GetUserID(s.cfg.App, r),
+		User:       auth.GetUserID(s.cfg, r),
 		CreateDate: time.Now(),
 		Month:      month,
 		Year:       year,
@@ -197,7 +197,7 @@ func (s *Server) handleEntry(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleDownload(w http.ResponseWriter, r *http.Request) {
-	u := auth.GetUserID(s.cfg.App, r)
+	u := auth.GetUserID(s.cfg, r)
 
 	b, err := data.GenerateCsv(s.db, u)
 	if err != nil {
@@ -243,12 +243,12 @@ func NewServer(cfg config.IntegratedApp, db database.Databaser) (*Server, error)
 	r.Get("/login", s.handleLogin)
 
 	// User routes
-	r.With(auth.Middleware(cfg.App)).Get("/form", s.handleForm)
-	r.With(auth.Middleware(cfg.App)).Get("/form/{month}", s.handleForm)
-	r.With(auth.Middleware(cfg.App)).Get("/user-state/{month}", s.handleState)
-	r.With(auth.Middleware(cfg.App)).Post("/submit", s.handleEntry)
-	r.With(auth.Middleware(cfg.App)).Get("/setup", s.handleSetup)
-	r.With(auth.Middleware(cfg.App)).Get("/download", s.handleDownload)
+	r.With(auth.Middleware(cfg)).Get("/form", s.handleForm)
+	r.With(auth.Middleware(cfg)).Get("/form/{month}", s.handleForm)
+	r.With(auth.Middleware(cfg)).Get("/user-state/{month}", s.handleState)
+	r.With(auth.Middleware(cfg)).Post("/submit", s.handleEntry)
+	r.With(auth.Middleware(cfg)).Get("/setup", s.handleSetup)
+	r.With(auth.Middleware(cfg)).Get("/download", s.handleDownload)
 
 	// Static routes
 	r.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.Dir("./app/static"))))
@@ -256,7 +256,7 @@ func NewServer(cfg config.IntegratedApp, db database.Databaser) (*Server, error)
 	// Subroutes
 	r.Route("/auth", auth.Router(cfg))
 
-	port := cfg.Port
+	port := cfg.App.Port
 	if port == "" {
 		port = "8080"
 	}

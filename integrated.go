@@ -18,11 +18,6 @@ func main() {
 		panic(err)
 	}
 
-	port := cfg.Port
-	if port == "" {
-		port = "8080"
-	}
-
 	db, err := database.NewFirestoreClient(cfg.Firestore)
 	if err != nil {
 		panic(err)

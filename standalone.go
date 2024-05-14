@@ -5,6 +5,7 @@ package main
 import (
 	"flag"
 
+	"github.com/baely/officetracker/internal/config"
 	"github.com/baely/officetracker/internal/database"
 	"github.com/baely/officetracker/internal/server"
 )
@@ -14,14 +15,21 @@ func main() {
 	dbLoc := flag.String("database", "sqlite", "database to use")
 	flag.Parse()
 
-	flag.Parse()
+	cfg := config.StandaloneApp{
+		App: config.App{
+			Port: *port,
+		},
+		SQLite: config.SQLite{
+			Location: *dbLoc,
+		},
+	}
 
 	db, err := database.NewSQLiteClient()
 	if err != nil {
 		panic(err)
 	}
 
-	s, err := server.NewServer(cfg, db)
+	s, err := server.NewStandaloneServer(cfg, db)
 	if err != nil {
 		panic(err)
 	}

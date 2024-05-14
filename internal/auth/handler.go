@@ -10,10 +10,10 @@ import (
 	"github.com/baely/officetracker/internal/config"
 )
 
-func Middleware(cfg config.App) func(http.Handler) http.Handler {
+func Middleware(cfg config.IntegratedApp) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if cfg.Demo {
+			if cfg.App.Demo {
 				next.ServeHTTP(w, r)
 				return
 			}
@@ -30,7 +30,7 @@ func Middleware(cfg config.App) func(http.Handler) http.Handler {
 				return
 			}
 
-			err = validateToken(cookie.Value)
+			err = validateToken(cfg, cookie.Value)
 			if err != nil {
 				slog.Error(fmt.Sprintf("failed to validate token: %v", err))
 				http.Redirect(w, r, "/login", http.StatusTemporaryRedirect)
