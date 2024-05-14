@@ -18,12 +18,17 @@ jobs:
         with:
           credentials_json: "${{ secrets.SERVICE_TOKEN }}"
       - name: Build docker image
-        run:  docker build -t gcr.io/baileybutler-syd/officetracker:${{ github.sha }} .
+        run: docker build -t officetracker .
+      - name: Tag docker image
+        run: |
+          docker tag officetracker asia-southeast1-docker.pkg.dev/baileybutler-syd/officetracker/officetracker:${{ github.sha }}
+          docker tag officetracker asia-southeast1-docker.pkg.dev/baileybutler-syd/officetracker/officetracker:latest
       - name: Authorise docker
         run: |
           gcloud auth configure-docker -q
+          gcloud auth configure-docker asia-southeast1-docker.pkg.dev
       - name: Publish image
-        run:  docker push gcr.io/baileybutler-syd/officetracker:${{ github.sha }}
+        run:  docker push asia-southeast1-docker.pkg.dev/baileybutler-syd/officetracker/officetracker:${{ github.sha }}
 
   deploy:
     name: "Deploy"
