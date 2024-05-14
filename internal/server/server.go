@@ -88,6 +88,9 @@ func (s *Server) handleForm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	state := make([]string, 32)
+	for i := 0; i < 32; i++ {
+		state[i] = "0"
+	}
 	for day, dayState := range entry.Days {
 		dd, _ := strconv.Atoi(day)
 		state[dd] = fmt.Sprintf("%d", dayState)
@@ -98,7 +101,8 @@ func (s *Server) handleForm(w http.ResponseWriter, r *http.Request) {
 	if err := tmpl.Execute(w, struct {
 		Summary models.Summary
 		State   template.JS
-	}{Summary: summary, State: stateStr}); err != nil {
+		Notes   string
+	}{Summary: summary, State: stateStr, Notes: entry.Notes}); err != nil {
 		slog.Error(fmt.Sprintf("failed to render form: %v", err))
 		http.Error(w, internalErrorMsg, http.StatusInternalServerError)
 		return
