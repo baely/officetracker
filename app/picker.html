@@ -270,7 +270,7 @@
     </div>
 </div>
 <script>
-    let state = Array(31).fill(0);
+    let state = {{ .State }};
     let loaded = false;
 
     const states = ["untracked", "present", "not present", "other"];
@@ -307,8 +307,6 @@
                 document.getElementById("notes").value = payload.notes;
             });
     }
-
-    updateData();
 
     function changeMonth(delta) {
         currentMonth += delta;
@@ -461,17 +459,6 @@
     function formatDate(year, month) {
         return year + "-" + (month + 1).toString().padStart(2, "0");
     }
-
-    fetch("../user-state/" + formatDate(currentYear, currentMonth))
-        .then(response => response.json())
-        .then(data => {
-            if (data.length > 0) {
-                state = data;
-                if (loaded) {
-                    generateCalendar(currentMonth, currentYear);
-                }
-            }
-        });
 
     document.addEventListener('DOMContentLoaded', function () {
         loaded = true;
