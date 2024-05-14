@@ -156,11 +156,6 @@ func (s *sqliteClient) initConnection() error {
 		return err
 	}
 
-	err = db.Ping()
-	if err != nil {
-		return err
-	}
-
 	sqlCreate := `CREATE TABLE IF NOT EXISTS entries (
     Day INTEGER,
     Month INTEGER,
