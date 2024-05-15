@@ -2,7 +2,7 @@
 
 ---
 
-[Live demo](https://officetrackers.baileys.page)
+[Live demo](https://officetracker.baileys.page)
 
 ![Screenshot of web app](docs/assets/screenshot.png)
 
