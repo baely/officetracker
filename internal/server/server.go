@@ -7,16 +7,17 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
-	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 
 	"github.com/baely/officetracker/internal/auth"
+	"github.com/baely/officetracker/internal/config"
 	"github.com/baely/officetracker/internal/data"
-	db "github.com/baely/officetracker/internal/database"
-	"github.com/baely/officetracker/internal/integration"
+	"github.com/baely/officetracker/internal/database"
+	"github.com/baely/officetracker/internal/models"
 )
 
 const (
@@ -25,33 +26,26 @@ const (
 
 type Server struct {
 	http.Server
-	db *db.Client
+	cfg config.AppConfigurer
+	db  database.Databaser
 }
 
 type submission struct {
-	Month string `json:"month"`
-	Year  string `json:"year"`
-	Days  []struct {
-		Day   string `json:"day"`
-		State string `json:"state"`
-	} `json:"days"`
+	Month string      `json:"month"`
+	Year  string      `json:"year"`
+	Days  map[int]int `json:"days"`
+	Notes string      `json:"notes"`
 }
 
-func (s *Server) handleNotification(w http.ResponseWriter, r *http.Request) {
-	backendEndpoint := os.Getenv("BACKEND_ENDPOINT")
-	p := integration.NewPayload("Office Check", "Are you in the office today?", backendEndpoint)
-	if err := p.Send(); err != nil {
-		slog.Error(fmt.Sprintf("failed to send notification: %v", err))
-		http.Error(w, internalErrorMsg, http.StatusInternalServerError)
-		return
-	}
-
-	w.Write([]byte("OK"))
+type response struct {
+	State []int  `json:"state"`
+	Notes string `json:"notes"`
 }
 
 func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	tmpl := template.Must(template.ParseFiles("./app/login.html"))
-	if err := tmpl.Execute(w, struct{ SSOLink string }{auth.GitHubAuthUri()}); err != nil {
+	cfg := s.cfg.(config.IntegratedApp)
+	if err := tmpl.Execute(w, struct{ SSOLink string }{auth.GitHubAuthUri(cfg)}); err != nil {
 		slog.Error(fmt.Sprintf("failed to render login: %v", err))
 		http.Error(w, internalErrorMsg, http.StatusInternalServerError)
 		return
@@ -80,15 +74,35 @@ func (s *Server) handleForm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	summary, err := data.GenerateSummary(s.db, auth.GetUserID(r), int(t.Month()), t.Year())
+	summary, err := data.GenerateSummary(s.db, s.getUserID(r), int(t.Month()), t.Year())
 	if err != nil {
 		slog.Error(fmt.Sprintf("failed to generate summary: %v", err))
 		http.Error(w, internalErrorMsg, http.StatusInternalServerError)
 		return
 	}
 
+	entry, err := s.db.GetEntries(s.getUserID(r), int(t.Month()), t.Year())
+	if err != nil {
+		slog.Error(fmt.Sprintf("failed to get entries: %v", err))
+		http.Error(w, internalErrorMsg, http.StatusInternalServerError)
+		return
+	}
+	state := make([]string, 32)
+	for i := 0; i < 32; i++ {
+		state[i] = "0"
+	}
+	for day, dayState := range entry.Days {
+		dd, _ := strconv.Atoi(day)
+		state[dd] = fmt.Sprintf("%d", dayState)
+	}
+	stateStr := template.JS("[" + strings.Join(state, ",") + "]")
+
 	tmpl := template.Must(template.ParseFiles("./app/picker.html"))
-	if err := tmpl.Execute(w, struct{ Summary data.Summary }{Summary: summary}); err != nil {
+	if err := tmpl.Execute(w, struct {
+		Summary models.Summary
+		State   template.JS
+		Notes   string
+	}{Summary: summary, State: stateStr, Notes: entry.Notes}); err != nil {
 		slog.Error(fmt.Sprintf("failed to render form: %v", err))
 		http.Error(w, internalErrorMsg, http.StatusInternalServerError)
 		return
@@ -105,20 +119,24 @@ func (s *Server) handleState(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	entry, err := s.db.GetEntries(auth.GetUserID(r), int(t.Month()), t.Year())
+	entry, err := s.db.GetEntries(s.getUserID(r), int(t.Month()), t.Year())
 	if err != nil {
 		slog.Error(fmt.Sprintf("failed to get entries: %v", err))
 		http.Error(w, internalErrorMsg, http.StatusInternalServerError)
 		return
 	}
 
-	state := make([]int, 32)
-	for day, dayState := range entry.Days {
-		dd, _ := strconv.Atoi(day)
-		state[dd] = dayState
+	resp := response{
+		State: make([]int, 32),
+		Notes: entry.Notes,
 	}
 
-	b, err := json.Marshal(state)
+	for day, dayState := range entry.Days {
+		dd, _ := strconv.Atoi(day)
+		resp.State[dd] = dayState
+	}
+
+	b, err := json.Marshal(resp)
 	if err != nil {
 		slog.Error(fmt.Sprintf("failed to marshal state: %v", err))
 		http.Error(w, internalErrorMsg, http.StatusInternalServerError)
@@ -160,37 +178,29 @@ func (s *Server) handleEntry(w http.ResponseWriter, r *http.Request) {
 
 	days := make(map[string]int)
 
-	for _, daySub := range sub.Days {
-		state, err := strconv.Atoi(daySub.State)
-		if err != nil {
-			slog.Error(fmt.Sprintf("failed to parse state: %v", err))
-			http.Error(w, "bad state", http.StatusBadRequest)
-			return
-		}
-
-		days[daySub.Day] = state
+	for day, state := range sub.Days {
+		days[fmt.Sprintf("%d", day)] = state
 	}
 
-	e := db.Entry{
-		User:       auth.GetUserID(r),
+	e := models.Entry{
+		User:       s.getUserID(r),
 		CreateDate: time.Now(),
 		Month:      month,
 		Year:       year,
 		Days:       days,
+		Notes:      sub.Notes,
 	}
-	id, err := s.db.SaveEntry(e)
-	if err != nil {
+	if err = s.db.SaveEntry(e); err != nil {
 		slog.Error(fmt.Sprintf("failed to save entry: %v", err))
 		http.Error(w, internalErrorMsg, http.StatusInternalServerError)
 		return
 	}
 
-	slog.Info(fmt.Sprintf("saved entry with id: %s", id))
 	w.Write([]byte("OK"))
 }
 
 func (s *Server) handleDownload(w http.ResponseWriter, r *http.Request) {
-	u := auth.GetUserID(r)
+	u := s.getUserID(r)
 
 	b, err := data.GenerateCsv(s.db, u)
 	if err != nil {
@@ -211,8 +221,22 @@ func (s *Server) logRequest(next http.Handler) http.Handler {
 	})
 }
 
-func NewServer(port string) (*Server, error) {
-	s := &Server{}
+func (s *Server) getUserID(r *http.Request) string {
+	switch cfg := s.cfg.(type) {
+	case config.IntegratedApp:
+		return auth.GetUserID(cfg, r)
+	case config.StandaloneApp:
+		return ""
+	default:
+		return ""
+	}
+}
+
+func NewServer(cfg config.IntegratedApp, db database.Databaser) (*Server, error) {
+	s := &Server{
+		db:  db,
+		cfg: cfg,
+	}
 
 	r := chi.NewMux().With(s.logRequest)
 
@@ -221,31 +245,63 @@ func NewServer(port string) (*Server, error) {
 		http.Redirect(w, r, "form", http.StatusTemporaryRedirect)
 	})
 	r.Get("/login", s.handleLogin)
-	r.Get("/notify", s.handleNotification)
 
 	// User routes
-	r.With(auth.Middleware).Get("/form", s.handleForm)
-	r.With(auth.Middleware).Get("/form/{month}", s.handleForm)
-	r.With(auth.Middleware).Get("/user-state/{month}", s.handleState)
-	r.With(auth.Middleware).Post("/submit", s.handleEntry)
-	r.With(auth.Middleware).Get("/setup", s.handleSetup)
-	r.With(auth.Middleware).Get("/download", s.handleDownload)
+	r.With(auth.Middleware(cfg)).Get("/form", s.handleForm)
+	r.With(auth.Middleware(cfg)).Get("/form/{month}", s.handleForm)
+	r.With(auth.Middleware(cfg)).Get("/user-state/{month}", s.handleState)
+	r.With(auth.Middleware(cfg)).Post("/submit", s.handleEntry)
+	r.With(auth.Middleware(cfg)).Get("/setup", s.handleSetup)
+	r.With(auth.Middleware(cfg)).Get("/download", s.handleDownload)
 
 	// Static routes
 	r.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.Dir("./app/static"))))
 
 	// Subroutes
-	r.Route("/auth", auth.Router())
+	r.Route("/auth", auth.Router(cfg))
 
+	port := cfg.App.Port
+	if port == "" {
+		port = "8080"
+	}
 	s.Server = http.Server{
 		Addr:    fmt.Sprintf(":%s", port),
 		Handler: r,
 	}
 
-	var err error
-	s.db, err = db.NewFirestoreClient()
-	if err != nil {
-		return nil, err
+	return s, nil
+}
+
+func NewStandaloneServer(cfg config.StandaloneApp, db database.Databaser) (*Server, error) {
+	s := &Server{
+		db:  db,
+		cfg: cfg,
+	}
+
+	r := chi.NewMux().With(s.logRequest)
+
+	// Anonymous routes
+	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "form", http.StatusTemporaryRedirect)
+	})
+
+	// User routes
+	r.Get("/form", s.handleForm)
+	r.Get("/form/{month}", s.handleForm)
+	r.Get("/user-state/{month}", s.handleState)
+	r.Post("/submit", s.handleEntry)
+	r.Get("/download", s.handleDownload)
+
+	// Static routes
+	r.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.Dir("./app/static"))))
+
+	port := cfg.App.Port
+	if port == "" {
+		port = "8080"
+	}
+	s.Server = http.Server{
+		Addr:    fmt.Sprintf(":%s", port),
+		Handler: r,
 	}
 
 	return s, nil
