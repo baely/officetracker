@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"os"
 
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/github"
 
+	"github.com/baely/officetracker/internal/config"
 	"github.com/baely/officetracker/internal/util"
 )
 
@@ -22,55 +22,55 @@ type GithubUserResponse struct {
 	Id    int    `json:"id"`
 }
 
-func ghOauthCfg() *oauth2.Config {
-	ghClientID := os.Getenv("GH_CLIENT_ID")
-	ghSecret := os.Getenv("GH_SECRET")
+func ghOauthCfg(cfg config.IntegratedApp) *oauth2.Config {
 	return &oauth2.Config{
-		ClientID:     ghClientID,
-		ClientSecret: ghSecret,
+		ClientID:     cfg.Github.ClientID,
+		ClientSecret: cfg.Github.Secret,
 		Endpoint:     github.Endpoint,
-		RedirectURL:  fmt.Sprintf("%sauth/callback/github", util.BaseUri()),
+		RedirectURL:  fmt.Sprintf("%sauth/callback/github", util.BaseUri(cfg)),
 		Scopes:       []string{"read:user"},
 	}
 }
 
-func GitHubAuthUri() string {
+func GitHubAuthUri(cfg config.IntegratedApp) string {
 	state := "state"
 	slog.Info(fmt.Sprintf("redirecting to github with state: %s", state))
-	slog.Info(fmt.Sprintf("redirecting to github: %+v", ghOauthCfg()))
-	return ghOauthCfg().AuthCodeURL(state)
+	slog.Info(fmt.Sprintf("redirecting to github: %+v", ghOauthCfg(cfg)))
+	return ghOauthCfg(cfg).AuthCodeURL(state)
 }
 
-func handleGithubCallback(w http.ResponseWriter, r *http.Request) {
-	code := r.URL.Query().Get("code")
-	if code == "" {
-		slog.Error("no code provided")
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
-		return
-	}
+func handleGithubCallback(cfg config.IntegratedApp) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		code := r.URL.Query().Get("code")
+		if code == "" {
+			slog.Error("no code provided")
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
 
-	token, err := ghOauthCfg().Exchange(r.Context(), code)
-	if err != nil {
-		slog.Error(fmt.Sprintf("failed to exchange code: %v", err))
-		http.Redirect(w, r, "/login", http.StatusTemporaryRedirect)
-		return
-	}
+		token, err := ghOauthCfg(cfg).Exchange(r.Context(), code)
+		if err != nil {
+			slog.Error(fmt.Sprintf("failed to exchange code: %v", err))
+			http.Redirect(w, r, "/login", http.StatusTemporaryRedirect)
+			return
+		}
 
-	userID, err := getGithubData(token.AccessToken)
-	if err != nil {
-		slog.Error(fmt.Sprintf("failed to get github data: %v", err))
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
-		return
-	}
+		userID, err := getGithubData(token.AccessToken)
+		if err != nil {
+			slog.Error(fmt.Sprintf("failed to get github data: %v", err))
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
 
-	err = issueToken(w, userID)
-	if err != nil {
-		slog.Error(fmt.Sprintf("failed to issue token: %v", err))
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
-		return
-	}
+		err = issueToken(cfg, w, userID)
+		if err != nil {
+			slog.Error(fmt.Sprintf("failed to issue token: %v", err))
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
 
-	http.Redirect(w, r, "/setup", http.StatusTemporaryRedirect)
+		http.Redirect(w, r, "/setup", http.StatusTemporaryRedirect)
+	}
 }
 
 func getGithubData(accessToken string) (string, error) {
