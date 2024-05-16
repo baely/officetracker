@@ -42,6 +42,8 @@ type response struct {
 	Notes string `json:"notes"`
 }
 
+type summary map[string]map[int]int
+
 func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	tmpl := template.Must(template.ParseFiles("./app/login.html"))
 	cfg := s.cfg.(config.IntegratedApp)
@@ -74,9 +76,29 @@ func (s *Server) handleForm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	summary, err := data.GenerateSummary(s.db, s.getUserID(r), int(t.Month()), t.Year())
+	sum, err := data.GenerateSummary(s.db, s.getUserID(r), int(t.Month()), t.Year())
 	if err != nil {
 		slog.Error(fmt.Sprintf("failed to generate summary: %v", err))
+		http.Error(w, internalErrorMsg, http.StatusInternalServerError)
+		return
+	}
+
+	respSum := make(map[string]map[int]int)
+	for _, month := range sum.MonthData {
+		parts := strings.Split(month.MonthUri, "/")
+		yearPart := parts[1]
+		monthPart := parts[2]
+		key := fmt.Sprintf("%s-%02s", yearPart, monthPart)
+
+		if _, ok := respSum[key]; !ok {
+			respSum[key] = make(map[int]int)
+		}
+		respSum[key][1] = month.TotalDays - month.TotalPresent
+		respSum[key][2] = month.TotalPresent
+	}
+	jsonSum, err := json.Marshal(respSum)
+	if err != nil {
+		slog.Error(fmt.Sprintf("failed to marshal summary: %v", err))
 		http.Error(w, internalErrorMsg, http.StatusInternalServerError)
 		return
 	}
@@ -99,10 +121,10 @@ func (s *Server) handleForm(w http.ResponseWriter, r *http.Request) {
 
 	tmpl := template.Must(template.ParseFiles("./app/picker.html"))
 	if err := tmpl.Execute(w, struct {
-		Summary models.Summary
+		Summary template.JS
 		State   template.JS
 		Notes   string
-	}{Summary: summary, State: stateStr, Notes: entry.Notes}); err != nil {
+	}{Summary: template.JS(jsonSum), State: stateStr, Notes: entry.Notes}); err != nil {
 		slog.Error(fmt.Sprintf("failed to render form: %v", err))
 		http.Error(w, internalErrorMsg, http.StatusInternalServerError)
 		return
