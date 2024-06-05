@@ -34,8 +34,6 @@ func ghOauthCfg(cfg config.IntegratedApp) *oauth2.Config {
 
 func GitHubAuthUri(cfg config.IntegratedApp) string {
 	state := "state"
-	slog.Info(fmt.Sprintf("redirecting to github with state: %s", state))
-	slog.Info(fmt.Sprintf("redirecting to github: %+v", ghOauthCfg(cfg)))
 	return ghOauthCfg(cfg).AuthCodeURL(state)
 }
 

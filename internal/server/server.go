@@ -17,6 +17,7 @@ import (
 	"github.com/baely/officetracker/internal/config"
 	"github.com/baely/officetracker/internal/data"
 	"github.com/baely/officetracker/internal/database"
+	"github.com/baely/officetracker/internal/embed"
 	"github.com/baely/officetracker/internal/models"
 )
 
@@ -45,9 +46,8 @@ type response struct {
 type summary map[string]map[int]int
 
 func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
-	tmpl := template.Must(template.ParseFiles("./app/login.html"))
 	cfg := s.cfg.(config.IntegratedApp)
-	if err := tmpl.Execute(w, struct{ SSOLink string }{auth.GitHubAuthUri(cfg)}); err != nil {
+	if err := embed.Login.Execute(w, struct{ SSOLink string }{auth.GitHubAuthUri(cfg)}); err != nil {
 		slog.Error(fmt.Sprintf("failed to render login: %v", err))
 		http.Error(w, internalErrorMsg, http.StatusInternalServerError)
 		return
@@ -55,7 +55,7 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleSetup(w http.ResponseWriter, r *http.Request) {
-	http.ServeFile(w, r, "./app/setup.html")
+	w.Write(embed.Setup)
 }
 
 func (s *Server) handleForm(w http.ResponseWriter, r *http.Request) {
@@ -119,8 +119,7 @@ func (s *Server) handleForm(w http.ResponseWriter, r *http.Request) {
 	}
 	stateStr := template.JS("[" + strings.Join(state, ",") + "]")
 
-	tmpl := template.Must(template.ParseFiles("./app/picker.html"))
-	if err := tmpl.Execute(w, struct {
+	if err = embed.Index.Execute(w, struct {
 		Summary template.JS
 		State   template.JS
 		Notes   string
@@ -277,7 +276,9 @@ func NewServer(cfg config.IntegratedApp, db database.Databaser) (*Server, error)
 	r.With(auth.Middleware(cfg)).Get("/download", s.handleDownload)
 
 	// Static routes
-	r.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.Dir("./app/static"))))
+	r.Handle("/static/github-mark-white.png", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write(embed.GitHubMark)
+	}))
 
 	// Subroutes
 	r.Route("/auth", auth.Router(cfg))
@@ -313,9 +314,6 @@ func NewStandaloneServer(cfg config.StandaloneApp, db database.Databaser) (*Serv
 	r.Get("/user-state/{month}", s.handleState)
 	r.Post("/submit", s.handleEntry)
 	r.Get("/download", s.handleDownload)
-
-	// Static routes
-	r.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.Dir("./app/static"))))
 
 	port := cfg.App.Port
 	if port == "" {

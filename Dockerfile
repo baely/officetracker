@@ -20,7 +20,6 @@ WORKDIR /app
 
 COPY --from=builder /tracker /tracker
 COPY ./config ./config
-COPY ./app ./app
 
 RUN apk --no-cache add tzdata
 
