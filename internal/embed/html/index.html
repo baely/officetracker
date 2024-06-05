@@ -19,21 +19,23 @@
 
         .container {
             background: white;
-            padding: 20px 0;
+            padding: 20px;
             border-radius: 8px;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
             margin-bottom: 20px;
-
             max-height: 100vh;
             display: flex;
-            flex-direction: column;
+            flex-direction: row;
+            column-gap: 50px;
             flex-wrap: wrap;
-            box-sizing: border-box; /* Ensure padding and gap are included in the width */
+            box-sizing: border-box;
+            justify-content: center;
+            overflow: scroll;
+            min-width: min-content;
         }
 
         .column {
             width: 360px;
-            margin: 0 25px;
             display: flex;
             flex-direction: column;
             box-sizing: border-box; /* Ensure padding is included in the width */
@@ -182,24 +184,6 @@
             box-sizing: border-box;
             resize: vertical;
         }
-
-        @media (max-width: 600px) {
-            #calendar {
-                grid-template-columns: repeat(3, 1fr); /* For smaller screens, show fewer columns */
-            }
-
-            .btn {
-                padding: 0.25rem 0.5rem;
-                font-size: 0.8rem;
-            }
-        }
-
-        @media (max-width: 768px) {
-            .container {
-                padding: 0 10px;
-            }
-        }
-
     </style>
 </head>
 <body>
