@@ -15,16 +15,28 @@
             justify-content: center;
             align-items: center;
             height: 100vh;
-            flex-direction: column;
         }
 
         .container {
             background: white;
-            padding: 20px;
+            padding: 20px 0;
             border-radius: 8px;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-            width: 360px; /* Width set to 540px */
             margin-bottom: 20px;
+
+            max-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            flex-wrap: wrap;
+            box-sizing: border-box; /* Ensure padding and gap are included in the width */
+        }
+
+        .column {
+            width: 360px;
+            margin: 0 25px;
+            display: flex;
+            flex-direction: column;
+            box-sizing: border-box; /* Ensure padding is included in the width */
         }
 
         #calendar-nav {
@@ -41,7 +53,6 @@
 
         #calendar {
             display: grid;
-            /*grid-template-columns: repeat(7, 1fr); !* 7 columns for the days of the week *!*/
             gap: 0.5rem;
             margin: auto;
             width: 100%;
@@ -123,9 +134,6 @@
             background-color: #f4f4f4;
         }
 
-        .additional-buttons {
-        }
-
         .additional-buttons .btn {
             display: block;
             padding: 10px;
@@ -150,26 +158,11 @@
             background-color: #0056b3;
         }
 
-        .untracked {
-            background-color: #FFFFFF;
-        }
+        .untracked { background-color: #FFFFFF; }
+        .present { background-color: #4CAF50; }
+        .not-present { background-color: #F44336; }
+        .other { background-color: #2196F3; }
 
-        /* White, as requested */
-        .present {
-            background-color: #4CAF50;
-        }
-
-        /* A softer green */
-        .not-present {
-            background-color: #F44336;
-        }
-
-        /* A slightly muted red */
-        .other {
-            background-color: #2196F3;
-        }
-
-        /* A vibrant but not too bright blue */
         .today {
             border: 5px solid #FFC107;
             font-weight: bold;
@@ -189,8 +182,6 @@
             box-sizing: border-box;
             resize: vertical;
         }
-
-        /* A golden yellow for emphasis */
 
         @media (max-width: 600px) {
             #calendar {
@@ -214,29 +205,26 @@
 <body>
 
 <div class="container">
-    <!-- All your content goes here -->
-
-    <div class="calendar-container">
-        <div id="calendar-nav">
-            <button id="prev-month">Previous</button>
-            <span id="month-year"></span>
-            <button id="next-month">Next</button>
-        </div>
-
-        <div id="calendar"></div>
-
-        <div id="legend" class="legend">
-            <div class="legend-item">
-                <span class="legend-color present"></span> Work from Home
+    <div class="column">
+            <div id="calendar-nav">
+                <button id="prev-month">Previous</button>
+                <span id="month-year"></span>
+                <button id="next-month">Next</button>
             </div>
-            <div class="legend-item">
-                <span class="legend-color not-present"></span> In office
-            </div>
-            <div class="legend-item">
-                <span class="legend-color other"></span> Other (Untracked)
-            </div>
-        </div>
 
+            <div id="calendar"></div>
+
+            <div id="legend" class="legend">
+                <div class="legend-item">
+                    <span class="legend-color present"></span> Work from Home
+                </div>
+                <div class="legend-item">
+                    <span class="legend-color not-present"></span> In office
+                </div>
+                <div class="legend-item">
+                    <span class="legend-color other"></span> Other (Untracked)
+                </div>
+            </div>
         <div>
             <h2>Notes</h2>
             <p>
@@ -244,22 +232,23 @@
             </p>
         </div>
     </div>
-
-    <div class="summary-container">
-        <h2>Summary</h2>
-        <p id="summary-headline"></p>
-        <table id="summary-table">
-            <tr>
-                <th>Month</th>
-                <th>Present</th>
-                <th>Total</th>
-                <th>Percent</th>
-            </tr>
-        </table>
-    </div>
-    <div class="additional-buttons">
-        <a href="setup" class="btn btn-setup">Setup</a>
-        <a href="download" class="btn">Download CSV</a>
+    <div class="column">
+        <div class="summary-container">
+            <h2>Summary</h2>
+            <p id="summary-headline"></p>
+            <table id="summary-table">
+                <tr>
+                    <th>Month</th>
+                    <th>Present</th>
+                    <th>Total</th>
+                    <th>Percent</th>
+                </tr>
+            </table>
+        </div>
+        <!-- <div class="additional-buttons">
+            <a href="setup" class="btn btn-setup">Setup</a>
+            <a href="#" class="btn disabled">Download CSV</a>
+        </div> -->
     </div>
 </div>
 <script>
