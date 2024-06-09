@@ -8,16 +8,12 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/baely/officetracker/internal/config"
+	"github.com/baely/officetracker/internal/database"
 )
 
-func Middleware(cfg config.IntegratedApp) func(http.Handler) http.Handler {
+func Middleware(cfg config.IntegratedApp, db database.Databaser) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if cfg.App.Demo {
-				next.ServeHTTP(w, r)
-				return
-			}
-
 			cookie, err := r.Cookie(userCookie)
 			if err != nil {
 				slog.Error(fmt.Sprintf("failed to get cookie: %v", err))
@@ -25,15 +21,22 @@ func Middleware(cfg config.IntegratedApp) func(http.Handler) http.Handler {
 				return
 			}
 			if err = cookie.Valid(); err != nil {
-				slog.Error(fmt.Sprintf("failed to validate cookie: %v", err))
-				http.Redirect(w, r, "/login", http.StatusTemporaryRedirect)
+				slog.Error(fmt.Sprintf("invalid cookie %v", err))
+				http.Redirect(w, r, "/logout", http.StatusTemporaryRedirect)
 				return
 			}
 
 			err = validateToken(cfg, cookie.Value)
 			if err != nil {
 				slog.Error(fmt.Sprintf("failed to validate token: %v", err))
-				http.Redirect(w, r, "/login", http.StatusTemporaryRedirect)
+				http.Redirect(w, r, "/logout", http.StatusTemporaryRedirect)
+				return
+			}
+
+			err = validUser(db, cfg, cookie.Value)
+			if err != nil {
+				slog.Error(fmt.Sprintf("failed to validate user: %v", err))
+				http.Redirect(w, r, "/logout", http.StatusTemporaryRedirect)
 				return
 			}
 
@@ -42,8 +45,9 @@ func Middleware(cfg config.IntegratedApp) func(http.Handler) http.Handler {
 	}
 }
 
-func Router(cfg config.IntegratedApp) func(r chi.Router) {
+func Router(cfg config.IntegratedApp, db database.Databaser) func(r chi.Router) {
 	return func(r chi.Router) {
-		r.Get("/callback/github", handleGithubCallback(cfg))
+		r.Get("/callback/github", handleGithubCallback(cfg, db))
+		r.Get("/demo", handleDemoAuth(cfg, db))
 	}
 }

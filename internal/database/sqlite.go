@@ -25,12 +25,12 @@ type sqliteClient struct {
 }
 
 type entry struct {
-	Day, Month, Year, State int
+	UserID, Day, Month, Year, State int
 }
 
 type note struct {
-	Month, Year int
-	Notes       string
+	UserID, Month, Year int
+	Notes               string
 }
 
 func NewSQLiteClient(cfg config.SQLite) (Databaser, error) {
@@ -149,6 +149,18 @@ func (s *sqliteClient) GetEntriesForBankYear(_ string, bankYear int) ([]models.E
 	return res, nil
 }
 
+func (s *sqliteClient) GetUserByGHID(_ string) (int, error) {
+	return 42069, nil
+}
+
+func (s *sqliteClient) GetUser(_ string) (int, error) {
+	return 42069, nil
+}
+
+func (s *sqliteClient) SaveUser(_ string) (int, error) {
+	return 42069, nil
+}
+
 func (s *sqliteClient) initConnection() error {
 	slog.Info(fmt.Sprintf("Connecting to sqlite database: %s", s.cfg.Location))
 	db, err := sql.Open("sqlite3", s.cfg.Location)
@@ -261,7 +273,10 @@ func mapToModel(entries []entry, n note) models.Entry {
 		return models.Entry{}
 	}
 
+	userID := fmt.Sprintf("%d", entries[0].UserID)
+
 	e := models.Entry{
+		User:  userID,
 		Month: entries[0].Month,
 		Year:  entries[0].Year,
 		Days:  make(map[string]int),
@@ -279,23 +294,30 @@ func mapFromModel(e models.Entry) ([]entry, note, error) {
 	var entries []entry
 	var notes note
 
+	userID, err := strconv.Atoi(e.User)
+	if err != nil {
+		return nil, note{}, err
+	}
+
 	for day, state := range e.Days {
 		dayInt, err := strconv.Atoi(day)
 		if err != nil {
 			return nil, notes, err
 		}
 		entries = append(entries, entry{
-			Day:   dayInt,
-			Month: e.Month,
-			Year:  e.Year,
-			State: state,
+			UserID: userID,
+			Day:    dayInt,
+			Month:  e.Month,
+			Year:   e.Year,
+			State:  state,
 		})
 	}
 
 	notes = note{
-		Month: e.Month,
-		Year:  e.Year,
-		Notes: e.Notes,
+		UserID: userID,
+		Month:  e.Month,
+		Year:   e.Year,
+		Notes:  e.Notes,
 	}
 
 	return entries, notes, nil
