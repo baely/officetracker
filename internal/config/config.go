@@ -9,11 +9,11 @@ type AppConfigurer interface {
 }
 
 type IntegratedApp struct {
-	App        App       `envconfig:"APP"`
-	Domain     Domain    `envconfig:"DOMAIN"`
-	Firestore  Firestore `envconfig:"FIRESTORE"`
-	Github     Github    `envconfig:"GITHUB"`
-	SigningKey string    `envconfig:"SIGNING_KEY"`
+	App        App      `envconfig:"APP"`
+	Domain     Domain   `envconfig:"DOMAIN"`
+	Postgres   Postgres `envconfig:"POSTGRES"`
+	Github     Github   `envconfig:"GITHUB"`
+	SigningKey string   `envconfig:"SIGNING_KEY"`
 }
 
 func (a IntegratedApp) GetApp() App {
@@ -49,6 +49,14 @@ type Firestore struct {
 
 type SQLite struct {
 	Location string `envconfig:"LOCATION"`
+}
+
+type Postgres struct {
+	Host     string `envconfig:"HOST"`
+	Port     string `envconfig:"PORT"`
+	User     string `envconfig:"USER"`
+	Password string `envconfig:"PASSWORD"`
+	DBName   string `envconfig:"DBNAME"`
 }
 
 type Github struct {

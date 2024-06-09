@@ -18,7 +18,7 @@ func main() {
 		panic(err)
 	}
 
-	db, err := database.NewFirestoreClient(cfg.Firestore)
+	db, err := database.NewPostgres(cfg.Postgres)
 	if err != nil {
 		panic(err)
 	}

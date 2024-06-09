@@ -54,6 +54,11 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
+	auth.ClearCookie(w)
+	http.Redirect(w, r, "/login", http.StatusTemporaryRedirect)
+}
+
 func (s *Server) handleSetup(w http.ResponseWriter, r *http.Request) {
 	w.Write(embed.Setup)
 }
@@ -238,7 +243,9 @@ func (s *Server) handleDownload(w http.ResponseWriter, r *http.Request) {
 func (s *Server) logRequest(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		slog.Info(fmt.Sprintf("request: %s %s", r.Method, r.URL.Path))
+		start := time.Now()
 		next.ServeHTTP(w, r)
+		slog.Info(fmt.Sprintf("request: %s %s took %s", r.Method, r.URL.Path, time.Since(start)))
 	})
 }
 
@@ -266,14 +273,15 @@ func NewServer(cfg config.IntegratedApp, db database.Databaser) (*Server, error)
 		http.Redirect(w, r, "form", http.StatusTemporaryRedirect)
 	})
 	r.Get("/login", s.handleLogin)
+	r.Get("/logout", s.handleLogout)
 
 	// User routes
-	r.With(auth.Middleware(cfg)).Get("/form", s.handleForm)
-	r.With(auth.Middleware(cfg)).Get("/form/{month}", s.handleForm)
-	r.With(auth.Middleware(cfg)).Get("/user-state/{month}", s.handleState)
-	r.With(auth.Middleware(cfg)).Post("/submit", s.handleEntry)
-	r.With(auth.Middleware(cfg)).Get("/setup", s.handleSetup)
-	r.With(auth.Middleware(cfg)).Get("/download", s.handleDownload)
+	r.With(auth.Middleware(cfg, s.db)).Get("/form", s.handleForm)
+	r.With(auth.Middleware(cfg, s.db)).Get("/form/{month}", s.handleForm)
+	r.With(auth.Middleware(cfg, s.db)).Get("/user-state/{month}", s.handleState)
+	r.With(auth.Middleware(cfg, s.db)).Post("/submit", s.handleEntry)
+	r.With(auth.Middleware(cfg, s.db)).Get("/setup", s.handleSetup)
+	r.With(auth.Middleware(cfg, s.db)).Get("/download", s.handleDownload)
 
 	// Static routes
 	r.Handle("/static/github-mark-white.png", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -281,7 +289,7 @@ func NewServer(cfg config.IntegratedApp, db database.Databaser) (*Server, error)
 	}))
 
 	// Subroutes
-	r.Route("/auth", auth.Router(cfg))
+	r.Route("/auth", auth.Router(cfg, s.db))
 
 	port := cfg.App.Port
 	if port == "" {
