@@ -42,11 +42,6 @@ type Domain struct {
 	BasePath  string `envconfig:"BASE_PATH"`
 }
 
-type Firestore struct {
-	ProjectID    string `envconfig:"PROJECT_ID"`
-	CollectionID string `envconfig:"COLLECTION_ID"`
-}
-
 type SQLite struct {
 	Location string `envconfig:"LOCATION"`
 }
