@@ -252,7 +252,7 @@ func (s *Server) getUserID(r *http.Request) string {
 	case config.IntegratedApp:
 		return auth.GetUserID(cfg, r)
 	case config.StandaloneApp:
-		return ""
+		return "42069"
 	default:
 		return ""
 	}
