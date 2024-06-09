@@ -2,10 +2,14 @@ package v1
 
 import "github.com/baely/officetracker/pkg/model"
 
-func Healthcheck(req model.HealthCheckRequest) (model.HealthCheckResponse, error) {
-	return model.HealthCheckResponse{}, nil
+func (i *implementation) Healthcheck(_ model.HealthCheckRequest) (model.HealthCheckResponse, error) {
+	return model.HealthCheckResponse{
+		Status: "ok",
+	}, nil
 }
 
-func ValidateAuth(req model.ValidateAuthRequest) (model.ValidateAuthResponse, error) {
-	return model.ValidateAuthResponse{}, nil
+func (i *implementation) ValidateAuth(_ model.ValidateAuthRequest) (model.ValidateAuthResponse, error) {
+	return model.ValidateAuthResponse{
+		Status: "ok",
+	}, nil
 }

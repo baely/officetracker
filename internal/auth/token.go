@@ -25,46 +25,46 @@ var (
 
 type tokenClaims struct {
 	jwt.RegisteredClaims
-	User string `json:"user"`
+	User int `json:"user"`
 }
 
 func signingKey(cfg config.IntegratedApp) []byte {
 	return []byte(cfg.SigningKey)
 }
 
-func GetUserID(cfg config.IntegratedApp, r *http.Request) string {
+func GetUserID(cfg config.IntegratedApp, r *http.Request) int {
 	cookie, err := r.Cookie(userCookie)
 	if err != nil {
 		slog.Error(fmt.Sprintf("failed to get cookie: %v", err))
-		return ""
+		return 0
 	}
 
 	userID, err := getUserIDFromToken(cfg, cookie.Value)
 	if err != nil {
 		slog.Error(fmt.Sprintf("failed to get user id from token: %v", err))
-		return ""
+		return 0
 	}
 
 	return userID
 }
 
-func GetUserFromSecret(db database.Databaser, r *http.Request) string {
+func GetUserFromSecret(db database.Databaser, r *http.Request) int {
 	secret := r.Header.Get("Authorization")
 	if secret == "" {
 		slog.Error("no secret provided")
-		return ""
+		return 0
 	}
 	if !strings.HasSuffix(secret, "Bearer ") {
 		slog.Error("invalid secret format")
-		return ""
+		return 0
 	}
 	secret = strings.TrimSuffix(secret, "Bearer ")
 	userID, err := db.GetUserBySecret(secret)
 	if err != nil {
 		slog.Error(fmt.Sprintf("failed to get user id from secret: %v", err))
-		return ""
+		return 0
 	}
-	return fmt.Sprintf("%05d", userID)
+	return userID
 }
 
 func generateToken(cfg config.IntegratedApp, userID string) (string, error) {
@@ -102,8 +102,6 @@ func issueToken(cfg config.IntegratedApp, w http.ResponseWriter, userID string) 
 	}
 	http.SetCookie(w, &cookie)
 
-	slog.Info(fmt.Sprintf("issued token: %+v", cookie))
-
 	return nil
 }
 
@@ -137,17 +135,17 @@ func validUser(db database.Databaser, cfg config.IntegratedApp, token string) er
 	return nil
 }
 
-func getUserIDFromToken(cfg config.IntegratedApp, token string) (string, error) {
+func getUserIDFromToken(cfg config.IntegratedApp, token string) (int, error) {
 	claims := &tokenClaims{}
 
 	t, err := jwt.ParseWithClaims(token, claims, func(t *jwt.Token) (interface{}, error) {
 		return signingKey(cfg), nil
 	})
 	if err != nil {
-		return "", err
+		return 0, err
 	}
 	if !t.Valid {
-		return "", fmt.Errorf("invalid token")
+		return 0, fmt.Errorf("invalid token")
 	}
 
 	return claims.User, nil

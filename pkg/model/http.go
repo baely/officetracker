@@ -1,5 +1,30 @@
 package model
 
+type Service interface {
+	// GetDay returns the state of a day
+	GetDay(GetDayRequest) (GetDayResponse, error)
+	// PutDay saves the state of a day
+	PutDay(PutDayRequest) (PutDayResponse, error)
+	// GetMonth returns the state of a month
+	GetMonth(GetMonthRequest) (GetMonthResponse, error)
+	// PutMonth saves the state of a month
+	PutMonth(PutMonthRequest) (PutMonthResponse, error)
+	// GetYear returns the state of a year
+	GetYear(GetYearRequest) (GetYearResponse, error)
+	// GetNote returns the note for a month
+	GetNote(GetNoteRequest) (GetNoteResponse, error)
+	// PutNote saves the note for a month
+	PutNote(PutNoteRequest) (PutNoteResponse, error)
+
+	// GetSecret returns a new secret
+	GetSecret(GetSecretRequest) (GetSecretResponse, error)
+
+	// Healthcheck returns the status of the service
+	Healthcheck(HealthCheckRequest) (HealthCheckResponse, error)
+	// ValidateAuth validates the auth method
+	ValidateAuth(ValidateAuthRequest) (ValidateAuthResponse, error)
+}
+
 type GetYearRequest struct {
 	Meta GetYearRequestMeta `meta:"meta" json:"-"`
 }
@@ -71,6 +96,34 @@ type PutDayRequestMeta struct {
 type PutDayResponse struct {
 }
 
+type GetNoteRequest struct {
+	Meta GetNoteRequestMeta `meta:"meta" json:"-"`
+}
+
+type GetNoteRequestMeta struct {
+	UserID int `meta:"user_id"`
+	Year   int `meta:"year"`
+	Month  int `meta:"month"`
+}
+
+type GetNoteResponse struct {
+	Data Note `json:"data"`
+}
+
+type PutNoteRequest struct {
+	Meta PutNoteRequestMeta `meta:"meta" json:"-"`
+	Data Note               `json:"data"`
+}
+
+type PutNoteRequestMeta struct {
+	UserID int `meta:"user_id"`
+	Year   int `meta:"year"`
+	Month  int `meta:"month"`
+}
+
+type PutNoteResponse struct {
+}
+
 type GetSecretRequest struct {
 	Meta GetSecretRequestMeta `meta:"meta" json:"-"`
 }
@@ -87,6 +140,7 @@ type HealthCheckRequest struct {
 }
 
 type HealthCheckResponse struct {
+	Status string `json:"status"`
 }
 
 type ValidateAuthRequest struct {
@@ -98,25 +152,10 @@ type ValidateAuthRequestMeta struct {
 }
 
 type ValidateAuthResponse struct {
+	Status string `json:"status"`
 }
 
-type State int
-
-const (
-	StateUntracked = State(iota)
-	StateWorkFromHome
-	StateWorkFromOffice
-	StateOther
-)
-
-type DayState struct {
-	State State `json:"state"`
-}
-
-type MonthState struct {
-	Days map[int]DayState `json:"days"`
-}
-
-type YearState struct {
-	Months map[int]MonthState `json:"months"`
+type Error struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
 }

@@ -11,55 +11,67 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"github.com/baely/officetracker/internal/database"
 	v1 "github.com/baely/officetracker/internal/implementation/v1"
+	"github.com/baely/officetracker/pkg/model"
 )
 
-func apiRouter() http.Handler {
-	r := chi.NewRouter().With()
-
-	r.Handle("/state", stateRouter())
-	r.Handle("/developer", developerRouter())
-	r.Handle("/health", healthRouter())
-
-	return r
+func apiRouter(db database.Databaser) func(chi.Router) {
+	service := v1.New(db)
+	return func(r chi.Router) {
+		r.Route("/state", stateRouter(service))
+		r.Route("/note", noteRouter(service))
+		r.Route("/developer", developerRouter(service))
+		r.Route("/health", healthRouter(service))
+		r.NotFound(func(w http.ResponseWriter, r *http.Request) {
+			writeError(w, "not found", http.StatusNotFound)
+		})
+	}
 }
 
-func stateRouter() http.Handler {
-	r := chi.NewRouter().With(AllowedAuthMethods(AuthMethodSSO, AuthMethodSecret, AuthMethodExcluded))
-
-	r.Method(http.MethodGet, "/{year}/{month}/{day}", wrap(v1.GetDay))
-	r.Method(http.MethodPut, "/{year}/{month}/{day}", wrap(v1.PutDay))
-	r.Method(http.MethodGet, "/{year}/{month}", wrap(v1.GetMonth))
-	r.Method(http.MethodPut, "/{year}/{month}", wrap(v1.PutMonth))
-	r.Method(http.MethodGet, "/{year}", wrap(v1.GetYear))
-
-	return r
+func stateRouter(service model.Service) func(chi.Router) {
+	middlewares := []func(http.Handler) http.Handler{AllowedAuthMethods(AuthMethodSSO, AuthMethodSecret, AuthMethodExcluded)}
+	return func(r chi.Router) {
+		r.With(middlewares...).Method(http.MethodGet, "/{year}/{month}/{day}", wrap(service.GetDay))
+		r.With(middlewares...).Method(http.MethodPut, "/{year}/{month}/{day}", wrap(service.PutDay))
+		r.With(middlewares...).Method(http.MethodGet, "/{year}/{month}", wrap(service.GetMonth))
+		r.With(middlewares...).Method(http.MethodPut, "/{year}/{month}", wrap(service.PutMonth))
+		r.With(middlewares...).Method(http.MethodGet, "/{year}", wrap(service.GetYear))
+	}
 }
 
-func developerRouter() http.Handler {
-	r := chi.NewRouter().With(AllowedAuthMethods(AuthMethodSSO))
+func noteRouter(service model.Service) func(chi.Router) {
+	middlewares := []func(http.Handler) http.Handler{AllowedAuthMethods(AuthMethodSSO)}
+	return func(r chi.Router) {
+		r.With(middlewares...).Method(http.MethodGet, "/{year}/{month}/{day}", wrap(service.GetNote))
+		r.With(middlewares...).Method(http.MethodPut, "/{year}/{month}/{day}", wrap(service.PutNote))
+	}
 
-	r.Method(http.MethodGet, "/secret", wrap(v1.GetSecret))
-
-	return r
 }
 
-func healthRouter() http.Handler {
-	r := chi.NewRouter()
+func developerRouter(service model.Service) func(chi.Router) {
+	middlewares := []func(http.Handler) http.Handler{AllowedAuthMethods(AuthMethodSSO)}
+	return func(r chi.Router) {
+		r.With(middlewares...).Method(http.MethodGet, "/secret", wrap(service.GetSecret))
+	}
+}
 
-	r.Method(http.MethodGet, "/check", wrap(v1.Healthcheck))
-	r.With(AllowedAuthMethods(AuthMethodSecret)).Method(http.MethodGet, "/auth", wrap(v1.ValidateAuth))
-
-	return r
+func healthRouter(service model.Service) func(chi.Router) {
+	return func(r chi.Router) {
+		r.Method(http.MethodGet, "/check", wrap(service.Healthcheck))
+		r.With(AllowedAuthMethods(AuthMethodSecret)).Method(http.MethodGet, "/auth", wrap(service.ValidateAuth))
+	}
 }
 
 func wrap[T, U any](fn func(T) (U, error)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Add("Content-Type", "application/json")
+
 		req, err := mapRequest[T](r)
 		if err != nil {
 			err = fmt.Errorf("failed to map request: %w", err)
 			slog.Error(err.Error())
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			writeError(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
@@ -67,7 +79,7 @@ func wrap[T, U any](fn func(T) (U, error)) http.HandlerFunc {
 		if err != nil {
 			err = fmt.Errorf("failed to execute request: %w", err)
 			slog.Error(err.Error())
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			writeError(w, internalErrorMsg, http.StatusInternalServerError)
 			return
 		}
 
@@ -75,7 +87,7 @@ func wrap[T, U any](fn func(T) (U, error)) http.HandlerFunc {
 		if err != nil {
 			err = fmt.Errorf("failed to map response: %w", err)
 			slog.Error(err.Error())
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			writeError(w, internalErrorMsg, http.StatusInternalServerError)
 			return
 		}
 
@@ -88,6 +100,20 @@ func wrap[T, U any](fn func(T) (U, error)) http.HandlerFunc {
 	}
 }
 
+func writeError(w http.ResponseWriter, msg string, code int) {
+	errMsg := model.Error{
+		Code:    code,
+		Message: msg,
+	}
+	b, err := json.Marshal(errMsg)
+	if err != nil {
+		slog.Error(fmt.Sprintf("failed to marshal error: %v", err))
+		http.Error(w, "", http.StatusInternalServerError)
+		return
+	}
+	http.Error(w, string(b), code)
+}
+
 func mapRequest[T any](r *http.Request) (T, error) {
 	var req T
 
@@ -96,9 +122,11 @@ func mapRequest[T any](r *http.Request) (T, error) {
 		err = fmt.Errorf("failed to read request body: %w", err)
 		return *new(T), err
 	}
-	if err = json.Unmarshal(b, &req); err != nil {
-		err = fmt.Errorf("failed to unmarshal request body: %w", err)
-		return *new(T), err
+	if len(b) > 0 {
+		if err = json.Unmarshal(b, &req); err != nil {
+			err = fmt.Errorf("failed to unmarshal request body: %w", err)
+			return *new(T), err
+		}
 	}
 
 	if err = populateUserID(&req, r); err != nil {
@@ -140,10 +168,6 @@ func getAuthMethod(r *http.Request) (AuthMethod, error) {
 }
 
 func populateUserID[T any](req *T, r *http.Request) error {
-	userID, err := getUserID(r)
-	if err != nil {
-		return err
-	}
 	v := reflect.ValueOf(req).Elem()
 	t := v.Type()
 	for i := 0; i < t.NumField(); i++ {
@@ -157,6 +181,10 @@ func populateUserID[T any](req *T, r *http.Request) error {
 				metaFieldTag := metaField.Tag.Get("meta")
 				if metaFieldTag == "user_id" {
 					if meta.Field(j).CanSet() && meta.Field(j).Kind() == reflect.Int {
+						userID, err := getUserID(r)
+						if err != nil {
+							return err
+						}
 						meta.Field(j).SetInt(int64(userID))
 					}
 				}

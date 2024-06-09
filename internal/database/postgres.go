@@ -3,12 +3,11 @@ package database
 import (
 	"database/sql"
 	"fmt"
-	"strconv"
 
 	_ "github.com/lib/pq"
 
 	"github.com/baely/officetracker/internal/config"
-	"github.com/baely/officetracker/internal/models"
+	"github.com/baely/officetracker/pkg/model"
 )
 
 const (
@@ -35,89 +34,55 @@ func NewPostgres(cfg config.Postgres) (Databaser, error) {
 	return p, nil
 }
 
-func (p *postgres) SaveEntry(e models.Entry) error {
-	entries, notes, err := mapFromModel(e)
-	if err != nil {
-		return fmt.Errorf("failed to map entry: %v", err)
-	}
-
-	for _, e2 := range entries {
-		if err = p.insertEntry(e2); err != nil {
-			return fmt.Errorf("failed to insert entry: %v", err)
-		}
-	}
-
-	if err = p.insertNote(notes); err != nil {
-		return fmt.Errorf("failed to insert note: %v", err)
-	}
-
-	return nil
+func (p *postgres) SaveDay(userID int, day int, month int, year int, state model.DayState) error {
+	q := `INSERT INTO entries (user_id, day, month, year, state) VALUES ($1, $2, $3, $4, $5) ON CONFLICT(user_id, day, month, year) DO UPDATE SET state=EXCLUDED.state;`
+	_, err := p.db.Exec(q, userID, day, month, year, state)
+	return err
 }
 
-func (p *postgres) GetEntries(userID string, month, year int) (models.Entry, error) {
-	userIDint, _ := strconv.Atoi(userID)
-	entries, err := p.getEntriesForMonth(userIDint, month, year)
-	if err != nil {
-		return models.Entry{}, err
-	}
-
-	notes, err := p.getNotesForMonth(userIDint, month, year)
-	if err != nil {
-		return models.Entry{}, err
-	}
-
-	return mapToModel(entries, notes), nil
+func (p *postgres) GetDay(userID int, day int, month int, year int) (model.DayState, error) {
+	//TODO implement me
+	panic("implement me")
 }
 
-func (p *postgres) GetAllEntries(userID string) ([]models.Entry, error) {
-	m := make(map[string][]entry)
-
-	userIDint, _ := strconv.Atoi(userID)
-	entries, err := p.getAllEntries(userIDint)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, e := range entries {
-		k := fmt.Sprintf("%d-%d", e.Month, e.Year)
-		m[k] = append(m[k], e)
-	}
-
-	var res []models.Entry
-	for _, v := range m {
-		notes, err := p.getNotesForMonth(userIDint, v[0].Month, v[0].Year)
-		if err != nil {
-			return nil, err
-		}
-		res = append(res, mapToModel(v, notes))
-	}
-
-	return res, nil
+func (p *postgres) SaveMonth(userID int, month int, year int, state model.MonthState) error {
+	//TODO implement me
+	panic("implement me")
 }
 
-func (p *postgres) GetEntriesForBankYear(userID string, bankYear int) ([]models.Entry, error) {
-	startMonth, startYear := 10, bankYear-1
-	endMonth, endYear := 9, bankYear
+func (p *postgres) GetMonth(userID int, month int, year int) (model.MonthState, error) {
+	//TODO implement me
+	panic("implement me")
+}
 
-	var res []models.Entry
+func (p *postgres) GetYear(userID int, year int) (model.YearState, error) {
+	//TODO implement me
+	panic("implement me")
+}
 
-	for month := startMonth; month <= 12; month++ {
-		e, err := p.GetEntries(userID, month, startYear)
-		if err != nil {
-			return nil, err
-		}
-		res = append(res, e)
-	}
+func (p *postgres) SaveNote(userID int, month int, year int, note string) error {
+	//TODO implement me
+	panic("implement me")
+}
 
-	for month := 1; month <= endMonth; month++ {
-		e, err := p.GetEntries(userID, month, endYear)
-		if err != nil {
-			return nil, err
-		}
-		res = append(res, e)
-	}
+func (p *postgres) GetNote(userID int, month int, year int) (string, error) {
+	//TODO implement me
+	panic("implement me")
+}
 
-	return res, nil
+func (p *postgres) GetUser(userID int) (int, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (p *postgres) SaveUserByGHID(ghID string) (int, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (p *postgres) SaveSecret(userID int, secret string) error {
+	//TODO implement me
+	panic("implement me")
 }
 
 func (p *postgres) GetUserByGHID(ghID string) (int, error) {
@@ -142,17 +107,17 @@ func (p *postgres) GetUserBySecret(secret string) (int, error) {
 	return id, err
 }
 
-func (p *postgres) GetUser(userID string) (int, error) {
-	userIDint, _ := strconv.Atoi(userID)
-	q := `SELECT user_id FROM users WHERE user_id = $1;`
-	row := p.db.QueryRow(q, userIDint)
-	var id int
-	err := row.Scan(&id)
-	if err == sql.ErrNoRows {
-		return 0, ErrNoUser
-	}
-	return id, err
-}
+//func (p *postgres) GetUser(userID string) (int, error) {
+//	userIDint, _ := strconv.Atoi(userID)
+//	q := `SELECT user_id FROM users WHERE user_id = $1;`
+//	row := p.db.QueryRow(q, userIDint)
+//	var id int
+//	err := row.Scan(&id)
+//	if err == sql.ErrNoRows {
+//		return 0, ErrNoUser
+//	}
+//	return id, err
+//}
 
 func (p *postgres) SaveUser(ghID string) (int, error) {
 	q := `INSERT INTO users (gh_id) VALUES ($1) RETURNING user_id;`

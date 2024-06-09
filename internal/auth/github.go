@@ -89,7 +89,7 @@ func handleGithubCallback(cfg config.IntegratedApp, db database.Databaser) func(
 			return
 		}
 
-		http.Redirect(w, r, "/setup", http.StatusTemporaryRedirect)
+		http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
 	}
 }
 
@@ -114,7 +114,7 @@ func getGithubData(accessToken string) (string, error) {
 func toUserID(db database.Databaser, ghID string) (string, error) {
 	userID, err := db.GetUserByGHID(ghID)
 	if errors.Is(err, database.ErrNoUser) {
-		userID, err = db.SaveUser(ghID)
+		userID, err = db.SaveUserByGHID(ghID)
 	}
 	if err != nil {
 		return "", err
@@ -141,6 +141,6 @@ func handleDemoAuth(cfg config.IntegratedApp, db database.Databaser) func(http.R
 			http.Error(w, "Internal server error", http.StatusInternalServerError)
 			return
 		}
-		http.Redirect(w, r, "/setup", http.StatusTemporaryRedirect)
+		http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
 	}
 }
