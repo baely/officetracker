@@ -10,7 +10,7 @@
 
 Office Tracker is a web application designed to track daily office presence on a monthly basis. The application supports two modes of operation:
 
-1. **Integrated Mode**: Utilizes Google Firestore for data storage and GitHub SSO for user authentication.
+1. **Integrated Mode**: Stores data on a cloud postgres instance and uses GitHub OAuth for user authentication.
 2. **Standalone Mode**: Employs local storage for data and does not require user authentication.
 
 ## Run Guide
@@ -25,11 +25,8 @@ You will need to create a `config/local.env` file based on the provided `sample.
 
 **Running the Application:**
 
-Ensure that you have Google Cloud credentials configured for Firestore access. Refer to the Google Cloud documentation for guidance.
-
 ```shell
-docker build -t officetracker .
-docker run -p 8080:8080 officetracker
+docker compose up
 ```
 
 ### Standalone Mode

@@ -9,6 +9,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 
 	"github.com/baely/officetracker/internal/config"
+	"github.com/baely/officetracker/internal/database"
 	"github.com/baely/officetracker/internal/util"
 )
 
@@ -31,17 +32,15 @@ func signingKey(cfg config.IntegratedApp) []byte {
 }
 
 func GetUserID(cfg config.IntegratedApp, r *http.Request) string {
-	if cfg.App.Demo {
-		return demoUserId
-	}
-
 	cookie, err := r.Cookie(userCookie)
 	if err != nil {
+		slog.Error(fmt.Sprintf("failed to get cookie: %v", err))
 		return ""
 	}
 
 	userID, err := getUserIDFromToken(cfg, cookie.Value)
 	if err != nil {
+		slog.Error(fmt.Sprintf("failed to get user id from token: %v", err))
 		return ""
 	}
 
@@ -99,6 +98,20 @@ func validateToken(cfg config.IntegratedApp, token string) error {
 	}
 	if !t.Valid {
 		return fmt.Errorf("invalid token")
+	}
+
+	return nil
+}
+
+func validUser(db database.Databaser, cfg config.IntegratedApp, token string) error {
+	userID, err := getUserIDFromToken(cfg, token)
+	if err != nil {
+		return err
+	}
+
+	_, err = db.GetUser(userID)
+	if err != nil {
+		return err
 	}
 
 	return nil
