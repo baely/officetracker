@@ -48,6 +48,6 @@ func Middleware(cfg config.IntegratedApp, db database.Databaser) func(http.Handl
 func Router(cfg config.IntegratedApp, db database.Databaser) func(r chi.Router) {
 	return func(r chi.Router) {
 		r.Get("/callback/github", handleGithubCallback(cfg, db))
-		r.Get("/demo", handleFake(cfg, db))
+		r.Get("/demo", handleDemoAuth(cfg, db))
 	}
 }

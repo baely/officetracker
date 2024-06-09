@@ -122,7 +122,7 @@ func toUserID(db database.Databaser, ghID string) (string, error) {
 	return fmt.Sprintf("%05d", userID), nil
 }
 
-func handleFake(cfg config.IntegratedApp, db database.Databaser) func(http.ResponseWriter, *http.Request) {
+func handleDemoAuth(cfg config.IntegratedApp, db database.Databaser) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !cfg.App.Demo {
 			http.Redirect(w, r, "/login", http.StatusTemporaryRedirect)
