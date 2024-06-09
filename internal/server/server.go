@@ -43,11 +43,9 @@ type response struct {
 	Notes string `json:"notes"`
 }
 
-type summary map[string]map[int]int
-
 func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	cfg := s.cfg.(config.IntegratedApp)
-	if err := embed.Login.Execute(w, struct{ SSOLink string }{auth.GitHubAuthUri(cfg)}); err != nil {
+	if err := embed.Login.Execute(w, struct{ SSOLink string }{auth.SSOUri(cfg)}); err != nil {
 		slog.Error(fmt.Sprintf("failed to render login: %v", err))
 		http.Error(w, internalErrorMsg, http.StatusInternalServerError)
 		return

@@ -35,7 +35,7 @@ func ghOauthCfg(cfg config.IntegratedApp) *oauth2.Config {
 	}
 }
 
-func GitHubAuthUri(cfg config.IntegratedApp) string {
+func SSOUri(cfg config.IntegratedApp) string {
 	if cfg.App.Demo {
 		return "/auth/demo"
 	}
