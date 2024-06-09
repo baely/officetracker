@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -45,6 +46,25 @@ func GetUserID(cfg config.IntegratedApp, r *http.Request) string {
 	}
 
 	return userID
+}
+
+func GetUserFromSecret(db database.Databaser, r *http.Request) string {
+	secret := r.Header.Get("Authorization")
+	if secret == "" {
+		slog.Error("no secret provided")
+		return ""
+	}
+	if !strings.HasSuffix(secret, "Bearer ") {
+		slog.Error("invalid secret format")
+		return ""
+	}
+	secret = strings.TrimSuffix(secret, "Bearer ")
+	userID, err := db.GetUserBySecret(secret)
+	if err != nil {
+		slog.Error(fmt.Sprintf("failed to get user id from secret: %v", err))
+		return ""
+	}
+	return fmt.Sprintf("%05d", userID)
 }
 
 func generateToken(cfg config.IntegratedApp, userID string) (string, error) {

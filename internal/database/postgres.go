@@ -131,6 +131,17 @@ func (p *postgres) GetUserByGHID(ghID string) (int, error) {
 	return id, err
 }
 
+func (p *postgres) GetUserBySecret(secret string) (int, error) {
+	q := `SELECT user_id FROM secrets WHERE secret = $1 AND active;`
+	row := p.db.QueryRow(q, secret)
+	var id int
+	err := row.Scan(&id)
+	if err == sql.ErrNoRows {
+		return 0, ErrNoUser
+	}
+	return id, err
+}
+
 func (p *postgres) GetUser(userID string) (int, error) {
 	userIDint, _ := strconv.Atoi(userID)
 	q := `SELECT user_id FROM users WHERE user_id = $1;`

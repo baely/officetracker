@@ -153,6 +153,10 @@ func (s *sqliteClient) GetUserByGHID(_ string) (int, error) {
 	return 42069, nil
 }
 
+func (s *sqliteClient) GetUserBySecret(_ string) (int, error) {
+	return 42069, nil
+}
+
 func (s *sqliteClient) GetUser(_ string) (int, error) {
 	return 42069, nil
 }

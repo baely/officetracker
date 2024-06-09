@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"html/template"
@@ -23,6 +24,24 @@ import (
 
 const (
 	internalErrorMsg = "Internal server error"
+)
+
+type ctxValue map[string]interface{}
+
+const (
+	ctxKey           = "ctx"
+	ctxUserIDKey     = "userID"
+	ctxAuthMethodKey = "auth"
+)
+
+type AuthMethod int
+
+const (
+	AuthMethodUnknown = AuthMethod(iota)
+	AuthMethodNone
+	AuthMethodSSO
+	AuthMethodSecret
+	AuthMethodExcluded
 )
 
 type Server struct {
@@ -273,13 +292,15 @@ func NewServer(cfg config.IntegratedApp, db database.Databaser) (*Server, error)
 	r.Get("/login", s.handleLogin)
 	r.Get("/logout", s.handleLogout)
 
+	r.Handle("/api/v1", apiRouter())
+
 	// User routes
 	r.With(auth.Middleware(cfg, s.db)).Get("/form", s.handleForm)
-	r.With(auth.Middleware(cfg, s.db)).Get("/form/{month}", s.handleForm)
-	r.With(auth.Middleware(cfg, s.db)).Get("/user-state/{month}", s.handleState)
-	r.With(auth.Middleware(cfg, s.db)).Post("/submit", s.handleEntry)
-	r.With(auth.Middleware(cfg, s.db)).Get("/setup", s.handleSetup)
-	r.With(auth.Middleware(cfg, s.db)).Get("/download", s.handleDownload)
+	//r.With(auth.Middleware(cfg, s.db)).Get("/form/{month}", s.handleForm)
+	//r.With(auth.Middleware(cfg, s.db)).Get("/user-state/{month}", s.handleState)
+	//r.With(auth.Middleware(cfg, s.db)).Post("/submit", s.handleEntry)
+	//r.With(auth.Middleware(cfg, s.db)).Get("/setup", s.handleSetup)
+	//r.With(auth.Middleware(cfg, s.db)).Get("/download", s.handleDownload)
 
 	// Static routes
 	r.Handle("/static/github-mark-white.png", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -307,7 +328,9 @@ func NewStandaloneServer(cfg config.StandaloneApp, db database.Databaser) (*Serv
 		cfg: cfg,
 	}
 
-	r := chi.NewMux().With(s.logRequest)
+	r := chi.NewMux().With(s.logRequest, injectAuth(db, cfg))
+
+	r.Handle("/api/v1", apiRouter())
 
 	// Anonymous routes
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
@@ -316,10 +339,10 @@ func NewStandaloneServer(cfg config.StandaloneApp, db database.Databaser) (*Serv
 
 	// User routes
 	r.Get("/form", s.handleForm)
-	r.Get("/form/{month}", s.handleForm)
-	r.Get("/user-state/{month}", s.handleState)
-	r.Post("/submit", s.handleEntry)
-	r.Get("/download", s.handleDownload)
+	//r.Get("/form/{month}", s.handleForm)
+	//r.Get("/user-state/{month}", s.handleState)
+	//r.Post("/submit", s.handleEntry)
+	//r.Get("/download", s.handleDownload)
 
 	port := cfg.App.Port
 	if port == "" {
@@ -333,10 +356,108 @@ func NewStandaloneServer(cfg config.StandaloneApp, db database.Databaser) (*Serv
 	return s, nil
 }
 
+type mapToRequest[T any] func(context.Context, *chi.Context) (T, error)
+
+type mapResponder[T, U any] func(T) (U, error)
+
+func apiHandler[T, U any](mapper mapToRequest[T], fn mapResponder[T, U]) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		req, err := mapper(ctx, chi.RouteContext(ctx))
+		if err != nil {
+			err = fmt.Errorf("failed to map request: %w", err)
+			slog.Error(err.Error())
+			http.Error(w, internalErrorMsg, http.StatusInternalServerError)
+			return
+		}
+
+		resp, err := fn(req)
+		if err != nil {
+			err = fmt.Errorf("failed to get response: %w", err)
+			slog.Error(err.Error())
+			http.Error(w, internalErrorMsg, http.StatusInternalServerError)
+			return
+		}
+
+		b, err := json.Marshal(resp)
+		if err != nil {
+			err = fmt.Errorf("failed to marshal response: %w", err)
+			slog.Error(err.Error())
+			http.Error(w, internalErrorMsg, http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		_, err = w.Write(b)
+		if err != nil {
+			slog.Error(fmt.Errorf("failed to write response: %w", err).Error())
+			return
+		}
+	}
+}
+
+func registerHandler[T, U any](r *chi.Mux, method, path string, mapper mapToRequest[T], fn mapResponder[T, U]) {
+
+	switch method {
+	case http.MethodGet:
+		r.Get(path, apiHandler(mapper, fn))
+	case http.MethodPost:
+		r.Post(path, apiHandler(mapper, fn))
+	}
+}
+
 func (s *Server) Run() error {
 	slog.Info(fmt.Sprintf("Server listening on %s", s.Addr))
 	if err := s.Server.ListenAndServe(); err != nil {
 		return err
 	}
 	return nil
+}
+
+func injectAuth(db database.Databaser, cfgIface config.AppConfigurer) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			ctx := r.Context()
+			val := make(ctxValue)
+
+			switch cfg := cfgIface.(type) {
+			case config.StandaloneApp:
+				val.set(ctxAuthMethodKey, AuthMethodExcluded)
+				val.set(ctxUserIDKey, "42069")
+			case config.IntegratedApp:
+				userID := auth.GetUserID(cfg, r)
+				if userID != "" {
+					val.set(ctxAuthMethodKey, AuthMethodSSO)
+					val.set(ctxUserIDKey, userID)
+				} else {
+					userID = auth.GetUserFromSecret(db, r)
+					if userID != "" {
+						val.set(ctxAuthMethodKey, AuthMethodSecret)
+						val.set(ctxUserIDKey, userID)
+					} else {
+						val.set(ctxAuthMethodKey, AuthMethodNone)
+					}
+				}
+			}
+			ctx = context.WithValue(ctx, ctxKey, val)
+			next.ServeHTTP(w, r.WithContext(ctx))
+		})
+	}
+}
+
+func getCtxValue(r *http.Request) ctxValue {
+	ctx := r.Context()
+	if v, ok := ctx.Value(ctxKey).(ctxValue); ok {
+		return v
+	}
+	return ctxValue{}
+}
+
+func (c ctxValue) set(key string, val interface{}) ctxValue {
+	c[key] = val
+	return c
+}
+
+func (c ctxValue) get(key string) interface{} {
+	return c[key]
 }
