@@ -42,6 +42,18 @@ type Server struct {
 	db  database.Databaser
 }
 
+func (s *Server) handleForm(w http.ResponseWriter, r *http.Request) {
+	// TODO
+}
+
+func handleTos(w http.ResponseWriter, r *http.Request) {
+	// TODO
+}
+
+func handlePrivacy(w http.ResponseWriter, r *http.Request) {
+	// TODO
+}
+
 func (s *Server) logRequest(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		slog.Info(fmt.Sprintf("request: %s %s", r.Method, r.URL.Path))
@@ -49,17 +61,6 @@ func (s *Server) logRequest(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r)
 		slog.Info(fmt.Sprintf("request: %s %s took %s", r.Method, r.URL.Path, time.Since(start)))
 	})
-}
-
-func (s *Server) getUserID(r *http.Request) int {
-	switch cfg := s.cfg.(type) {
-	case config.IntegratedApp:
-		return auth.GetUserID(cfg, r)
-	case config.StandaloneApp:
-		return 42069
-	default:
-		return 0
-	}
 }
 
 func NewServer(cfg config.IntegratedApp, db database.Databaser) (*Server, error) {
@@ -70,8 +71,24 @@ func NewServer(cfg config.IntegratedApp, db database.Databaser) (*Server, error)
 
 	r := chi.NewMux().With(s.logRequest, injectAuth(db, cfg))
 
+	// Form routes
+	r.Get("/", s.handleForm)
+	r.Get("/{year-month}", s.handleForm)
+
 	// API routes
 	r.Route("/api/v1", apiRouter(s.db))
+
+	// Auth routes
+	r.Route("/auth", auth.Router(cfg, s.db))
+
+	// Boring stuff
+	r.Get("/tos", handleTos)
+	r.Get("/privacy", handlePrivacy)
+
+	chi.Walk(r, func(method string, route string, handler http.Handler, middlewares ...func(http.Handler) http.Handler) error {
+		slog.Info(fmt.Sprintf("route: %s %s", method, route))
+		return nil
+	})
 
 	port := cfg.App.Port
 	if port == "" {

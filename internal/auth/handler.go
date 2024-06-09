@@ -45,8 +45,23 @@ func Middleware(cfg config.IntegratedApp, db database.Databaser) func(http.Handl
 	}
 }
 
+func handleLogin() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// TODO
+	}
+}
+
+func handleLogout() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ClearCookie(w)
+		http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
+	}
+}
+
 func Router(cfg config.IntegratedApp, db database.Databaser) func(r chi.Router) {
 	return func(r chi.Router) {
+		r.Get("/login", handleLogin())
+		r.Get("/logout", handleLogout())
 		r.Get("/callback/github", handleGithubCallback(cfg, db))
 		r.Get("/demo", handleDemoAuth(cfg, db))
 	}

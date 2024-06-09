@@ -36,13 +36,19 @@ func NewPostgres(cfg config.Postgres) (Databaser, error) {
 
 func (p *postgres) SaveDay(userID int, day int, month int, year int, state model.DayState) error {
 	q := `INSERT INTO entries (user_id, day, month, year, state) VALUES ($1, $2, $3, $4, $5) ON CONFLICT(user_id, day, month, year) DO UPDATE SET state=EXCLUDED.state;`
-	_, err := p.db.Exec(q, userID, day, month, year, state)
+	_, err := p.db.Exec(q, userID, day, month, year, state.State)
 	return err
 }
 
 func (p *postgres) GetDay(userID int, day int, month int, year int) (model.DayState, error) {
-	//TODO implement me
-	panic("implement me")
+	q := `SELECT state FROM entries WHERE user_id = $1 AND day = $2 AND month = $3 AND year = $4;`
+	row := p.db.QueryRow(q, userID, day, month, year)
+	var state model.DayState
+	err := row.Scan(&(state.State))
+	if err == sql.ErrNoRows {
+		return state, nil
+	}
+	return state, err
 }
 
 func (p *postgres) SaveMonth(userID int, month int, year int, state model.MonthState) error {
@@ -71,18 +77,36 @@ func (p *postgres) GetNote(userID int, month int, year int) (string, error) {
 }
 
 func (p *postgres) GetUser(userID int) (int, error) {
-	//TODO implement me
-	panic("implement me")
+	q := `SELECT user_id FROM users WHERE user_id = $1;`
+	row := p.db.QueryRow(q, userID)
+	var id int
+	err := row.Scan(&id)
+	if err == sql.ErrNoRows {
+		return 0, ErrNoUser
+	}
+	if err != nil {
+		return 0, err
+	}
+	return id, nil
 }
 
 func (p *postgres) SaveUserByGHID(ghID string) (int, error) {
-	//TODO implement me
-	panic("implement me")
+	q := `INSERT INTO users (gh_id) VALUES ($1) RETURNING user_id;`
+	row := p.db.QueryRow(q, ghID)
+	var id int
+	err := row.Scan(&id)
+	return id, err
 }
 
 func (p *postgres) SaveSecret(userID int, secret string) error {
-	//TODO implement me
-	panic("implement me")
+	q := `UPDATE secrets SET active = false WHERE user_id = $1;`
+	_, err := p.db.Exec(q, userID)
+	if err != nil {
+		return err
+	}
+	q = `INSERT INTO secrets (user_id, secret, active) VALUES ($1, $2, true);`
+	_, err = p.db.Exec(q, userID, secret)
+	return err
 }
 
 func (p *postgres) GetUserByGHID(ghID string) (int, error) {

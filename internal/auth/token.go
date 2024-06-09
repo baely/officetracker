@@ -35,7 +35,6 @@ func signingKey(cfg config.IntegratedApp) []byte {
 func GetUserID(cfg config.IntegratedApp, r *http.Request) int {
 	cookie, err := r.Cookie(userCookie)
 	if err != nil {
-		slog.Error(fmt.Sprintf("failed to get cookie: %v", err))
 		return 0
 	}
 
@@ -54,11 +53,11 @@ func GetUserFromSecret(db database.Databaser, r *http.Request) int {
 		slog.Error("no secret provided")
 		return 0
 	}
-	if !strings.HasSuffix(secret, "Bearer ") {
+	if !strings.HasPrefix(secret, "Bearer ") {
 		slog.Error("invalid secret format")
 		return 0
 	}
-	secret = strings.TrimSuffix(secret, "Bearer ")
+	secret = strings.TrimPrefix(secret, "Bearer ")
 	userID, err := db.GetUserBySecret(secret)
 	if err != nil {
 		slog.Error(fmt.Sprintf("failed to get user id from secret: %v", err))
@@ -67,7 +66,7 @@ func GetUserFromSecret(db database.Databaser, r *http.Request) int {
 	return userID
 }
 
-func generateToken(cfg config.IntegratedApp, userID string) (string, error) {
+func generateToken(cfg config.IntegratedApp, userID int) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"user": userID,
 	})
@@ -80,7 +79,7 @@ func generateToken(cfg config.IntegratedApp, userID string) (string, error) {
 	return tokenString, nil
 }
 
-func issueToken(cfg config.IntegratedApp, w http.ResponseWriter, userID string) error {
+func issueToken(cfg config.IntegratedApp, w http.ResponseWriter, userID int) error {
 	token, err := generateToken(cfg, userID)
 	if err != nil {
 		return err
