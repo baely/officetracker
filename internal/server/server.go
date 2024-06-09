@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
-	"io"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -19,7 +18,6 @@ import (
 	"github.com/baely/officetracker/internal/data"
 	"github.com/baely/officetracker/internal/database"
 	"github.com/baely/officetracker/internal/embed"
-	"github.com/baely/officetracker/internal/models"
 )
 
 const (
@@ -74,10 +72,6 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
 	auth.ClearCookie(w)
 	http.Redirect(w, r, "/login", http.StatusTemporaryRedirect)
-}
-
-func (s *Server) handleSetup(w http.ResponseWriter, r *http.Request) {
-	w.Write(embed.Setup)
 }
 
 func (s *Server) handleForm(w http.ResponseWriter, r *http.Request) {
@@ -152,111 +146,6 @@ func (s *Server) handleForm(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s *Server) handleState(w http.ResponseWriter, r *http.Request) {
-	month := chi.URLParam(r, "month")
-
-	t, err := time.Parse("2006-01", month)
-	if err != nil {
-		slog.Error(fmt.Sprintf("failed to parse month: %v", err))
-		http.Error(w, "bad date part", http.StatusBadRequest)
-		return
-	}
-
-	entry, err := s.db.GetEntries(s.getUserID(r), int(t.Month()), t.Year())
-	if err != nil {
-		slog.Error(fmt.Sprintf("failed to get entries: %v", err))
-		http.Error(w, internalErrorMsg, http.StatusInternalServerError)
-		return
-	}
-
-	resp := response{
-		State: make([]int, 32),
-		Notes: entry.Notes,
-	}
-
-	for day, dayState := range entry.Days {
-		dd, _ := strconv.Atoi(day)
-		resp.State[dd] = dayState
-	}
-
-	b, err := json.Marshal(resp)
-	if err != nil {
-		slog.Error(fmt.Sprintf("failed to marshal state: %v", err))
-		http.Error(w, internalErrorMsg, http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(b)
-}
-
-func (s *Server) handleEntry(w http.ResponseWriter, r *http.Request) {
-	b, err := io.ReadAll(r.Body)
-	if err != nil {
-		slog.Error(fmt.Sprintf("failed to read request body: %v", err))
-		http.Error(w, internalErrorMsg, http.StatusInternalServerError)
-		return
-	}
-
-	var sub submission
-	err = json.Unmarshal(b, &sub)
-	if err != nil {
-		slog.Error(fmt.Sprintf("failed to unmarshal request body: %v", err))
-		http.Error(w, internalErrorMsg, http.StatusInternalServerError)
-		return
-	}
-
-	month, err := strconv.Atoi(sub.Month)
-	if err != nil {
-		slog.Error(fmt.Sprintf("failed to parse month: %v", err))
-		http.Error(w, "bad date part", http.StatusBadRequest)
-		return
-	}
-	year, err := strconv.Atoi(sub.Year)
-	if err != nil {
-		slog.Error(fmt.Sprintf("failed to parse year: %v", err))
-		http.Error(w, "bad date part", http.StatusBadRequest)
-		return
-	}
-
-	days := make(map[string]int)
-
-	for day, state := range sub.Days {
-		days[fmt.Sprintf("%d", day)] = state
-	}
-
-	e := models.Entry{
-		User:       s.getUserID(r),
-		CreateDate: time.Now(),
-		Month:      month,
-		Year:       year,
-		Days:       days,
-		Notes:      sub.Notes,
-	}
-	if err = s.db.SaveEntry(e); err != nil {
-		slog.Error(fmt.Sprintf("failed to save entry: %v", err))
-		http.Error(w, internalErrorMsg, http.StatusInternalServerError)
-		return
-	}
-
-	w.Write([]byte("OK"))
-}
-
-func (s *Server) handleDownload(w http.ResponseWriter, r *http.Request) {
-	u := s.getUserID(r)
-
-	b, err := data.GenerateCsv(s.db, u)
-	if err != nil {
-		slog.Error(fmt.Sprintf("failed to generate excel: %v", err))
-		http.Error(w, internalErrorMsg, http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "text/csv")
-	w.Header().Set("Content-Disposition", "attachment; filename=officecheck.csv")
-	w.Write(b)
-}
-
 func (s *Server) logRequest(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		slog.Info(fmt.Sprintf("request: %s %s", r.Method, r.URL.Path))
@@ -283,7 +172,7 @@ func NewServer(cfg config.IntegratedApp, db database.Databaser) (*Server, error)
 		cfg: cfg,
 	}
 
-	r := chi.NewMux().With(s.logRequest)
+	r := chi.NewMux().With(s.logRequest, injectAuth(db, cfg))
 
 	// Anonymous routes
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
@@ -296,11 +185,6 @@ func NewServer(cfg config.IntegratedApp, db database.Databaser) (*Server, error)
 
 	// User routes
 	r.With(auth.Middleware(cfg, s.db)).Get("/form", s.handleForm)
-	//r.With(auth.Middleware(cfg, s.db)).Get("/form/{month}", s.handleForm)
-	//r.With(auth.Middleware(cfg, s.db)).Get("/user-state/{month}", s.handleState)
-	//r.With(auth.Middleware(cfg, s.db)).Post("/submit", s.handleEntry)
-	//r.With(auth.Middleware(cfg, s.db)).Get("/setup", s.handleSetup)
-	//r.With(auth.Middleware(cfg, s.db)).Get("/download", s.handleDownload)
 
 	// Static routes
 	r.Handle("/static/github-mark-white.png", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -339,10 +223,6 @@ func NewStandaloneServer(cfg config.StandaloneApp, db database.Databaser) (*Serv
 
 	// User routes
 	r.Get("/form", s.handleForm)
-	//r.Get("/form/{month}", s.handleForm)
-	//r.Get("/user-state/{month}", s.handleState)
-	//r.Post("/submit", s.handleEntry)
-	//r.Get("/download", s.handleDownload)
 
 	port := cfg.App.Port
 	if port == "" {
@@ -354,56 +234,6 @@ func NewStandaloneServer(cfg config.StandaloneApp, db database.Databaser) (*Serv
 	}
 
 	return s, nil
-}
-
-type mapToRequest[T any] func(context.Context, *chi.Context) (T, error)
-
-type mapResponder[T, U any] func(T) (U, error)
-
-func apiHandler[T, U any](mapper mapToRequest[T], fn mapResponder[T, U]) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		req, err := mapper(ctx, chi.RouteContext(ctx))
-		if err != nil {
-			err = fmt.Errorf("failed to map request: %w", err)
-			slog.Error(err.Error())
-			http.Error(w, internalErrorMsg, http.StatusInternalServerError)
-			return
-		}
-
-		resp, err := fn(req)
-		if err != nil {
-			err = fmt.Errorf("failed to get response: %w", err)
-			slog.Error(err.Error())
-			http.Error(w, internalErrorMsg, http.StatusInternalServerError)
-			return
-		}
-
-		b, err := json.Marshal(resp)
-		if err != nil {
-			err = fmt.Errorf("failed to marshal response: %w", err)
-			slog.Error(err.Error())
-			http.Error(w, internalErrorMsg, http.StatusInternalServerError)
-			return
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		_, err = w.Write(b)
-		if err != nil {
-			slog.Error(fmt.Errorf("failed to write response: %w", err).Error())
-			return
-		}
-	}
-}
-
-func registerHandler[T, U any](r *chi.Mux, method, path string, mapper mapToRequest[T], fn mapResponder[T, U]) {
-
-	switch method {
-	case http.MethodGet:
-		r.Get(path, apiHandler(mapper, fn))
-	case http.MethodPost:
-		r.Post(path, apiHandler(mapper, fn))
-	}
 }
 
 func (s *Server) Run() error {
