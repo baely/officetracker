@@ -11,5 +11,3 @@ func GenerateSecret() string {
 	}
 	return string(b)
 }
-
-// up:yeah:iLjC5qpq1TVDmakxZSmBNGysW1q3sD3HunldxUCSLYHiynR1zUUMuKUAsAoVkQXkYXuAWz7Bx6ar5RQN9S6kSgEHKdtHjKDxVsJSdWCTFQRnLcqQ2FjKY75s4GqbAUCb
