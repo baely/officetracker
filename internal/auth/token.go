@@ -32,15 +32,17 @@ func signingKey(cfg config.IntegratedApp) []byte {
 	return []byte(cfg.SigningKey)
 }
 
-func GetUserID(cfg config.IntegratedApp, r *http.Request) int {
+func GetUserID(db database.Databaser, cfg config.IntegratedApp, w http.ResponseWriter, r *http.Request) int {
 	cookie, err := r.Cookie(userCookie)
 	if err != nil {
 		return 0
 	}
 
-	userID, err := getUserIDFromToken(cfg, cookie.Value)
+	userID, err := validUser(db, cfg, cookie.Value)
 	if err != nil {
-		slog.Error(fmt.Sprintf("failed to get user id from token: %v", err))
+		err = fmt.Errorf("invalid user: %w", err)
+		slog.Error(err.Error())
+		ClearCookie(w)
 		return 0
 	}
 
@@ -50,7 +52,6 @@ func GetUserID(cfg config.IntegratedApp, r *http.Request) int {
 func GetUserFromSecret(db database.Databaser, r *http.Request) int {
 	secret := r.Header.Get("Authorization")
 	if secret == "" {
-		slog.Error("no secret provided")
 		return 0
 	}
 	if !strings.HasPrefix(secret, "Bearer ") {
@@ -120,18 +121,18 @@ func validateToken(cfg config.IntegratedApp, token string) error {
 	return nil
 }
 
-func validUser(db database.Databaser, cfg config.IntegratedApp, token string) error {
+func validUser(db database.Databaser, cfg config.IntegratedApp, token string) (int, error) {
 	userID, err := getUserIDFromToken(cfg, token)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	_, err = db.GetUser(userID)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
-	return nil
+	return userID, nil
 }
 
 func getUserIDFromToken(cfg config.IntegratedApp, token string) (int, error) {

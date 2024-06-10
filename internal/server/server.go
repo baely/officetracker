@@ -1,6 +1,7 @@
 package server
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -36,7 +37,7 @@ func NewServer(cfg config.AppConfigurer, db database.Databaser) (*Server, error)
 
 	// Form routes
 	r.Get("/", s.handleIndex)
-	r.Get("/{year-month}", s.handleIndex)
+	r.Get("/{year-month}", s.handleForm)
 
 	// API routes
 	r.Route("/api/v1", apiRouter(s.v1))
@@ -87,7 +88,7 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 		s.handleForm(w, r)
 		return
 	case config.IntegratedApp:
-		if auth.GetUserID(cfg, r) != 0 {
+		if auth.GetUserID(s.db, cfg, w, r) != 0 {
 			s.handleForm(w, r)
 			return
 		} else {
@@ -101,13 +102,13 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleForm(w http.ResponseWriter, r *http.Request) {
 	userID, err := getUserID(r)
+	if errors.Is(err, ErrNoUserInCtx) || userID == 0 {
+		http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
+		return
+	}
 	if err != nil {
 		err = fmt.Errorf("failed to get user id: %w", err)
 		errorPage(w, err, internalErrorMsg, http.StatusInternalServerError)
-		return
-	}
-	if userID == 0 {
-		http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
 		return
 	}
 

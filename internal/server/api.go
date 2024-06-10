@@ -151,7 +151,7 @@ func mapResponse[T any](resp T) ([]byte, error) {
 func getUserID(r *http.Request) (int, error) {
 	userID, ok := getCtxValue(r).get(ctxUserIDKey).(int)
 	if !ok {
-		return 0, fmt.Errorf("failed to get user ID from context")
+		return 0, ErrNoUserInCtx
 	}
 	return userID, nil
 }

@@ -37,7 +37,6 @@ func AllowedAuthMethods(authMethods ...AuthMethod) func(http.Handler) http.Handl
 
 func (s *Server) logRequest(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		slog.Info(fmt.Sprintf("request: %s %s", r.Method, r.URL.Path))
 		start := time.Now()
 		next.ServeHTTP(w, r)
 		slog.Info(fmt.Sprintf("request: %s %s took %s", r.Method, r.URL.Path, time.Since(start)))
@@ -55,7 +54,7 @@ func injectAuth(db database.Databaser, cfgIface config.AppConfigurer) func(http.
 				val.set(ctxAuthMethodKey, AuthMethodExcluded)
 				val.set(ctxUserIDKey, "42069")
 			case config.IntegratedApp:
-				userID := auth.GetUserID(cfg, r)
+				userID := auth.GetUserID(db, cfg, w, r)
 				if userID != 0 {
 					val.set(ctxAuthMethodKey, AuthMethodSSO)
 					val.set(ctxUserIDKey, userID)

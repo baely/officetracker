@@ -33,7 +33,7 @@ func Middleware(cfg config.IntegratedApp, db database.Databaser) func(http.Handl
 				return
 			}
 
-			err = validUser(db, cfg, cookie.Value)
+			_, err = validUser(db, cfg, cookie.Value)
 			if err != nil {
 				slog.Error(fmt.Sprintf("failed to validate user: %v", err))
 				http.Redirect(w, r, "/logout", http.StatusTemporaryRedirect)

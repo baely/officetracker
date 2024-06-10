@@ -11,8 +11,8 @@ var (
 	templates embed.FS
 )
 var (
-	OldIndex = template.Must(template.ParseFS(templates, "html/index.html"))
-	OldLogin = template.Must(template.ParseFS(templates, "html/login.html"))
+	OldIndex = template.Must(template.ParseFS(templates, "html/index_old.html"))
+	OldLogin = template.Must(template.ParseFS(templates, "html/login_old.html"))
 
 	Form    = template.Must(template.ParseFS(templates, "html/form.html"))
 	Hero    = template.Must(template.ParseFS(templates, "html/hero.html"))

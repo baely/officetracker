@@ -57,8 +57,25 @@ func (p *postgres) SaveMonth(userID int, month int, year int, state model.MonthS
 }
 
 func (p *postgres) GetMonth(userID int, month int, year int) (model.MonthState, error) {
-	//TODO implement me
-	panic("implement me")
+	q := `SELECT day, state FROM entries WHERE user_id = $1 AND month = $2 AND year = $3;`
+	rows, err := p.db.Query(q, userID, month, year)
+	if err != nil {
+		return model.MonthState{}, err
+	}
+	defer rows.Close()
+	monthState := model.MonthState{
+		Days: make(map[int]model.DayState),
+	}
+	for rows.Next() {
+		var day int
+		var dayState model.DayState
+		err = rows.Scan(&day, &dayState.State)
+		if err != nil {
+			return model.MonthState{}, err
+		}
+		monthState.Days[day] = dayState
+	}
+	return monthState, nil
 }
 
 func (p *postgres) GetYear(userID int, year int) (model.YearState, error) {
@@ -72,9 +89,14 @@ func (p *postgres) SaveNote(userID int, month int, year int, note string) error 
 }
 
 func (p *postgres) GetNote(userID int, month int, year int) (string, error) {
-
-	//TODO implement me
-	panic("implement me")
+	q := `SELECT notes FROM notes WHERE user_id = $1 AND month = $2 AND year = $3;`
+	row := p.db.QueryRow(q, userID, month, year)
+	var noteString string
+	err := row.Scan(&noteString)
+	if err == sql.ErrNoRows {
+		return "", nil
+	}
+	return noteString, err
 }
 
 func (p *postgres) GetUser(userID int) (int, error) {
