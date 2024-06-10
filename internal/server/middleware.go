@@ -19,13 +19,11 @@ func AllowedAuthMethods(authMethods ...AuthMethod) func(http.Handler) http.Handl
 			authMethod, err := getAuthMethod(r)
 			if err != nil {
 				err = fmt.Errorf("failed to get auth method: %w", err)
-				//http.Error(w, internalErrorMsg, http.StatusInternalServerError)
 				writeError(w, internalErrorMsg, http.StatusInternalServerError)
 				return
 			}
 
 			if !slices.Contains(authMethods, authMethod) {
-				//http.Error(w, "unauthorized", http.StatusUnauthorized)
 				writeError(w, "unauthorized", http.StatusUnauthorized)
 				return
 			}
