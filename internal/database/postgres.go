@@ -3,6 +3,7 @@ package database
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 
 	_ "github.com/lib/pq"
 
@@ -52,8 +53,17 @@ func (p *postgres) GetDay(userID int, day int, month int, year int) (model.DaySt
 }
 
 func (p *postgres) SaveMonth(userID int, month int, year int, state model.MonthState) error {
-	//TODO implement me
-	panic("implement me")
+	argNum := incrementer(1)
+	q := `INSERT INTO entries (user_id, day, month, year, state) VALUES `
+	var queries []string
+	var args []interface{}
+	for day, dayState := range state.Days {
+		q += fmt.Sprintf("($%d, $%d, $%d, $%d, $%d), ", argNum(), argNum(), argNum(), argNum(), argNum())
+		args = append(args, userID, day, month, year, dayState.State)
+	}
+	q = q + strings.Join(queries, ", ") + " ON CONFLICT(user_id, day, month, year) DO UPDATE SET state=EXCLUDED.state;"
+	_, err := p.db.Exec(q, args...)
+	return err
 }
 
 func (p *postgres) GetMonth(userID int, month int, year int) (model.MonthState, error) {
@@ -79,13 +89,36 @@ func (p *postgres) GetMonth(userID int, month int, year int) (model.MonthState, 
 }
 
 func (p *postgres) GetYear(userID int, year int) (model.YearState, error) {
-	//TODO implement me
-	panic("implement me")
+	q := `SELECT month, day, state FROM entries WHERE user_id = $1 AND year = $2;`
+	rows, err := p.db.Query(q, userID, year)
+	if err != nil {
+		return model.YearState{}, err
+	}
+	defer rows.Close()
+	yearState := model.YearState{
+		Months: make(map[int]model.MonthState),
+	}
+	for rows.Next() {
+		var month, day int
+		var dayState model.DayState
+		err = rows.Scan(&month, &day, &dayState.State)
+		if err != nil {
+			return model.YearState{}, err
+		}
+		if _, ok := yearState.Months[month]; !ok {
+			yearState.Months[month] = model.MonthState{
+				Days: make(map[int]model.DayState),
+			}
+		}
+		yearState.Months[month].Days[day] = dayState
+	}
+	return yearState, nil
 }
 
 func (p *postgres) SaveNote(userID int, month int, year int, note string) error {
-	//TODO implement me
-	panic("implement me")
+	q := `INSERT INTO notes (user_id, month, year, notes) VALUES ($1, $2, $3, $4) ON CONFLICT(user_id, month, year) DO UPDATE SET notes=EXCLUDED.notes;`
+	_, err := p.db.Exec(q, userID, month, year, note)
+	return err
 }
 
 func (p *postgres) GetNote(userID int, month int, year int) (string, error) {
@@ -249,4 +282,13 @@ func mapPqNote(row *sql.Row) (note, error) {
 		return note{}, nil
 	}
 	return n, err
+}
+
+func incrementer(start int) func() int {
+	i := start
+	return func() int {
+		x := i
+		i++
+		return x
+	}
 }
