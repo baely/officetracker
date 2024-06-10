@@ -3,7 +3,9 @@ const monthNames = ["January", "February", "March", "April", "May", "June", "Jul
     "October", "November", "December"];
 
 class Summary {
-    constructor(data) { this.data = data || {}; }
+    constructor(data, year) {
+        this.updateYear(year, data);
+    }
 
     refreshDOM() {
         const elem = Data.summaryDOM;
@@ -53,9 +55,6 @@ class Summary {
 
             elem.appendChild(row);
         }
-
-        console.log(allTime);
-
         let headline = Data.summaryHeadlineDOM;
         let present = allTime[2];
         let total = allTime[1] + allTime[2];
@@ -66,8 +65,24 @@ class Summary {
     updateMonth(year, month, state) {
         let key = formatDate(year, month);
         let stats = { 0: 0, 1: 0, 2: 0, 3: 0 };
-        state.forEach(s => { stats[s] += 1; });
+        for (let day in state[month + 1]) {
+            stats[state[month + 1][day]] += 1;
+        }
         this.data[key] = stats;
+        this.refreshDOM();
+    }
+
+    updateYear(year, state) {
+        this.year = year;
+        this.data = {};
+        for (const [month, vals] of Object.entries(state)) {
+            let key = formatDate(year, parseInt(month) - 1);
+            let stats = { 0: 0, 1: 0, 2: 0, 3: 0 };
+            for (const [day, state] of Object.entries(vals)) {
+                stats[state] += 1;
+            }
+            this.data[key] = stats;
+        }
         this.refreshDOM();
     }
 }
@@ -82,8 +97,9 @@ class Data {
     constructor(state, notes) {
         this.state = state;
         this.notes = notes;
-        this.summary = new Summary({});
-        this.updateDate(false);
+        this.updateDate(true, false);
+        this.summary = new Summary(state, this.currentYear);
+        this.refreshDOM();
         Data.notesDOM.addEventListener("blur", () => { this.updateNote() });
         document.getElementById("prev-month").addEventListener("click", () => this.updateMonth(-1));
         document.getElementById("next-month").addEventListener("click", () => this.updateMonth(1));
@@ -110,7 +126,12 @@ class Data {
         Data.calendarDOM = calendarDOM;
     }
 
-    drawNotes() { Data.notesDOM.value = this.notes; }
+    drawNotes() {
+        if (!(this.currentMonth+1 in this.notes)) {
+            this.notes[this.currentMonth+1] = "";
+        }
+        Data.notesDOM.value = this.notes[this.currentMonth+1];
+    }
 
     drawSummary() { this.summary.refreshDOM(); }
 
@@ -118,27 +139,18 @@ class Data {
         fetch("/api/v1/state/" + this.currentYear)
             .then(r => r.json())
             .then(payload => {
-                console.log(payload);
-                console.log(mapState(payload));
                 this.state = mapState(payload);
                 this.refreshDOM();
+                this.summary.updateYear(this.currentYear, this.state);
             });
-        //
-        // fetch("../user-state/" + formatDate(this.currentYear, this.currentMonth))
-        //     .then(r => r.json())
-        //     .then(payload => {
-        //         this.state = payload.state;
-        //         this.notes = payload.notes;
-        //         this.refreshDOM();
-        //     });
     }
 
-    fetchNote() {
-        fetch("/api/v1/note/" + this.currentYear + "/" + (this.currentMonth + 1))
+    fetchNotes() {
+        fetch("/api/v1/note/" + this.currentYear)
             .then(r => r.json())
             .then(payload => {
-                this.notes = payload.data.note;
-                this.drawNotes();
+                this.notes = mapNotes(payload);
+                this.refreshDOM();
             });
     }
 
@@ -152,6 +164,10 @@ class Data {
     updateBackend(day) {
         let month = "" + (this.currentMonth + 1);
         let year = "" + this.currentYear;
+
+        if (!(this.currentMonth in this.state)) {
+            this.state[this.currentMonth] = {};
+        }
 
         let thisState = this.state[this.currentMonth][day];
 
@@ -167,19 +183,14 @@ class Data {
             },
             body: JSON.stringify(obj),
             credentials: "include"
-        }).then(
-            r => r.json()
-        ).then(
-            payload => {
-                console.log(payload);
-            }
-        );
+        });
     }
 
     updateNote() {
+        let notes = Data.notesDOM.value;
+        this.notes[this.currentMonth+1] = notes;
         let month = "" + (this.currentMonth + 1);
         let year = "" + this.currentYear;
-        let notes = Data.notesDOM.value;
         let obj = {
             "data": {
                 "note": notes
@@ -195,7 +206,7 @@ class Data {
         });
     }
 
-    updateDate(sameYear = false) {
+    updateDate(sameYear = false, refresh = true) {
         const url = window.location.href;
         const urlParts = url.split("/");
         const yearMonth = urlParts[urlParts.length - 1];
@@ -207,10 +218,10 @@ class Data {
         }
         if (!sameYear) {
             this.fetchData();
-        } else {
+            this.fetchNotes();
+        } else if (refresh) {
             this.refreshDOM();
         }
-        this.fetchNote();
     }
 
     updateMonth(delta) {
@@ -226,34 +237,29 @@ class Data {
             sameYear = true;
         }
         window.history.pushState({}, "", "/" + formatDate(this.currentYear, this.currentMonth));
-        this.updateDate(sameYear);
+        this.updateDate(sameYear, true);
     }
 
     updateState(date, state) {
-        if (!(this.currentMonth in this.state)) {
-            this.state[this.currentMonth] = {};
+        if (!(this.currentMonth+1 in this.state)) {
+            this.state[this.currentMonth+1] = {};
         }
-        this.state[this.currentMonth][date] = state;
-
+        this.state[this.currentMonth+1][date] = state;
         this.updateBackend(date);
-        // this.summary.updateMonth(this.currentYear, this.currentMonth, this.state);
+        this.summary.updateMonth(this.currentYear, this.currentMonth, this.state);
     }
 
     updateTitle() { Data.titleDOM.textContent = monthNames[this.currentMonth] + " " + this.currentYear; }
 }
 
-let rawState = {{ .YearlyState }}; // TODO: handle new state
-let notes = "{{ .MonthNote.Note }}" // TODO: handle notes;
-// let summary = {}; // TODO: handle new summary
-
-// let yearlyState = {};
-
+let rawState = {{ .YearlyState }};
+let rawNotes = {{ .YearlyNotes }};
 let state = mapState(rawState);
+let notes = mapNotes(rawNotes);
 
 let data = new Data(state, notes);
 
 function generateCalendar(month, year, currState, callback) {
-    console.log("Attempting to generate calendar for " + month + " " + year);
     let calendar = document.createElement("div");
     let table = document.createElement('table');
     let thead = document.createElement('thead');
@@ -333,6 +339,14 @@ function mapState(payload) {
         }
     }
     return state;
+}
+
+function mapNotes(payload) {
+    let notes = {};
+    for (const [key, value] of Object.entries(payload.data)) {
+        notes[key] = value.note;
+    }
+    return notes;
 }
 
 function formatDate(year, month) { return year + "-" + (month + 1).toString().padStart(2, "0"); }

@@ -17,7 +17,7 @@
         main nav h1 img { height: 32px; margin: 0 4px -2px 0; }
         main nav a:link, main nav a:visited { color: inherit; }
         main nav h1, main nav a { display: inline-block;  }
-        main nav > a { font-size: 1.25em; margin: 0 12px; }
+        main nav > a { font-size: 1.25em; margin: 12px 12px 0; }
 
         .github-btn {
             /*width: 100%;*/
@@ -123,6 +123,21 @@
             background-color: #f8f9fa;
             box-sizing: border-box;
             resize: vertical;
+        }
+
+        .summary-container table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .summary-container th, .summary-container td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+
+        .summary-container th {
+            background-color: #f4f4f4;
         }
 
         input#api-key {

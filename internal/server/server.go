@@ -62,6 +62,7 @@ func NewServer(cfg config.AppConfigurer, db database.Databaser) (*Server, error)
 	r.Route("/static", staticHandler)
 	r.Get("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "image/png")
+		w.Header().Set("Cache-Control", "public, max-age=604800, immutable")
 		w.Write(embed.OfficeBuilding)
 	})
 
@@ -139,12 +140,6 @@ func (s *Server) handleForm(w http.ResponseWriter, r *http.Request) {
 		errorPage(w, err, "Invalid date", http.StatusBadRequest)
 		return
 	}
-	month, err := strconv.Atoi(monthStr)
-	if err != nil {
-		err = fmt.Errorf("failed to convert month to int: %w", err)
-		errorPage(w, err, "Invalid date", http.StatusBadRequest)
-		return
-	}
 
 	yearlyData, err := s.v1.GetYear(model.GetYearRequest{
 		Meta: model.GetYearRequestMeta{
@@ -157,11 +152,10 @@ func (s *Server) handleForm(w http.ResponseWriter, r *http.Request) {
 		errorPage(w, err, internalErrorMsg, http.StatusInternalServerError)
 		return
 	}
-	monthNote, err := s.v1.GetNote(model.GetNoteRequest{
-		Meta: model.GetNoteRequestMeta{
+	yearlyNotes, err := s.v1.GetNotes(model.GetNotesRequest{
+		Meta: model.GetNotesRequestMeta{
 			UserID: userID,
 			Year:   year,
-			Month:  month,
 		},
 	})
 	if err != nil {
@@ -176,11 +170,18 @@ func (s *Server) handleForm(w http.ResponseWriter, r *http.Request) {
 		errorPage(w, err, internalErrorMsg, http.StatusInternalServerError)
 		return
 	}
+	yearlyNotesByte, err := json.Marshal(yearlyNotes)
+	if err != nil {
+		err = fmt.Errorf("failed to marshal yearly notes: %w", err)
+		errorPage(w, err, internalErrorMsg, http.StatusInternalServerError)
+		return
+	}
 	yearlyDataStr := string(yearlyDataByte)
+	yearlyNotesStr := string(yearlyNotesByte)
 
 	serveForm(w, r, formPage{
 		YearlyState: template.JS(yearlyDataStr),
-		MonthNote:   monthNote.Data,
+		YearlyNotes: template.JS(yearlyNotesStr),
 	})
 }
 
@@ -231,10 +232,12 @@ func (s *Server) handleNotFound(w http.ResponseWriter, r *http.Request) {
 func staticHandler(r chi.Router) {
 	r.Get("/github-mark-white.png", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "image/png")
+		w.Header().Set("Cache-Control", "public, max-age=604800, immutable")
 		w.Write(embed.GitHubMark)
 	})
 	r.Get("/office-building.png", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "image/png")
+		w.Header().Set("Cache-Control", "public, max-age=604800, immutable")
 		w.Write(embed.OfficeBuilding)
 	})
 }

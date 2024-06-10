@@ -95,7 +95,12 @@ func (s *sqliteClient) SaveNote(userID int, month int, year int, note string) er
 	panic("implement me")
 }
 
-func (s *sqliteClient) GetNote(userID int, month int, year int) (string, error) {
+func (s *sqliteClient) GetNote(userID int, month int, year int) (model.Note, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (s *sqliteClient) GetNotes(userID int, year int) (map[int]model.Note, error) {
 	//TODO implement me
 	panic("implement me")
 }

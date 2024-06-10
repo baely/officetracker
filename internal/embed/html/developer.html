@@ -1,9 +1,10 @@
 {{ template "base.html" . }}
 {{ define "nav" }}{{ template "loggedin.html" }}{{ end }}
+{{ define "title" }}Developer{{ end }}
 {{ define "content" }}
 <p>
     Generate an API key below.
-    By generating a new key, you revoke all previously generated keys.
+    By generating a new key, you will revoke all previously generated keys.
     If you wish to revoke a key, click the generate button below.
 </p>
 <p>

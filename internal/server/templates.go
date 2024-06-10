@@ -7,12 +7,11 @@ import (
 	"net/http"
 
 	"github.com/baely/officetracker/internal/embed"
-	"github.com/baely/officetracker/pkg/model"
 )
 
 type formPage struct {
 	YearlyState template.JS
-	MonthNote   model.Note
+	YearlyNotes template.JS
 }
 
 func serveForm(w http.ResponseWriter, r *http.Request, page formPage) {

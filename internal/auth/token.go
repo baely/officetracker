@@ -106,30 +106,21 @@ func issueToken(cfg config.IntegratedApp, w http.ResponseWriter, userID int) err
 	return nil
 }
 
-func validateToken(cfg config.IntegratedApp, token string) error {
-	claims := &tokenClaims{}
-
-	t, err := jwt.ParseWithClaims(token, claims, func(t *jwt.Token) (interface{}, error) {
-		return signingKey(cfg), nil
-	})
-	if err != nil {
-		return err
-	}
-	if !t.Valid {
-		return fmt.Errorf("invalid token")
-	}
-
-	return nil
-}
-
 func validUser(db database.Databaser, cfg config.IntegratedApp, token string) (int, error) {
 	userID, err := getUserIDFromToken(cfg, token)
 	if err != nil {
+		err = fmt.Errorf("failed to get user id from token: %w", err)
 		return 0, err
+	}
+
+	// If user ID is low, assume it is "new" user ID
+	if userID < 100 {
+		return userID, nil
 	}
 
 	_, err = db.GetUser(userID)
 	if err != nil {
+		err = fmt.Errorf("failed to get user: %w", err)
 		return 0, err
 	}
 

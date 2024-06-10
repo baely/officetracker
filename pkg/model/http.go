@@ -15,6 +15,8 @@ type Service interface {
 	GetNote(GetNoteRequest) (GetNoteResponse, error)
 	// PutNote saves the note for a month
 	PutNote(PutNoteRequest) (PutNoteResponse, error)
+	// GetNotes returns the notes for a year
+	GetNotes(request GetNotesRequest) (GetNotesResponse, error)
 
 	// GetSecret returns a new secret
 	GetSecret(GetSecretRequest) (GetSecretResponse, error)
@@ -122,6 +124,19 @@ type PutNoteRequestMeta struct {
 }
 
 type PutNoteResponse struct {
+}
+
+type GetNotesRequest struct {
+	Meta GetNotesRequestMeta `meta:"meta" json:"-"`
+}
+
+type GetNotesRequestMeta struct {
+	UserID int `meta:"user_id"`
+	Year   int `meta:"year"`
+}
+
+type GetNotesResponse struct {
+	Data map[int]Note `json:"data"`
 }
 
 type GetSecretRequest struct {
