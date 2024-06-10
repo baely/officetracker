@@ -9,10 +9,14 @@ import (
 var (
 	//go:embed html
 	templates embed.FS
-)
-var (
-	Index = template.Must(template.ParseFS(templates, "html/index.html"))
-	Login = template.Must(template.ParseFS(templates, "html/login.html"))
+
+	Form      = template.Must(template.ParseFS(templates, "html/bases/*", "html/form.html"))
+	Hero      = template.Must(template.ParseFS(templates, "html/bases/*", "html/hero.html"))
+	Login     = template.Must(template.ParseFS(templates, "html/bases/*", "html/login.html"))
+	Developer = template.Must(template.ParseFS(templates, "html/bases/*", "html/developer.html"))
+	Tos       = template.Must(template.ParseFS(templates, "html/bases/*", "html/tos.html"))
+	Privacy   = template.Must(template.ParseFS(templates, "html/bases/*", "html/privacy.html"))
+	Error     = template.Must(template.ParseFS(templates, "html/bases/*", "html/error.html"))
 )
 
 // static files
@@ -20,6 +24,9 @@ var (
 	//go:embed static/github-mark-white.png
 	GitHubMark []byte
 
-	//go:embed html/setup.html
+	//go:embed static/office-building.png
+	OfficeBuilding []byte
+
+	//go:embed html/setup_old.html
 	Setup []byte
 )

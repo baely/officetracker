@@ -7,12 +7,11 @@ import (
 	"log/slog"
 	"os"
 	"path"
-	"strconv"
 
 	_ "github.com/mattn/go-sqlite3"
 
 	"github.com/baely/officetracker/internal/config"
-	"github.com/baely/officetracker/internal/models"
+	"github.com/baely/officetracker/pkg/model"
 )
 
 const (
@@ -22,15 +21,6 @@ const (
 type sqliteClient struct {
 	cfg config.SQLite
 	db  *sql.DB
-}
-
-type entry struct {
-	UserID, Day, Month, Year, State int
-}
-
-type note struct {
-	UserID, Month, Year int
-	Notes               string
 }
 
 func NewSQLiteClient(cfg config.SQLite) (Databaser, error) {
@@ -66,99 +56,139 @@ func NewSQLiteClient(cfg config.SQLite) (Databaser, error) {
 	return db, nil
 }
 
-func (s *sqliteClient) SaveEntry(e models.Entry) error {
-	entries, notes, err := mapFromModel(e)
-	if err != nil {
-		return err
-	}
+func (s *sqliteClient) SaveDay(_ int, day int, month int, year int, state model.DayState) error {
+	q := `INSERT OR REPLACE INTO entries (Day, Month, Year, State) VALUES (?, ?, ?, ?);`
+	_, err := s.db.Exec(q, day, month, year, state.State)
+	return err
+}
 
-	for _, e2 := range entries {
-		if err = s.insertEntry(e2); err != nil {
+func (s *sqliteClient) GetDay(_ int, day int, month int, year int) (model.DayState, error) {
+	q := `SELECT State FROM entries WHERE Day = ? AND Month = ? AND Year = ?;`
+	row := s.db.QueryRow(q, day, month, year)
+	var state model.DayState
+	err := row.Scan(&state.State)
+	if errors.Is(err, sql.ErrNoRows) {
+		return model.DayState{}, nil
+	}
+	return state, err
+}
+
+func (s *sqliteClient) SaveMonth(_ int, month int, year int, state model.MonthState) error {
+	q := `INSERT OR REPLACE INTO entries (Day, Month, Year, State) VALUES (?, ?, ?, ?);`
+	for day, dayState := range state.Days {
+		_, err := s.db.Exec(q, day, month, year, dayState.State)
+		if err != nil {
 			return err
 		}
 	}
-
-	if err = s.insertNote(notes); err != nil {
-		return err
-	}
-
 	return nil
 }
 
-func (s *sqliteClient) GetEntries(_ string, month, year int) (models.Entry, error) {
-	entries, err := s.getEntriesForMonth(month, year)
+func (s *sqliteClient) GetMonth(_ int, month int, year int) (model.MonthState, error) {
+	q := `SELECT Day, State FROM entries WHERE Month = ? AND Year = ?;`
+	rows, err := s.db.Query(q, month, year)
 	if err != nil {
-		return models.Entry{}, err
+		return model.MonthState{}, err
 	}
-
-	notes, err := s.getNotesForMonth(month, year)
-	if err != nil {
-		return models.Entry{}, err
+	defer rows.Close()
+	monthState := model.MonthState{
+		Days: make(map[int]model.DayState),
 	}
-
-	return mapToModel(entries, notes), nil
+	for rows.Next() {
+		var day int
+		var state model.DayState
+		err = rows.Scan(&day, &state.State)
+		if err != nil {
+			return model.MonthState{}, err
+		}
+		monthState.Days[day] = state
+	}
+	return monthState, nil
 }
 
-func (s *sqliteClient) GetAllEntries(_ string) ([]models.Entry, error) {
-	m := make(map[string][]entry)
+func (s *sqliteClient) GetYear(_ int, year int) (model.YearState, error) {
+	q := `SELECT Day, Month, State FROM entries WHERE Year = ?;`
+	rows, err := s.db.Query(q, year)
+	if err != nil {
+		return model.YearState{}, err
+	}
+	defer rows.Close()
+	yearState := model.YearState{
+		Months: make(map[int]model.MonthState),
+	}
+	for rows.Next() {
+		var month int
+		var day int
+		var state model.DayState
+		err = rows.Scan(&day, &month, &state.State)
+		if err != nil {
+			return model.YearState{}, err
+		}
+		if _, ok := yearState.Months[month]; !ok {
+			yearState.Months[month] = model.MonthState{
+				Days: make(map[int]model.DayState),
+			}
+		}
+		yearState.Months[month].Days[day] = state
+	}
+	return yearState, nil
+}
 
-	entries, err := s.getAllEntries()
+func (s *sqliteClient) SaveNote(_ int, month int, year int, note string) error {
+	q := `INSERT OR REPLACE INTO notes (Month, Year, Notes) VALUES (?, ?, ?);`
+	_, err := s.db.Exec(q, month, year, note)
+	return err
+}
+
+func (s *sqliteClient) GetNote(_ int, month int, year int) (model.Note, error) {
+	q := `SELECT Notes FROM notes WHERE Month = ? AND Year = ?;`
+	row := s.db.QueryRow(q, month, year)
+	var note model.Note
+	err := row.Scan(&note.Note)
+	if errors.Is(err, sql.ErrNoRows) {
+		return model.Note{}, nil
+	}
+	return note, err
+}
+
+func (s *sqliteClient) GetNotes(_ int, year int) (map[int]model.Note, error) {
+	q := `SELECT Month, Notes FROM notes WHERE Year = ?;`
+	rows, err := s.db.Query(q, year)
 	if err != nil {
 		return nil, err
 	}
-
-	for _, e := range entries {
-		k := fmt.Sprintf("%d-%d", e.Month, e.Year)
-		m[k] = append(m[k], e)
-	}
-
-	var res []models.Entry
-	for _, v := range m {
-		notes, err := s.getNotesForMonth(v[0].Month, v[0].Year)
+	defer rows.Close()
+	notes := make(map[int]model.Note)
+	for rows.Next() {
+		var month int
+		var note model.Note
+		err = rows.Scan(&month, &note.Note)
 		if err != nil {
 			return nil, err
 		}
-		res = append(res, mapToModel(v, notes))
+		notes[month] = note
 	}
-
-	return res, nil
+	return notes, nil
 }
 
-func (s *sqliteClient) GetEntriesForBankYear(_ string, bankYear int) ([]models.Entry, error) {
-	startMonth, startYear := 10, bankYear-1
-	endMonth, endYear := 9, bankYear
+func (s *sqliteClient) GetUser(userID int) (int, error) {
+	return userID, nil
+}
 
-	var res []models.Entry
+func (s *sqliteClient) SaveUserByGHID(ghID string) (int, error) {
+	return 1, nil
+}
 
-	for month := startMonth; month <= 12; month++ {
-		e, err := s.GetEntries("", month, startYear)
-		if err != nil {
-			return nil, err
-		}
-		res = append(res, e)
-	}
-
-	for month := 1; month <= endMonth; month++ {
-		e, err := s.GetEntries("", month, endYear)
-		if err != nil {
-			return nil, err
-		}
-		res = append(res, e)
-	}
-
-	return res, nil
+func (s *sqliteClient) SaveSecret(userID int, secret string) error {
+	return nil
 }
 
 func (s *sqliteClient) GetUserByGHID(_ string) (int, error) {
-	return 42069, nil
+	return 1, nil
 }
 
-func (s *sqliteClient) GetUser(_ string) (int, error) {
-	return 42069, nil
-}
-
-func (s *sqliteClient) SaveUser(_ string) (int, error) {
-	return 42069, nil
+func (s *sqliteClient) GetUserBySecret(_ string) (int, error) {
+	return 1, nil
 }
 
 func (s *sqliteClient) initConnection() error {
@@ -189,136 +219,4 @@ CREATE TABLE IF NOT EXISTS notes (
 	s.db = db
 
 	return nil
-}
-
-func (s *sqliteClient) insertEntry(e entry) error {
-	q := `INSERT OR REPLACE INTO entries (Day, Month, Year, State) VALUES (?, ?, ?, ?);`
-	_, err := s.db.Exec(q, e.Day, e.Month, e.Year, e.State)
-	return err
-}
-
-func (s *sqliteClient) insertNote(n note) error {
-	q := `INSERT OR REPLACE INTO notes (Month, Year, Notes) VALUES (?, ?, ?);`
-	_, err := s.db.Exec(q, n.Month, n.Year, n.Notes)
-	return err
-}
-
-func (s *sqliteClient) getEntriesForMonth(month, year int) ([]entry, error) {
-	q := `SELECT * FROM entries WHERE Month = ? AND Year = ?;`
-	rows, err := s.db.Query(q, month, year)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var entries []entry
-
-	for rows.Next() {
-
-		var e entry
-		e, err = mapEntry(rows)
-		if err != nil {
-			return nil, err
-		}
-		entries = append(entries, e)
-	}
-
-	return entries, nil
-}
-
-func (s *sqliteClient) getAllEntries() ([]entry, error) {
-	q := `SELECT * FROM entries;`
-	rows, err := s.db.Query(q)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var entries []entry
-	for rows.Next() {
-		var e entry
-		e, err = mapEntry(rows)
-		if err != nil {
-			return nil, err
-		}
-		entries = append(entries, e)
-	}
-
-	return entries, nil
-}
-
-func (s *sqliteClient) getNotesForMonth(month, year int) (note, error) {
-	q := `SELECT * FROM notes WHERE Month = ? AND Year = ?;`
-	row := s.db.QueryRow(q, month, year)
-	return mapNote(row)
-}
-
-func mapEntry(row *sql.Rows) (entry, error) {
-	var e entry
-	err := row.Scan(&e.Day, &e.Month, &e.Year, &e.State)
-	return e, err
-}
-
-func mapNote(row *sql.Row) (note, error) {
-	var n note
-	err := row.Scan(&n.Month, &n.Year, &n.Notes)
-	if err == sql.ErrNoRows {
-		return note{}, nil
-	}
-	return n, err
-}
-
-func mapToModel(entries []entry, n note) models.Entry {
-	if len(entries) == 0 {
-		return models.Entry{}
-	}
-
-	userID := fmt.Sprintf("%d", entries[0].UserID)
-
-	e := models.Entry{
-		User:  userID,
-		Month: entries[0].Month,
-		Year:  entries[0].Year,
-		Days:  make(map[string]int),
-		Notes: n.Notes,
-	}
-
-	for _, day := range entries {
-		e.Days[fmt.Sprintf("%d", day.Day)] = day.State
-	}
-
-	return e
-}
-
-func mapFromModel(e models.Entry) ([]entry, note, error) {
-	var entries []entry
-	var notes note
-
-	userID, err := strconv.Atoi(e.User)
-	if err != nil {
-		return nil, note{}, err
-	}
-
-	for day, state := range e.Days {
-		dayInt, err := strconv.Atoi(day)
-		if err != nil {
-			return nil, notes, err
-		}
-		entries = append(entries, entry{
-			UserID: userID,
-			Day:    dayInt,
-			Month:  e.Month,
-			Year:   e.Year,
-			State:  state,
-		})
-	}
-
-	notes = note{
-		UserID: userID,
-		Month:  e.Month,
-		Year:   e.Year,
-		Notes:  e.Notes,
-	}
-
-	return entries, notes, nil
 }

@@ -1,0 +1,16 @@
+{{ template "base.html" . }}
+{{ define "nav" }}{{ template "loggedin.html" }}{{ end }}
+{{ define "title" }}Developer{{ end }}
+{{ define "content" }}
+<p>
+    Generate an API key below.
+    By generating a new key, you will revoke all previously generated keys.
+    If you wish to revoke a key, click the generate button below.
+</p>
+<p>
+    <input type="text" disabled id="api-key">
+    <button id="generate-api-key">Generate</button>
+    <button id="copy-api-key">Copy</button>
+</p>
+<script>{{ template "developer.js" . }}</script>
+{{ end }}

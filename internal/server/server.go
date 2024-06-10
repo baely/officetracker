@@ -2,326 +2,73 @@ package server
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"html/template"
-	"io"
 	"log/slog"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 
 	"github.com/baely/officetracker/internal/auth"
 	"github.com/baely/officetracker/internal/config"
-	"github.com/baely/officetracker/internal/data"
 	"github.com/baely/officetracker/internal/database"
 	"github.com/baely/officetracker/internal/embed"
-	"github.com/baely/officetracker/internal/models"
-)
-
-const (
-	internalErrorMsg = "Internal server error"
+	v1 "github.com/baely/officetracker/internal/implementation/v1"
+	"github.com/baely/officetracker/pkg/model"
 )
 
 type Server struct {
 	http.Server
 	cfg config.AppConfigurer
 	db  database.Databaser
+
+	// v1 implementation
+	v1 model.Service
 }
 
-type submission struct {
-	Month string      `json:"month"`
-	Year  string      `json:"year"`
-	Days  map[int]int `json:"days"`
-	Notes string      `json:"notes"`
-}
-
-type response struct {
-	State []int  `json:"state"`
-	Notes string `json:"notes"`
-}
-
-func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
-	cfg := s.cfg.(config.IntegratedApp)
-	if err := embed.Login.Execute(w, struct{ SSOLink string }{auth.SSOUri(cfg)}); err != nil {
-		slog.Error(fmt.Sprintf("failed to render login: %v", err))
-		http.Error(w, internalErrorMsg, http.StatusInternalServerError)
-		return
-	}
-}
-
-func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
-	auth.ClearCookie(w)
-	http.Redirect(w, r, "/login", http.StatusTemporaryRedirect)
-}
-
-func (s *Server) handleSetup(w http.ResponseWriter, r *http.Request) {
-	w.Write(embed.Setup)
-}
-
-func (s *Server) handleForm(w http.ResponseWriter, r *http.Request) {
-	month := chi.URLParam(r, "month")
-
-	if month == "setup" || month == "download" {
-		http.Redirect(w, r, fmt.Sprintf("/%s", month), http.StatusTemporaryRedirect)
+func NewServer(cfg config.AppConfigurer, db database.Databaser) (*Server, error) {
+	s := &Server{
+		db:  db,
+		cfg: cfg,
+		v1:  v1.New(db),
 	}
 
-	if month == "" {
-		month = time.Now().Format("2006-01")
-		http.Redirect(w, r, fmt.Sprintf("/form/%s", month), http.StatusTemporaryRedirect)
-	}
-	t, err := time.Parse("2006-01", month)
-	if err != nil {
-		slog.Error(fmt.Sprintf("failed to parse month: %v", err))
-		http.Error(w, "bad date part", http.StatusBadRequest)
-		return
-	}
+	r := chi.NewMux().With(s.logRequest, injectAuth(db, cfg))
 
-	sum, err := data.GenerateSummary(s.db, s.getUserID(r), int(t.Month()), t.Year())
-	if err != nil {
-		slog.Error(fmt.Sprintf("failed to generate summary: %v", err))
-		http.Error(w, internalErrorMsg, http.StatusInternalServerError)
-		return
-	}
+	// Form routes
+	r.Get("/", s.handleIndex)
+	r.Get("/{year:[0-9]{4}}-{month:[0-9]{1,2}}", s.handleForm)
 
-	respSum := make(map[string]map[int]int)
-	for _, month := range sum.MonthData {
-		parts := strings.Split(month.MonthUri, "/")
-		yearPart := parts[1]
-		monthPart := parts[2]
-		key := fmt.Sprintf("%s-%02s", yearPart, monthPart)
+	// API routes
+	r.Route("/api/v1", apiRouter(s.v1))
 
-		if _, ok := respSum[key]; !ok {
-			respSum[key] = make(map[int]int)
-		}
-		respSum[key][1] = month.TotalDays - month.TotalPresent
-		respSum[key][2] = month.TotalPresent
-	}
-	jsonSum, err := json.Marshal(respSum)
-	if err != nil {
-		slog.Error(fmt.Sprintf("failed to marshal summary: %v", err))
-		http.Error(w, internalErrorMsg, http.StatusInternalServerError)
-		return
-	}
-
-	entry, err := s.db.GetEntries(s.getUserID(r), int(t.Month()), t.Year())
-	if err != nil {
-		slog.Error(fmt.Sprintf("failed to get entries: %v", err))
-		http.Error(w, internalErrorMsg, http.StatusInternalServerError)
-		return
-	}
-	state := make([]string, 32)
-	for i := 0; i < 32; i++ {
-		state[i] = "0"
-	}
-	for day, dayState := range entry.Days {
-		dd, _ := strconv.Atoi(day)
-		state[dd] = fmt.Sprintf("%d", dayState)
-	}
-	stateStr := template.JS("[" + strings.Join(state, ",") + "]")
-
-	if err = embed.Index.Execute(w, struct {
-		Summary template.JS
-		State   template.JS
-		Notes   string
-	}{Summary: template.JS(jsonSum), State: stateStr, Notes: entry.Notes}); err != nil {
-		slog.Error(fmt.Sprintf("failed to render form: %v", err))
-		http.Error(w, internalErrorMsg, http.StatusInternalServerError)
-		return
-	}
-}
-
-func (s *Server) handleState(w http.ResponseWriter, r *http.Request) {
-	month := chi.URLParam(r, "month")
-
-	t, err := time.Parse("2006-01", month)
-	if err != nil {
-		slog.Error(fmt.Sprintf("failed to parse month: %v", err))
-		http.Error(w, "bad date part", http.StatusBadRequest)
-		return
-	}
-
-	entry, err := s.db.GetEntries(s.getUserID(r), int(t.Month()), t.Year())
-	if err != nil {
-		slog.Error(fmt.Sprintf("failed to get entries: %v", err))
-		http.Error(w, internalErrorMsg, http.StatusInternalServerError)
-		return
-	}
-
-	resp := response{
-		State: make([]int, 32),
-		Notes: entry.Notes,
-	}
-
-	for day, dayState := range entry.Days {
-		dd, _ := strconv.Atoi(day)
-		resp.State[dd] = dayState
-	}
-
-	b, err := json.Marshal(resp)
-	if err != nil {
-		slog.Error(fmt.Sprintf("failed to marshal state: %v", err))
-		http.Error(w, internalErrorMsg, http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(b)
-}
-
-func (s *Server) handleEntry(w http.ResponseWriter, r *http.Request) {
-	b, err := io.ReadAll(r.Body)
-	if err != nil {
-		slog.Error(fmt.Sprintf("failed to read request body: %v", err))
-		http.Error(w, internalErrorMsg, http.StatusInternalServerError)
-		return
-	}
-
-	var sub submission
-	err = json.Unmarshal(b, &sub)
-	if err != nil {
-		slog.Error(fmt.Sprintf("failed to unmarshal request body: %v", err))
-		http.Error(w, internalErrorMsg, http.StatusInternalServerError)
-		return
-	}
-
-	month, err := strconv.Atoi(sub.Month)
-	if err != nil {
-		slog.Error(fmt.Sprintf("failed to parse month: %v", err))
-		http.Error(w, "bad date part", http.StatusBadRequest)
-		return
-	}
-	year, err := strconv.Atoi(sub.Year)
-	if err != nil {
-		slog.Error(fmt.Sprintf("failed to parse year: %v", err))
-		http.Error(w, "bad date part", http.StatusBadRequest)
-		return
-	}
-
-	days := make(map[string]int)
-
-	for day, state := range sub.Days {
-		days[fmt.Sprintf("%d", day)] = state
-	}
-
-	e := models.Entry{
-		User:       s.getUserID(r),
-		CreateDate: time.Now(),
-		Month:      month,
-		Year:       year,
-		Days:       days,
-		Notes:      sub.Notes,
-	}
-	if err = s.db.SaveEntry(e); err != nil {
-		slog.Error(fmt.Sprintf("failed to save entry: %v", err))
-		http.Error(w, internalErrorMsg, http.StatusInternalServerError)
-		return
-	}
-
-	w.Write([]byte("OK"))
-}
-
-func (s *Server) handleDownload(w http.ResponseWriter, r *http.Request) {
-	u := s.getUserID(r)
-
-	b, err := data.GenerateCsv(s.db, u)
-	if err != nil {
-		slog.Error(fmt.Sprintf("failed to generate excel: %v", err))
-		http.Error(w, internalErrorMsg, http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "text/csv")
-	w.Header().Set("Content-Disposition", "attachment; filename=officecheck.csv")
-	w.Write(b)
-}
-
-func (s *Server) logRequest(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		slog.Info(fmt.Sprintf("request: %s %s", r.Method, r.URL.Path))
-		start := time.Now()
-		next.ServeHTTP(w, r)
-		slog.Info(fmt.Sprintf("request: %s %s took %s", r.Method, r.URL.Path, time.Since(start)))
-	})
-}
-
-func (s *Server) getUserID(r *http.Request) string {
-	switch cfg := s.cfg.(type) {
+	// Integrated app routes
+	switch integratedCfg := cfg.(type) {
 	case config.IntegratedApp:
-		return auth.GetUserID(cfg, r)
-	case config.StandaloneApp:
-		return "42069"
-	default:
-		return ""
-	}
-}
-
-func NewServer(cfg config.IntegratedApp, db database.Databaser) (*Server, error) {
-	s := &Server{
-		db:  db,
-		cfg: cfg,
+		// Auth routes
+		r.Route("/auth", auth.Router(integratedCfg, s.db))
+		r.Get("/login", s.handleLogin)
+		r.Get("/logout", s.handleLogout)
+		// Cool stuff
+		r.Get("/developer", s.handleDeveloper)
+		// Boring stuff
+		r.Get("/tos", s.handleTos)
+		r.Get("/privacy", s.handlePrivacy)
 	}
 
-	r := chi.NewMux().With(s.logRequest)
-
-	// Anonymous routes
-	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, "form", http.StatusTemporaryRedirect)
-	})
-	r.Get("/login", s.handleLogin)
-	r.Get("/logout", s.handleLogout)
-
-	// User routes
-	r.With(auth.Middleware(cfg, s.db)).Get("/form", s.handleForm)
-	r.With(auth.Middleware(cfg, s.db)).Get("/form/{month}", s.handleForm)
-	r.With(auth.Middleware(cfg, s.db)).Get("/user-state/{month}", s.handleState)
-	r.With(auth.Middleware(cfg, s.db)).Post("/submit", s.handleEntry)
-	r.With(auth.Middleware(cfg, s.db)).Get("/setup", s.handleSetup)
-	r.With(auth.Middleware(cfg, s.db)).Get("/download", s.handleDownload)
-
-	// Static routes
-	r.Handle("/static/github-mark-white.png", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Write(embed.GitHubMark)
-	}))
-
-	// Subroutes
-	r.Route("/auth", auth.Router(cfg, s.db))
-
-	port := cfg.App.Port
-	if port == "" {
-		port = "8080"
-	}
-	s.Server = http.Server{
-		Addr:    fmt.Sprintf(":%s", port),
-		Handler: r,
-	}
-
-	return s, nil
-}
-
-func NewStandaloneServer(cfg config.StandaloneApp, db database.Databaser) (*Server, error) {
-	s := &Server{
-		db:  db,
-		cfg: cfg,
-	}
-
-	r := chi.NewMux().With(s.logRequest)
-
-	// Anonymous routes
-	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, "form", http.StatusTemporaryRedirect)
+	r.Route("/static", staticHandler)
+	r.Get("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "image/png")
+		w.Header().Set("Cache-Control", "public, max-age=604800, immutable")
+		w.Write(embed.OfficeBuilding)
 	})
 
-	// User routes
-	r.Get("/form", s.handleForm)
-	r.Get("/form/{month}", s.handleForm)
-	r.Get("/user-state/{month}", s.handleState)
-	r.Post("/submit", s.handleEntry)
-	r.Get("/download", s.handleDownload)
+	r.NotFound(s.handleNotFound)
 
-	port := cfg.App.Port
+	port := cfg.GetApp().Port
 	if port == "" {
 		port = "8080"
 	}
@@ -339,4 +86,151 @@ func (s *Server) Run() error {
 		return err
 	}
 	return nil
+}
+
+// handleIndex handles the index route:
+// - if the app is standalone or integrated and the user is logged in, it shows the form
+// - if the app is integrated and the user is not logged in, it shows the hero
+func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
+	switch cfg := s.cfg.(type) {
+	case config.StandaloneApp:
+		s.handleForm(w, r)
+		return
+	case config.IntegratedApp:
+		if auth.GetUserID(s.db, cfg, w, r) != 0 {
+			s.handleForm(w, r)
+			return
+		} else {
+			s.handleHero(w, r)
+			return
+		}
+	}
+	s.handleHero(w, r)
+	return
+}
+
+func (s *Server) handleForm(w http.ResponseWriter, r *http.Request) {
+	userID, err := getUserID(r)
+	if errors.Is(err, ErrNoUserInCtx) || userID == 0 {
+		slog.Info("no user id in context, redirecting to login")
+		http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
+		return
+	}
+	if err != nil {
+		err = fmt.Errorf("failed to get user id: %w", err)
+		errorPage(w, err, internalErrorMsg, http.StatusInternalServerError)
+		return
+	}
+
+	yearStr := chi.URLParam(r, "year")
+	monthStr := chi.URLParam(r, "month")
+	if yearStr == "" || monthStr == "" {
+		http.Redirect(w, r, fmt.Sprintf("/%s", time.Now().Format("2006-01")), http.StatusTemporaryRedirect)
+		return
+	}
+	year, err := strconv.Atoi(yearStr)
+	if err != nil {
+		err = fmt.Errorf("failed to convert year to int: %w", err)
+		errorPage(w, err, "Invalid date", http.StatusBadRequest)
+		return
+	}
+
+	yearlyData, err := s.v1.GetYear(model.GetYearRequest{
+		Meta: model.GetYearRequestMeta{
+			UserID: userID,
+			Year:   year,
+		},
+	})
+	if err != nil {
+		err = fmt.Errorf("failed to get year data: %w", err)
+		errorPage(w, err, internalErrorMsg, http.StatusInternalServerError)
+		return
+	}
+	yearlyNotes, err := s.v1.GetNotes(model.GetNotesRequest{
+		Meta: model.GetNotesRequestMeta{
+			UserID: userID,
+			Year:   year,
+		},
+	})
+	if err != nil {
+		err = fmt.Errorf("failed to get year note: %w", err)
+		errorPage(w, err, internalErrorMsg, http.StatusInternalServerError)
+		return
+	}
+
+	yearlyDataByte, err := json.Marshal(yearlyData)
+	if err != nil {
+		err = fmt.Errorf("failed to marshal yearly data: %w", err)
+		errorPage(w, err, internalErrorMsg, http.StatusInternalServerError)
+		return
+	}
+	yearlyNotesByte, err := json.Marshal(yearlyNotes)
+	if err != nil {
+		err = fmt.Errorf("failed to marshal yearly notes: %w", err)
+		errorPage(w, err, internalErrorMsg, http.StatusInternalServerError)
+		return
+	}
+	yearlyDataStr := string(yearlyDataByte)
+	yearlyNotesStr := string(yearlyNotesByte)
+
+	serveForm(w, r, formPage{
+		YearlyState: template.JS(yearlyDataStr),
+		YearlyNotes: template.JS(yearlyNotesStr),
+	})
+}
+
+func (s *Server) handleHero(w http.ResponseWriter, r *http.Request) {
+	serveHero(w, r, heroPage{})
+}
+
+func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
+	cfg := s.cfg.(config.IntegratedApp)
+	ssoUri := auth.SSOUri(cfg)
+	serveLogin(w, r, loginPage{
+		SSOLink: ssoUri,
+	})
+}
+
+func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
+	auth.ClearCookie(w)
+	http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
+}
+
+func (s *Server) handleDeveloper(w http.ResponseWriter, r *http.Request) {
+	authMethod, err := getAuthMethod(r)
+	if err != nil {
+		err = fmt.Errorf("failed to get auth method: %w", err)
+		errorPage(w, err, internalErrorMsg, http.StatusInternalServerError)
+		return
+	}
+	if authMethod != AuthMethodSSO {
+		http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
+	}
+
+	serveDeveloper(w, r, developerPage{})
+}
+
+func (s *Server) handleTos(w http.ResponseWriter, r *http.Request) {
+	serveTos(w, r, tosPage{})
+}
+
+func (s *Server) handlePrivacy(w http.ResponseWriter, r *http.Request) {
+	servePrivacy(w, r, privacyPage{})
+}
+
+func (s *Server) handleNotFound(w http.ResponseWriter, r *http.Request) {
+	errorPage(w, nil, "Not found", http.StatusNotFound)
+}
+
+func staticHandler(r chi.Router) {
+	r.Get("/github-mark-white.png", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "image/png")
+		w.Header().Set("Cache-Control", "public, max-age=604800, immutable")
+		w.Write(embed.GitHubMark)
+	})
+	r.Get("/office-building.png", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "image/png")
+		w.Header().Set("Cache-Control", "public, max-age=604800, immutable")
+		w.Write(embed.OfficeBuilding)
+	})
 }

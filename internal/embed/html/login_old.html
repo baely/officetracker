@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>GitHub Login</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f4f4;
+            padding: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        div.container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        .github-btn {
+            width: 100%;
+            padding: 10px;
+            border-radius: 4px;
+            border: none;
+            background-color: #24292e;
+            color: white;
+            cursor: pointer;
+            font-size: inherit;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-sizing: border-box;
+        }
+        .github-btn:hover {
+            background-color: #1c2025;
+        }
+        .github-logo {
+            margin-right: 10px;
+            width: 20px;
+            height: 20px;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <a href="{{.SSOLink}}" class="github-btn">
+        <img src="../static/github-mark-white.png" alt="GitHub" class="github-logo">
+        Login with GitHub
+    </a>
+</div>
+</body>
+</html>

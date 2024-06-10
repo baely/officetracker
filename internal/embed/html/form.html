@@ -1,0 +1,44 @@
+{{ template "base.html" . }}
+{{ define "nav" }}{{ template "loggedin.html" }}{{ end }}
+{{ define "content" }}
+<div id="calendar-nav">
+    <button id="prev-month">Previous</button>
+    <span id="month-year"></span>
+    <button id="next-month">Next</button>
+</div>
+
+<div id="calendar"></div>
+
+<div id="legend" class="legend">
+    <div class="legend-item">
+        <span class="legend-color present"></span> Work from Home
+    </div>
+    <div class="legend-item">
+        <span class="legend-color not-present"></span> In office
+    </div>
+    <div class="legend-item">
+        <span class="legend-color other"></span> Other (Untracked)
+    </div>
+</div>
+<div>
+    <h2>Notes</h2>
+    <p>
+        <textarea name="notes" id="notes"></textarea>
+    </p>
+</div>
+
+<div class="summary-container">
+    <h2>Summary</h2>
+    <p id="summary-headline"></p>
+    <table id="summary-table">
+        <tr>
+            <th>Month</th>
+            <th>Present</th>
+            <th>Total</th>
+            <th>Percent</th>
+        </tr>
+    </table>
+</div>
+
+<script>{{ template "form.js" . }}</script>
+{{ end }}

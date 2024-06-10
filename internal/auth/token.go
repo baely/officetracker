@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -24,30 +25,49 @@ var (
 
 type tokenClaims struct {
 	jwt.RegisteredClaims
-	User string `json:"user"`
+	User int `json:"user"`
 }
 
 func signingKey(cfg config.IntegratedApp) []byte {
 	return []byte(cfg.SigningKey)
 }
 
-func GetUserID(cfg config.IntegratedApp, r *http.Request) string {
+func GetUserID(db database.Databaser, cfg config.IntegratedApp, w http.ResponseWriter, r *http.Request) int {
 	cookie, err := r.Cookie(userCookie)
 	if err != nil {
-		slog.Error(fmt.Sprintf("failed to get cookie: %v", err))
-		return ""
+		return 0
 	}
 
-	userID, err := getUserIDFromToken(cfg, cookie.Value)
+	userID, err := validUser(db, cfg, cookie.Value)
 	if err != nil {
-		slog.Error(fmt.Sprintf("failed to get user id from token: %v", err))
-		return ""
+		err = fmt.Errorf("invalid user: %w", err)
+		slog.Error(err.Error())
+		ClearCookie(w)
+		return 0
 	}
 
 	return userID
 }
 
-func generateToken(cfg config.IntegratedApp, userID string) (string, error) {
+func GetUserFromSecret(db database.Databaser, r *http.Request) int {
+	secret := r.Header.Get("Authorization")
+	if secret == "" {
+		return 0
+	}
+	if !strings.HasPrefix(secret, "Bearer ") {
+		slog.Error("invalid secret format")
+		return 0
+	}
+	secret = strings.TrimPrefix(secret, "Bearer ")
+	userID, err := db.GetUserBySecret(secret)
+	if err != nil {
+		slog.Error(fmt.Sprintf("failed to get user id from secret: %v", err))
+		return 0
+	}
+	return userID
+}
+
+func generateToken(cfg config.IntegratedApp, userID int) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"user": userID,
 	})
@@ -60,7 +80,7 @@ func generateToken(cfg config.IntegratedApp, userID string) (string, error) {
 	return tokenString, nil
 }
 
-func issueToken(cfg config.IntegratedApp, w http.ResponseWriter, userID string) error {
+func issueToken(cfg config.IntegratedApp, w http.ResponseWriter, userID int) error {
 	token, err := generateToken(cfg, userID)
 	if err != nil {
 		return err
@@ -80,54 +100,44 @@ func issueToken(cfg config.IntegratedApp, w http.ResponseWriter, userID string) 
 		HttpOnly: true,
 		Secure:   false,
 	}
+	slog.Info(fmt.Sprintf("Issuing cookie for user %d", userID))
 	http.SetCookie(w, &cookie)
 
-	slog.Info(fmt.Sprintf("issued token: %+v", cookie))
-
 	return nil
 }
 
-func validateToken(cfg config.IntegratedApp, token string) error {
-	claims := &tokenClaims{}
-
-	t, err := jwt.ParseWithClaims(token, claims, func(t *jwt.Token) (interface{}, error) {
-		return signingKey(cfg), nil
-	})
-	if err != nil {
-		return err
-	}
-	if !t.Valid {
-		return fmt.Errorf("invalid token")
-	}
-
-	return nil
-}
-
-func validUser(db database.Databaser, cfg config.IntegratedApp, token string) error {
+func validUser(db database.Databaser, cfg config.IntegratedApp, token string) (int, error) {
 	userID, err := getUserIDFromToken(cfg, token)
 	if err != nil {
-		return err
+		err = fmt.Errorf("failed to get user id from token: %w", err)
+		return 0, err
+	}
+
+	// If user ID is low, assume it is "new" user ID
+	if userID < 100 {
+		return userID, nil
 	}
 
 	_, err = db.GetUser(userID)
 	if err != nil {
-		return err
+		err = fmt.Errorf("failed to get user: %w", err)
+		return 0, err
 	}
 
-	return nil
+	return userID, nil
 }
 
-func getUserIDFromToken(cfg config.IntegratedApp, token string) (string, error) {
+func getUserIDFromToken(cfg config.IntegratedApp, token string) (int, error) {
 	claims := &tokenClaims{}
 
 	t, err := jwt.ParseWithClaims(token, claims, func(t *jwt.Token) (interface{}, error) {
 		return signingKey(cfg), nil
 	})
 	if err != nil {
-		return "", err
+		return 0, err
 	}
 	if !t.Valid {
-		return "", fmt.Errorf("invalid token")
+		return 0, fmt.Errorf("invalid token")
 	}
 
 	return claims.User, nil
