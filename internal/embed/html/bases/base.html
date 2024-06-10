@@ -14,6 +14,7 @@
         main nav { background-color: #dee; margin: -48px -48px 0; padding: 48px;}
         main nav h1 { font-family: "Calistoga", serif; font-size: 2em; margin: 0; }
         main nav h1 a:link, main nav h1 a:visited { text-decoration: none; }
+        main nav h1 img { height: 32px; margin: 0 4px -2px 0; }
         main nav a:link, main nav a:visited { color: inherit; }
         main nav h1, main nav a { display: inline-block;  }
         main nav > a { font-size: 1.25em; margin: 0 20px; }
@@ -128,7 +129,7 @@
 <body>
 <main>
     <nav>
-        <h1><a href="/">Officetracker</a></h1>
+        <h1><a href="/"><img src="/static/office-building.png" alt="Office building"/>Officetracker</a></h1>
         {{block "nav" .}}{{end}}
     </nav>
     <h2>{{block "title" .}}{{end}}</h2>

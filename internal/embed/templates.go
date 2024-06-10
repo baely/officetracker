@@ -10,18 +10,21 @@ var (
 	//go:embed html
 	templates embed.FS
 
-	Form    = template.Must(template.ParseFS(templates, "html/bases/*.html", "html/form.html"))
-	Hero    = template.Must(template.ParseFS(templates, "html/bases/*.html", "html/hero.html"))
-	Login   = template.Must(template.ParseFS(templates, "html/bases/*.html", "html/login.html"))
-	Tos     = template.Must(template.ParseFS(templates, "html/bases/*.html", "html/tos.html"))
-	Privacy = template.Must(template.ParseFS(templates, "html/bases/*.html", "html/privacy.html"))
-	Error   = template.Must(template.ParseFS(templates, "html/bases/*.html", "html/error.html"))
+	Form    = template.Must(template.ParseFS(templates, "html/bases/*", "html/form.html"))
+	Hero    = template.Must(template.ParseFS(templates, "html/bases/*", "html/hero.html"))
+	Login   = template.Must(template.ParseFS(templates, "html/bases/*", "html/login.html"))
+	Tos     = template.Must(template.ParseFS(templates, "html/bases/*", "html/tos.html"))
+	Privacy = template.Must(template.ParseFS(templates, "html/bases/*", "html/privacy.html"))
+	Error   = template.Must(template.ParseFS(templates, "html/bases/*", "html/error.html"))
 )
 
 // static files
 var (
 	//go:embed static/github-mark-white.png
 	GitHubMark []byte
+
+	//go:embed static/office-building.png
+	OfficeBuilding []byte
 
 	//go:embed html/setup_old.html
 	Setup []byte

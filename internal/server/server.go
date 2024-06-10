@@ -1,8 +1,10 @@
 package server
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"html/template"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -56,6 +58,10 @@ func NewServer(cfg config.AppConfigurer, db database.Databaser) (*Server, error)
 	}
 
 	r.Route("/static", staticHandler)
+	r.Get("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "image/png")
+		w.Write(embed.OfficeBuilding)
+	})
 
 	r.NotFound(s.handleNotFound)
 
@@ -138,11 +144,10 @@ func (s *Server) handleForm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	monthData, err := s.v1.GetMonth(model.GetMonthRequest{
-		Meta: model.GetMonthRequestMeta{
+	yearlyData, err := s.v1.GetYear(model.GetYearRequest{
+		Meta: model.GetYearRequestMeta{
 			UserID: userID,
 			Year:   year,
-			Month:  month,
 		},
 	})
 	if err != nil {
@@ -163,9 +168,17 @@ func (s *Server) handleForm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	yearlyDataByte, err := json.Marshal(yearlyData)
+	if err != nil {
+		err = fmt.Errorf("failed to marshal yearly data: %w", err)
+		errorPage(w, err, internalErrorMsg, http.StatusInternalServerError)
+		return
+	}
+	yearlyDataStr := string(yearlyDataByte)
+
 	serveForm(w, r, formPage{
-		MonthState: monthData.Data,
-		MonthNote:  monthNote.Data,
+		YearlyState: template.JS(yearlyDataStr),
+		MonthNote:   monthNote.Data,
 	})
 }
 
@@ -203,5 +216,9 @@ func staticHandler(r chi.Router) {
 	r.Get("/github-mark-white.png", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "image/png")
 		w.Write(embed.GitHubMark)
+	})
+	r.Get("/office-building.png", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "image/png")
+		w.Write(embed.OfficeBuilding)
 	})
 }

@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+	"html/template"
 	"log/slog"
 	"net/http"
 
@@ -10,8 +11,8 @@ import (
 )
 
 type formPage struct {
-	MonthState model.MonthState
-	MonthNote  model.Note
+	YearlyState template.JS
+	MonthNote   model.Note
 }
 
 func serveForm(w http.ResponseWriter, r *http.Request, page formPage) {
