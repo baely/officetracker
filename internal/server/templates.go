@@ -9,52 +9,69 @@ import (
 	"github.com/baely/officetracker/pkg/model"
 )
 
-func serveForm(w http.ResponseWriter, r *http.Request, monthState model.MonthState, monthNote model.Note) {
-	if err := embed.Form.Execute(w, struct {
-		MonthState model.MonthState
-		MonthNote  model.Note
-	}{
-		MonthState: monthState,
-		MonthNote:  monthNote,
-	}); err != nil {
+type formPage struct {
+	MonthState model.MonthState
+	MonthNote  model.Note
+}
+
+func serveForm(w http.ResponseWriter, r *http.Request, page formPage) {
+	if err := embed.Form.Execute(w, page); err != nil {
 		err = fmt.Errorf("failed to execute form template: %w", err)
 		errorPage(w, err, internalErrorMsg, http.StatusInternalServerError)
 	}
 }
 
-func serveHero(w http.ResponseWriter, r *http.Request) {
-	if err := embed.Hero.Execute(w, nil); err != nil {
+type heroPage struct {
+}
+
+func serveHero(w http.ResponseWriter, r *http.Request, page heroPage) {
+	if err := embed.Hero.Execute(w, page); err != nil {
 		err = fmt.Errorf("failed to execute hero template: %w", err)
 		errorPage(w, err, internalErrorMsg, http.StatusInternalServerError)
 	}
 }
 
-func serveLogin(w http.ResponseWriter, r *http.Request, ssoLink string) {
-	if err := embed.Login.Execute(w, struct {
-		SSOLink string
-	}{
-		SSOLink: ssoLink,
-	}); err != nil {
+type loginPage struct {
+	SSOLink string
+}
+
+func serveLogin(w http.ResponseWriter, r *http.Request, page loginPage) {
+	if err := embed.Login.Execute(w, page); err != nil {
 		err = fmt.Errorf("failed to execute login template: %w", err)
 		errorPage(w, err, internalErrorMsg, http.StatusInternalServerError)
 	}
 }
 
-func serveTos(w http.ResponseWriter, r *http.Request) {
-	if err := embed.Tos.Execute(w, nil); err != nil {
+type tosPage struct {
+}
+
+func serveTos(w http.ResponseWriter, r *http.Request, page tosPage) {
+	if err := embed.Tos.Execute(w, page); err != nil {
 		err = fmt.Errorf("failed to execute tos template: %w", err)
 		errorPage(w, err, internalErrorMsg, http.StatusInternalServerError)
 	}
 }
 
-func servePrivacy(w http.ResponseWriter, r *http.Request) {
-	if err := embed.Privacy.Execute(w, nil); err != nil {
+type privacyPage struct {
+}
+
+func servePrivacy(w http.ResponseWriter, r *http.Request, page privacyPage) {
+	if err := embed.Privacy.Execute(w, page); err != nil {
 		err = fmt.Errorf("failed to execute privacy template: %w", err)
 		errorPage(w, err, internalErrorMsg, http.StatusInternalServerError)
 	}
 }
 
+type ErrorPage struct {
+	ErrorMessage string
+}
+
 func errorPage(w http.ResponseWriter, err error, userMsg string, status int) {
 	slog.Error(err.Error())
-	http.Error(w, userMsg, status)
+	if err := embed.Error.Execute(w, ErrorPage{
+		ErrorMessage: err.Error(),
+	}); err != nil {
+		err = fmt.Errorf("failed to execute error template: %w", err)
+		slog.Error(err.Error())
+	}
 }

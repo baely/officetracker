@@ -13,6 +13,7 @@ import (
 	"github.com/baely/officetracker/internal/auth"
 	"github.com/baely/officetracker/internal/config"
 	"github.com/baely/officetracker/internal/database"
+	"github.com/baely/officetracker/internal/embed"
 	v1 "github.com/baely/officetracker/internal/implementation/v1"
 	"github.com/baely/officetracker/pkg/model"
 )
@@ -48,10 +49,15 @@ func NewServer(cfg config.AppConfigurer, db database.Databaser) (*Server, error)
 		// Auth routes
 		r.Route("/auth", auth.Router(integratedCfg, s.db))
 		r.Get("/login", s.handleLogin)
+		r.Get("/logout", s.handleLogout)
 		// Boring stuff
 		r.Get("/tos", s.handleTos)
 		r.Get("/privacy", s.handlePrivacy)
 	}
+
+	r.Route("/static", staticHandler)
+
+	r.NotFound(s.handleNotFound)
 
 	// TODO: remove
 	chi.Walk(r, func(method string, route string, handler http.Handler, middlewares ...func(http.Handler) http.Handler) error {
@@ -103,6 +109,7 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleForm(w http.ResponseWriter, r *http.Request) {
 	userID, err := getUserID(r)
 	if errors.Is(err, ErrNoUserInCtx) || userID == 0 {
+		slog.Info("no user id in context, redirecting to login")
 		http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
 		return
 	}
@@ -157,23 +164,45 @@ func (s *Server) handleForm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	serveForm(w, r, monthData.Data, monthNote.Data)
+	serveForm(w, r, formPage{
+		MonthState: monthData.Data,
+		MonthNote:  monthNote.Data,
+	})
 }
 
 func (s *Server) handleHero(w http.ResponseWriter, r *http.Request) {
-	serveHero(w, r)
+	serveHero(w, r, heroPage{})
 }
 
 func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	cfg := s.cfg.(config.IntegratedApp)
 	ssoUri := auth.SSOUri(cfg)
-	serveLogin(w, r, ssoUri)
+	serveLogin(w, r, loginPage{
+		SSOLink: ssoUri,
+	})
+}
+
+func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
+	auth.ClearCookie(w)
+	slog.Info("logged out")
+	http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
 }
 
 func (s *Server) handleTos(w http.ResponseWriter, r *http.Request) {
-	serveTos(w, r)
+	serveTos(w, r, tosPage{})
 }
 
 func (s *Server) handlePrivacy(w http.ResponseWriter, r *http.Request) {
-	servePrivacy(w, r)
+	servePrivacy(w, r, privacyPage{})
+}
+
+func (s *Server) handleNotFound(w http.ResponseWriter, r *http.Request) {
+	errorPage(w, nil, "Not found", http.StatusNotFound)
+}
+
+func staticHandler(r chi.Router) {
+	r.Get("/github-mark-white.png", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "image/png")
+		w.Write(embed.GitHubMark)
+	})
 }

@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Officetracker</title>
+    <meta charset="utf-8">
+    <style>
+        html, body { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; margin: 0; padding: 0; }
+        body { background-color: black; height: 100vh; overflow-x: hidden; overflow-y: auto; width: 100vw; }
+        main { background-color: white; margin: 0 auto; min-height: calc(100vh - 96px); padding: 48px; width: 540px; }
+        main nav h1, main nav a { display: inline-block;  }
+
+        .github-btn {
+            /*width: 100%;*/
+            padding: 10px;
+            border-radius: 4px;
+            border: none;
+            background-color: #24292e;
+            color: white;
+            cursor: pointer;
+            font-size: inherit;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-sizing: border-box;
+        }
+        .github-btn:hover {
+            background-color: #1c2025;
+        }
+        .github-logo {
+            margin-right: 10px;
+            width: 20px;
+            height: 20px;
+        }
+
+        #calendar-nav {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        #calendar-nav #month-year {
+            font-weight: bold;
+            font-size: 1.5em;
+            margin: 10px;
+        }
+
+        #calendar {
+            display: grid;
+            gap: 0.5rem;
+            margin: auto;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .weekday-header, .day {
+            border: 1px solid #dee2e6; /* Bootstrap-like border color */
+            padding: 0.5rem;
+            text-align: center;
+            background-color: #f8f9fa; /* Bootstrap-like background color */
+        }
+
+        .weekday-header {
+            font-weight: bold;
+            color: #495057; /* Bootstrap-like text color */
+        }
+
+        .day {
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .legend {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 1rem;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-right: 1rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .legend-color {
+            width: 1rem;
+            height: 1rem;
+            border: 1px solid #dee2e6;
+            margin-right: 0.5rem;
+        }
+
+        .untracked { background-color: #FFFFFF; }
+        .present { background-color: #4CAF50; }
+        .not-present { background-color: #F44336; }
+        .other { background-color: #2196F3; }
+
+        .today {
+            border: 5px solid #FFC107;
+            font-weight: bold;
+            padding: 3px;
+        }
+
+        textarea#notes {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            font-family: Arial, sans-serif;
+            font-size: 1rem;
+            line-height: 1.5;
+            color: #495057;
+            background-color: #f8f9fa;
+            box-sizing: border-box;
+            resize: vertical;
+        }
+    </style>
+</head>
+<body>
+<main>
+    <nav>
+        <h1><a href="/">Officetracker</a></h1>
+        {{block "nav" .}}{{end}}
+    </nav>
+    <h2>{{block "title" .}}{{end}}</h2>
+    <section>{{block "content" .}}{{end}}<section>
+</main>
+</body>
+</html>

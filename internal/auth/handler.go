@@ -48,6 +48,7 @@ func Middleware(cfg config.IntegratedApp, db database.Databaser) func(http.Handl
 func handleLogout() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ClearCookie(w)
+		slog.Info("logged out")
 		http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
 	}
 }

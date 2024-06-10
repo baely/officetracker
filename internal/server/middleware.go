@@ -52,7 +52,7 @@ func injectAuth(db database.Databaser, cfgIface config.AppConfigurer) func(http.
 			switch cfg := cfgIface.(type) {
 			case config.StandaloneApp:
 				val.set(ctxAuthMethodKey, AuthMethodExcluded)
-				val.set(ctxUserIDKey, "42069")
+				val.set(ctxUserIDKey, 42069)
 			case config.IntegratedApp:
 				userID := auth.GetUserID(db, cfg, w, r)
 				if userID != 0 {

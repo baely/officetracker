@@ -89,6 +89,7 @@ func handleGithubCallback(cfg config.IntegratedApp, db database.Databaser) func(
 			return
 		}
 
+		slog.Info(fmt.Sprintf("logged in user: %d", userID))
 		http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
 	}
 }
@@ -141,6 +142,7 @@ func handleDemoAuth(cfg config.IntegratedApp, db database.Databaser) func(http.R
 			http.Error(w, "Internal server error", http.StatusInternalServerError)
 			return
 		}
+		slog.Info(fmt.Sprintf("logged in user: %d", userID))
 		http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
 	}
 }

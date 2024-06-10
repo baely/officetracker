@@ -150,3 +150,13 @@ func getUserIDFromToken(cfg config.IntegratedApp, token string) (int, error) {
 
 	return claims.User, nil
 }
+
+func LoggedIn(db database.Databaser, cfgIface config.AppConfigurer, w http.ResponseWriter, r *http.Request) bool {
+	switch cfg := cfgIface.(type) {
+	case config.StandaloneApp:
+		return true
+	case config.IntegratedApp:
+		return GetUserID(db, cfg, w, r) != 0
+	}
+	return false
+}

@@ -1,5 +1,5 @@
 {{ template "base.html" . }}
-{{ define "title" }}TOS{{ end }}
+{{ define "title" }}Error{{ end }}
 {{ define "content" }}
-<h1>TOS</h1>
+{{ .ErrorMessage }}
 {{ end }}

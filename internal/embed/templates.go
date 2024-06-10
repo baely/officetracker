@@ -9,12 +9,13 @@ import (
 var (
 	//go:embed html
 	templates embed.FS
-	
-	Form    = template.Must(template.ParseFS(templates, "html/base.html", "html/form.html"))
-	Hero    = template.Must(template.ParseFS(templates, "html/base.html", "html/hero.html"))
-	Login   = template.Must(template.ParseFS(templates, "html/base.html", "html/login.html"))
-	Tos     = template.Must(template.ParseFS(templates, "html/base.html", "html/tos.html"))
-	Privacy = template.Must(template.ParseFS(templates, "html/base.html", "html/privacy.html"))
+
+	Form    = template.Must(template.ParseFS(templates, "html/bases/*.html", "html/form.html"))
+	Hero    = template.Must(template.ParseFS(templates, "html/bases/*.html", "html/hero.html"))
+	Login   = template.Must(template.ParseFS(templates, "html/bases/*.html", "html/login.html"))
+	Tos     = template.Must(template.ParseFS(templates, "html/bases/*.html", "html/tos.html"))
+	Privacy = template.Must(template.ParseFS(templates, "html/bases/*.html", "html/privacy.html"))
+	Error   = template.Must(template.ParseFS(templates, "html/bases/*.html", "html/error.html"))
 )
 
 // static files

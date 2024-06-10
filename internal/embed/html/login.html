@@ -1,16 +1,9 @@
 {{ template "base.html" . }}
+{{ define "nav" }}{{ template "loggedout.html" }}{{ end }}
+{{ define "title" }}Login{{ end }}
 {{ define "content" }}
-<h1>Login</h1>
-<p>
-<h2>Data</h2>
-<a href="{{ .SSOLink }}">Login</a>
-<table>
-    <tr>
-        <th>Field</th><th>Data</th>
-    </tr>
-    <tr>
-        <td>SSOLink</td><td>{{ .SSOLink }}</td>
-    </tr>
-</table>
-</p>
+<a href="{{.SSOLink}}" class="github-btn">
+    <img src="../static/github-mark-white.png" alt="GitHub" class="github-logo">
+    Login with GitHub
+</a>
 {{ end }}

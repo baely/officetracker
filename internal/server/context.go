@@ -1,6 +1,10 @@
 package server
 
-import "net/http"
+import (
+	"fmt"
+	"log/slog"
+	"net/http"
+)
 
 type ctxValue map[string]interface{}
 
@@ -19,6 +23,7 @@ func getCtxValue(r *http.Request) ctxValue {
 }
 
 func (c ctxValue) set(key string, val interface{}) ctxValue {
+	slog.Info(fmt.Sprintf("setting key: %s, val: %v", key, val))
 	c[key] = val
 	return c
 }
