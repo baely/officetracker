@@ -116,11 +116,11 @@ func (s *sqliteClient) SaveSecret(userID int, secret string) error {
 }
 
 func (s *sqliteClient) GetUserByGHID(_ string) (int, error) {
-	return 42069, nil
+	return 1, nil
 }
 
 func (s *sqliteClient) GetUserBySecret(_ string) (int, error) {
-	return 42069, nil
+	return 1, nil
 }
 
 func (s *sqliteClient) initConnection() error {

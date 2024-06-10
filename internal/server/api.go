@@ -108,6 +108,7 @@ func writeError(w http.ResponseWriter, msg string, code int) {
 		http.Error(w, "", http.StatusInternalServerError)
 		return
 	}
+	w.Header().Add("Content-Type", "application/json")
 	http.Error(w, string(b), code)
 }
 

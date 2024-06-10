@@ -26,10 +26,13 @@ type heroPage struct {
 }
 
 func serveHero(w http.ResponseWriter, r *http.Request, page heroPage) {
-	if err := embed.Hero.Execute(w, page); err != nil {
-		err = fmt.Errorf("failed to execute hero template: %w", err)
-		errorPage(w, err, internalErrorMsg, http.StatusInternalServerError)
-	}
+	http.Redirect(w, r, "/login", http.StatusTemporaryRedirect)
+
+	// TODO: create proper hero
+	//if err := embed.Hero.Execute(w, page); err != nil {
+	//	err = fmt.Errorf("failed to execute hero template: %w", err)
+	//	errorPage(w, err, internalErrorMsg, http.StatusInternalServerError)
+	//}
 }
 
 type loginPage struct {
@@ -39,6 +42,15 @@ type loginPage struct {
 func serveLogin(w http.ResponseWriter, r *http.Request, page loginPage) {
 	if err := embed.Login.Execute(w, page); err != nil {
 		err = fmt.Errorf("failed to execute login template: %w", err)
+		errorPage(w, err, internalErrorMsg, http.StatusInternalServerError)
+	}
+}
+
+type developerPage struct{}
+
+func serveDeveloper(w http.ResponseWriter, r *http.Request, page developerPage) {
+	if err := embed.Developer.Execute(w, page); err != nil {
+		err = fmt.Errorf("failed to execute developer template: %w", err)
 		errorPage(w, err, internalErrorMsg, http.StatusInternalServerError)
 	}
 }

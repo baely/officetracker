@@ -52,6 +52,8 @@ func NewServer(cfg config.AppConfigurer, db database.Databaser) (*Server, error)
 		r.Route("/auth", auth.Router(integratedCfg, s.db))
 		r.Get("/login", s.handleLogin)
 		r.Get("/logout", s.handleLogout)
+		// Cool stuff
+		r.Get("/developer", s.handleDeveloper)
 		// Boring stuff
 		r.Get("/tos", s.handleTos)
 		r.Get("/privacy", s.handlePrivacy)
@@ -198,6 +200,20 @@ func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
 	auth.ClearCookie(w)
 	slog.Info("logged out")
 	http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
+}
+
+func (s *Server) handleDeveloper(w http.ResponseWriter, r *http.Request) {
+	authMethod, err := getAuthMethod(r)
+	if err != nil {
+		err = fmt.Errorf("failed to get auth method: %w", err)
+		errorPage(w, err, internalErrorMsg, http.StatusInternalServerError)
+		return
+	}
+	if authMethod != AuthMethodSSO {
+		http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
+	}
+
+	serveDeveloper(w, r, developerPage{})
 }
 
 func (s *Server) handleTos(w http.ResponseWriter, r *http.Request) {
