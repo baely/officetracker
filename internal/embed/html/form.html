@@ -1,22 +1,21 @@
 {{ template "base.html" . }}
 {{ define "nav" }}{{ template "loggedin.html" }}{{ end }}
-{{ define "title" }}Form{{ end }}
 {{ define "content" }}
-<h1>Form</h1>
-<p>
-<h2>Data</h2>
-<table>
-    <tr>
-        <th>Field</th><th>Data</th>
-    </tr>
-    <tr>
-        <td>State</td><td>{{ .MonthState }}</td>
-    </tr>
-    <tr>
-        <td>Note</td><td>{{ .MonthNote }}</td>
-    </tr>
-</table>
-</p>
+<!--<h1>Form</h1>-->
+<!--<p>-->
+<!--<h2>Data</h2>-->
+<!--<table>-->
+<!--    <tr>-->
+<!--        <th>Field</th><th>Data</th>-->
+<!--    </tr>-->
+<!--    <tr>-->
+<!--        <td>State</td><td>{{ .MonthState }}</td>-->
+<!--    </tr>-->
+<!--    <tr>-->
+<!--        <td>Note</td><td>{{ .MonthNote }}</td>-->
+<!--    </tr>-->
+<!--</table>-->
+<!--</p>-->
 
 
 
@@ -42,8 +41,21 @@
 <div>
     <h2>Notes</h2>
     <p>
-        <textarea name="notes" id="notes">TODO: fill notes</textarea>
+        <textarea name="notes" id="notes">{{ .MonthNote.Note }}</textarea>
     </p>
+</div>
+
+<div class="summary-container">
+    <h2>Summary</h2>
+    <p id="summary-headline"></p>
+    <table id="summary-table">
+        <tr>
+            <th>Month</th>
+            <th>Present</th>
+            <th>Total</th>
+            <th>Percent</th>
+        </tr>
+    </table>
 </div>
 
 <script>
@@ -133,7 +145,7 @@
             this.notes = notes;
             this.summary = new Summary(summary);
             this.updateDate();
-            Data.notesDOM.addEventListener("blur", () => { this.updateBackend() });
+            Data.notesDOM.addEventListener("blur", () => { this.updateNote() });
             document.getElementById("prev-month").addEventListener("click", () => this.updateMonth(-1));
             document.getElementById("next-month").addEventListener("click", () => this.updateMonth(1));
             window.addEventListener("popstate", this.updateDate);
@@ -168,6 +180,7 @@
                 .then(r => r.json())
                 .then(payload => {
                     console.log(payload);
+                    this.refreshDOM();
                 });
             //
             // fetch("../user-state/" + formatDate(this.currentYear, this.currentMonth))
@@ -193,8 +206,27 @@
             this.state.forEach((s, i) => { i = "" + i; days[i] = s; });
             let notes = Data.notesDOM.value;
             let obj = {month, year, days, notes};
-            fetch("../submit", {
-                method: 'POST',
+            fetch("/api/v1/state/" + year + "/" + month + "/" + day, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(obj),
+                credentials: "include"
+            });
+        }
+
+        updateNote() {
+            let month = "" + (this.currentMonth + 1);
+            let year = "" + this.currentYear;
+            let notes = Data.notesDOM.value;
+            let obj = {
+                "data": {
+                    "note": notes
+                }
+            }
+            fetch("/api/v1/note/" + year + "/" + month, {
+                method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
                 },
@@ -225,7 +257,7 @@
                 this.currentMonth = 0;
                 this.currentYear++;
             }
-            window.history.pushState({}, "", "../form/" + formatDate(this.currentYear, this.currentMonth));
+            window.history.pushState({}, "", "/" + formatDate(this.currentYear, this.currentMonth));
             this.updateDate();
         }
 
@@ -239,7 +271,7 @@
     }
 
     let state = []; // TODO: handle new state
-    let notes = "" // TODO: handle notes;
+    let notes = "{{ .MonthNote.Note }}" // TODO: handle notes;
     let summary = {}; // TODO: handle new summary
 
     let data = new Data(state, notes, summary);

@@ -40,8 +40,8 @@ func stateRouter(service model.Service) func(chi.Router) {
 func noteRouter(service model.Service) func(chi.Router) {
 	middlewares := []func(http.Handler) http.Handler{AllowedAuthMethods(AuthMethodSSO)}
 	return func(r chi.Router) {
-		r.With(middlewares...).Method(http.MethodGet, "/{year}/{month}/{day}", wrap(service.GetNote))
-		r.With(middlewares...).Method(http.MethodPut, "/{year}/{month}/{day}", wrap(service.PutNote))
+		r.With(middlewares...).Method(http.MethodGet, "/{year}/{month}", wrap(service.GetNote))
+		r.With(middlewares...).Method(http.MethodPut, "/{year}/{month}", wrap(service.PutNote))
 	}
 
 }

@@ -100,6 +100,7 @@ func issueToken(cfg config.IntegratedApp, w http.ResponseWriter, userID int) err
 		HttpOnly: true,
 		Secure:   false,
 	}
+	slog.Info(fmt.Sprintf("Issuing cookie for user %d", userID))
 	http.SetCookie(w, &cookie)
 
 	return nil

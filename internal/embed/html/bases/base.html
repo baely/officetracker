@@ -3,11 +3,20 @@
 <head>
     <title>Officetracker</title>
     <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Calistoga&display=swap" rel="stylesheet">
     <style>
         html, body { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; margin: 0; padding: 0; }
         body { background-color: black; height: 100vh; overflow-x: hidden; overflow-y: auto; width: 100vw; }
-        main { background-color: white; margin: 0 auto; min-height: calc(100vh - 96px); padding: 48px; width: 540px; }
+        main { background-color: white; margin: 0 auto; max-width: 540px; min-height: calc(100vh - 96px); padding: 48px; }
+        main nav { background-color: #dee; margin: -48px -48px 0; padding: 48px;}
+        main nav h1 { font-family: "Calistoga", serif; font-size: 2em; margin: 0; }
+        main nav h1 a:link, main nav h1 a:visited { text-decoration: none; }
+        main nav a:link, main nav a:visited { color: inherit; }
         main nav h1, main nav a { display: inline-block;  }
+        main nav > a { font-size: 1.25em; margin: 0 20px; }
 
         .github-btn {
             /*width: 100%;*/

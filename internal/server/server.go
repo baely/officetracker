@@ -38,7 +38,7 @@ func NewServer(cfg config.AppConfigurer, db database.Databaser) (*Server, error)
 
 	// Form routes
 	r.Get("/", s.handleIndex)
-	r.Get("/{year-month}", s.handleForm)
+	r.Get("/{year:[0-9]{4}}-{month:[0-9]{1,2}}", s.handleForm)
 
 	// API routes
 	r.Route("/api/v1", apiRouter(s.v1))
@@ -119,13 +119,12 @@ func (s *Server) handleForm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	yearMonth := chi.URLParam(r, "year-month")
-	if yearMonth == "" {
+	yearStr := chi.URLParam(r, "year")
+	monthStr := chi.URLParam(r, "month")
+	if yearStr == "" || monthStr == "" {
 		http.Redirect(w, r, fmt.Sprintf("/%s", time.Now().Format("2006-01")), http.StatusTemporaryRedirect)
 		return
 	}
-	yearStr := yearMonth[:4]
-	monthStr := yearMonth[5:]
 	year, err := strconv.Atoi(yearStr)
 	if err != nil {
 		err = fmt.Errorf("failed to convert year to int: %w", err)
