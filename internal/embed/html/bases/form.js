@@ -79,10 +79,10 @@ class Data {
     static summaryDOM = document.getElementById("summary-table");
     static summaryHeadlineDOM = document.getElementById("summary-headline");
 
-    constructor(state, notes, summary) {
+    constructor(state, notes) {
         this.state = state;
         this.notes = notes;
-        this.summary = new Summary(summary);
+        this.summary = new Summary({});
         this.updateDate(false);
         Data.notesDOM.addEventListener("blur", () => { this.updateNote() });
         document.getElementById("prev-month").addEventListener("click", () => this.updateMonth(-1));
@@ -119,6 +119,8 @@ class Data {
             .then(r => r.json())
             .then(payload => {
                 console.log(payload);
+                console.log(mapState(payload));
+                this.state = mapState(payload);
                 this.refreshDOM();
             });
         //
@@ -147,13 +149,17 @@ class Data {
         this.updateTitle();
     }
 
-    updateBackend() {
+    updateBackend(day) {
         let month = "" + (this.currentMonth + 1);
         let year = "" + this.currentYear;
-        let days = {};
-        this.state.forEach((s, i) => { i = "" + i; days[i] = s; });
-        let notes = Data.notesDOM.value;
-        let obj = {month, year, days, notes};
+
+        let thisState = this.state[this.currentMonth][day];
+
+        let obj = {
+            "data": {
+                "state": thisState
+            }
+        };
         fetch("/api/v1/state/" + year + "/" + month + "/" + day, {
             method: 'PUT',
             headers: {
@@ -161,7 +167,13 @@ class Data {
             },
             body: JSON.stringify(obj),
             credentials: "include"
-        });
+        }).then(
+            r => r.json()
+        ).then(
+            payload => {
+                console.log(payload);
+            }
+        );
     }
 
     updateNote() {
@@ -195,6 +207,8 @@ class Data {
         }
         if (!sameYear) {
             this.fetchData();
+        } else {
+            this.refreshDOM();
         }
         this.fetchNote();
     }
@@ -216,21 +230,27 @@ class Data {
     }
 
     updateState(date, state) {
-        this.state[date] = state;
-        this.updateBackend();
-        this.summary.updateMonth(this.currentYear, this.currentMonth, this.state);
+        if (!(this.currentMonth in this.state)) {
+            this.state[this.currentMonth] = {};
+        }
+        this.state[this.currentMonth][date] = state;
+
+        this.updateBackend(date);
+        // this.summary.updateMonth(this.currentYear, this.currentMonth, this.state);
     }
 
     updateTitle() { Data.titleDOM.textContent = monthNames[this.currentMonth] + " " + this.currentYear; }
 }
 
-let state = []; // TODO: handle new state
+let rawState = {{ .YearlyState }}; // TODO: handle new state
 let notes = "{{ .MonthNote.Note }}" // TODO: handle notes;
-let summary = {}; // TODO: handle new summary
+// let summary = {}; // TODO: handle new summary
 
-let yearlyState = {};
+// let yearlyState = {};
 
-let data = new Data(state, notes, summary);
+let state = mapState(rawState);
+
+let data = new Data(state, notes);
 
 function generateCalendar(month, year, currState, callback) {
     console.log("Attempting to generate calendar for " + month + " " + year);
@@ -261,7 +281,11 @@ function generateCalendar(month, year, currState, callback) {
             if (currentDate.getMonth() === month) {
                 td.textContent = currentDate.getDate();
                 td.classList.add('day');
-                td.dataset.state = currState[currentDate.getDate()]; // Initial state
+                let cellState = 0;
+                if (month+1 in currState && currentDate.getDate() in currState[month+1]) {
+                    cellState = currState[month+1][currentDate.getDate()];
+                }
+                td.dataset.state = cellState; // Initial state
                 td.classList.add(getClassForState(states[td.dataset.state]));
                 if (currentDate.getTime() === today.getTime()) { td.classList.add('today'); }
                 td.addEventListener('click', function () { callback(this, 1); });
@@ -293,6 +317,22 @@ function getClassForState(state) {
         default:
             return "untracked";
     }
+}
+
+function mapState(payload) {
+    let state = {};
+    const months = payload.data.months;
+    for (const [key, value] of Object.entries(months)) {
+        if (!(key in state)) {
+            state[key] = {};
+        }
+
+        let days = value.days;
+        for (const [day, dayVal] of Object.entries(days)) {
+            state[key][day] = dayVal.state;
+        }
+    }
+    return state;
 }
 
 function formatDate(year, month) { return year + "-" + (month + 1).toString().padStart(2, "0"); }
