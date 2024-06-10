@@ -228,7 +228,7 @@ func (p *postgres) GetUserByGHID(ghID string) (int, error) {
 		row := tx.QueryRow(q, ghID)
 		err := row.Scan(&id)
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil
+			return ErrNoUser
 		}
 		return err
 	})
@@ -274,10 +274,11 @@ func (p *postgres) rcvTx(fn func(*sql.Tx) error, opts *sql.TxOptions) error {
 		return err
 	}
 	err = fn(tx)
-	if err != nil {
-		return tx.Rollback()
+	commitErr := tx.Commit()
+	if commitErr != nil {
+		err = commitErr
 	}
-	return tx.Commit()
+	return err
 }
 
 func (p *postgres) readOnlyTransaction(fn func(*sql.Tx) error) error {

@@ -23,15 +23,6 @@ type sqliteClient struct {
 	db  *sql.DB
 }
 
-type entry struct {
-	UserID, Day, Month, Year, State int
-}
-
-type note struct {
-	UserID, Month, Year int
-	Notes               string
-}
-
 func NewSQLiteClient(cfg config.SQLite) (Databaser, error) {
 	db := &sqliteClient{
 		cfg: cfg,
@@ -65,59 +56,131 @@ func NewSQLiteClient(cfg config.SQLite) (Databaser, error) {
 	return db, nil
 }
 
-func (s *sqliteClient) SaveDay(userID int, day int, month int, year int, state model.DayState) error {
-	//TODO implement me
-	panic("implement me")
+func (s *sqliteClient) SaveDay(_ int, day int, month int, year int, state model.DayState) error {
+	q := `INSERT OR REPLACE INTO entries (Day, Month, Year, State) VALUES (?, ?, ?, ?);`
+	_, err := s.db.Exec(q, day, month, year, state.State)
+	return err
 }
 
-func (s *sqliteClient) GetDay(userID int, day int, month int, year int) (model.DayState, error) {
-	//TODO implement me
-	panic("implement me")
+func (s *sqliteClient) GetDay(_ int, day int, month int, year int) (model.DayState, error) {
+	q := `SELECT State FROM entries WHERE Day = ? AND Month = ? AND Year = ?;`
+	row := s.db.QueryRow(q, day, month, year)
+	var state model.DayState
+	err := row.Scan(&state.State)
+	if errors.Is(err, sql.ErrNoRows) {
+		return model.DayState{}, nil
+	}
+	return state, err
 }
 
-func (s *sqliteClient) SaveMonth(userID int, month int, year int, state model.MonthState) error {
-	//TODO implement me
-	panic("implement me")
+func (s *sqliteClient) SaveMonth(_ int, month int, year int, state model.MonthState) error {
+	q := `INSERT OR REPLACE INTO entries (Day, Month, Year, State) VALUES (?, ?, ?, ?);`
+	for day, dayState := range state.Days {
+		_, err := s.db.Exec(q, day, month, year, dayState.State)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
-func (s *sqliteClient) GetMonth(userID int, month int, year int) (model.MonthState, error) {
-	//TODO implement me
-	panic("implement me")
+func (s *sqliteClient) GetMonth(_ int, month int, year int) (model.MonthState, error) {
+	q := `SELECT Day, State FROM entries WHERE Month = ? AND Year = ?;`
+	rows, err := s.db.Query(q, month, year)
+	if err != nil {
+		return model.MonthState{}, err
+	}
+	defer rows.Close()
+	monthState := model.MonthState{
+		Days: make(map[int]model.DayState),
+	}
+	for rows.Next() {
+		var day int
+		var state model.DayState
+		err = rows.Scan(&day, &state.State)
+		if err != nil {
+			return model.MonthState{}, err
+		}
+		monthState.Days[day] = state
+	}
+	return monthState, nil
 }
 
-func (s *sqliteClient) GetYear(userID int, year int) (model.YearState, error) {
-	//TODO implement me
-	panic("implement me")
+func (s *sqliteClient) GetYear(_ int, year int) (model.YearState, error) {
+	q := `SELECT Day, Month, State FROM entries WHERE Year = ?;`
+	rows, err := s.db.Query(q, year)
+	if err != nil {
+		return model.YearState{}, err
+	}
+	defer rows.Close()
+	yearState := model.YearState{
+		Months: make(map[int]model.MonthState),
+	}
+	for rows.Next() {
+		var month int
+		var day int
+		var state model.DayState
+		err = rows.Scan(&day, &month, &state.State)
+		if err != nil {
+			return model.YearState{}, err
+		}
+		if _, ok := yearState.Months[month]; !ok {
+			yearState.Months[month] = model.MonthState{
+				Days: make(map[int]model.DayState),
+			}
+		}
+		yearState.Months[month].Days[day] = state
+	}
+	return yearState, nil
 }
 
-func (s *sqliteClient) SaveNote(userID int, month int, year int, note string) error {
-	//TODO implement me
-	panic("implement me")
+func (s *sqliteClient) SaveNote(_ int, month int, year int, note string) error {
+	q := `INSERT OR REPLACE INTO notes (Month, Year, Notes) VALUES (?, ?, ?);`
+	_, err := s.db.Exec(q, month, year, note)
+	return err
 }
 
-func (s *sqliteClient) GetNote(userID int, month int, year int) (model.Note, error) {
-	//TODO implement me
-	panic("implement me")
+func (s *sqliteClient) GetNote(_ int, month int, year int) (model.Note, error) {
+	q := `SELECT Notes FROM notes WHERE Month = ? AND Year = ?;`
+	row := s.db.QueryRow(q, month, year)
+	var note model.Note
+	err := row.Scan(&note.Note)
+	if errors.Is(err, sql.ErrNoRows) {
+		return model.Note{}, nil
+	}
+	return note, err
 }
 
-func (s *sqliteClient) GetNotes(userID int, year int) (map[int]model.Note, error) {
-	//TODO implement me
-	panic("implement me")
+func (s *sqliteClient) GetNotes(_ int, year int) (map[int]model.Note, error) {
+	q := `SELECT Month, Notes FROM notes WHERE Year = ?;`
+	rows, err := s.db.Query(q, year)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	notes := make(map[int]model.Note)
+	for rows.Next() {
+		var month int
+		var note model.Note
+		err = rows.Scan(&month, &note.Note)
+		if err != nil {
+			return nil, err
+		}
+		notes[month] = note
+	}
+	return notes, nil
 }
 
 func (s *sqliteClient) GetUser(userID int) (int, error) {
-	//TODO implement me
-	panic("implement me")
+	return userID, nil
 }
 
 func (s *sqliteClient) SaveUserByGHID(ghID string) (int, error) {
-	//TODO implement me
-	panic("implement me")
+	return 1, nil
 }
 
 func (s *sqliteClient) SaveSecret(userID int, secret string) error {
-	//TODO implement me
-	panic("implement me")
+	return nil
 }
 
 func (s *sqliteClient) GetUserByGHID(_ string) (int, error) {

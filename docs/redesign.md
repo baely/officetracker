@@ -61,17 +61,3 @@ And some stretch goals:
 | /api/v1/developer/secret           | POST   | JWT        | No         | Get developer client secret              |
 | /api/v1/health/ping                | GET    | No         | Yes        | Health check                             |
 | /api/v1/health/auth                | GET    | Secret     | No         | Check auth flow                          |                           
-
-## Data model
-
-```json
-{
-  "year": {
-    "month": {
-      "day": {
-        "user": "state"
-      }
-    }
-  }
-}
-``` 

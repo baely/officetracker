@@ -1,7 +1,6 @@
 package auth
 
 import (
-	"log/slog"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -13,7 +12,6 @@ import (
 func handleLogout() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ClearCookie(w)
-		slog.Info("logged out")
 		http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
 	}
 }

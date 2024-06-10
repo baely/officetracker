@@ -68,12 +68,6 @@ func NewServer(cfg config.AppConfigurer, db database.Databaser) (*Server, error)
 
 	r.NotFound(s.handleNotFound)
 
-	// TODO: remove
-	chi.Walk(r, func(method string, route string, handler http.Handler, middlewares ...func(http.Handler) http.Handler) error {
-		slog.Info(fmt.Sprintf("route: %s %s", method, route))
-		return nil
-	})
-
 	port := cfg.GetApp().Port
 	if port == "" {
 		port = "8080"
@@ -148,7 +142,7 @@ func (s *Server) handleForm(w http.ResponseWriter, r *http.Request) {
 		},
 	})
 	if err != nil {
-		err = fmt.Errorf("failed to get month data: %w", err)
+		err = fmt.Errorf("failed to get year data: %w", err)
 		errorPage(w, err, internalErrorMsg, http.StatusInternalServerError)
 		return
 	}
@@ -159,7 +153,7 @@ func (s *Server) handleForm(w http.ResponseWriter, r *http.Request) {
 		},
 	})
 	if err != nil {
-		err = fmt.Errorf("failed to get month note: %w", err)
+		err = fmt.Errorf("failed to get year note: %w", err)
 		errorPage(w, err, internalErrorMsg, http.StatusInternalServerError)
 		return
 	}
@@ -199,7 +193,6 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
 	auth.ClearCookie(w)
-	slog.Info("logged out")
 	http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
 }
 

@@ -150,7 +150,6 @@ func mapResponse[T any](resp T) ([]byte, error) {
 }
 
 func getUserID(r *http.Request) (int, error) {
-	//slog.Info(fmt.Sprintf("%+v", getCtxValue(r)))
 	userID, ok := getCtxValue(r).get(ctxUserIDKey).(int)
 	if !ok {
 		return 0, ErrNoUserInCtx

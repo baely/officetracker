@@ -164,12 +164,10 @@ class Data {
     updateBackend(day) {
         let month = "" + (this.currentMonth + 1);
         let year = "" + this.currentYear;
-
-        if (!(this.currentMonth in this.state)) {
-            this.state[this.currentMonth] = {};
+        if (!(month in this.state)) {
+            this.state[month] = {};
         }
-
-        let thisState = this.state[this.currentMonth][day];
+        let thisState = this.state[month][day];
 
         let obj = {
             "data": {
