@@ -72,6 +72,7 @@ func (p *postgres) SaveNote(userID int, month int, year int, note string) error 
 }
 
 func (p *postgres) GetNote(userID int, month int, year int) (string, error) {
+
 	//TODO implement me
 	panic("implement me")
 }
@@ -99,7 +100,7 @@ func (p *postgres) SaveUserByGHID(ghID string) (int, error) {
 }
 
 func (p *postgres) SaveSecret(userID int, secret string) error {
-	q := `UPDATE secrets SET active = false WHERE user_id = $1;`
+	q := `UPDATE secrets SET active = false WHERE user_id = $1 AND active;`
 	_, err := p.db.Exec(q, userID)
 	if err != nil {
 		return err

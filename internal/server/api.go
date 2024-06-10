@@ -11,13 +11,10 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"github.com/baely/officetracker/internal/database"
-	v1 "github.com/baely/officetracker/internal/implementation/v1"
 	"github.com/baely/officetracker/pkg/model"
 )
 
-func apiRouter(db database.Databaser) func(chi.Router) {
-	service := v1.New(db)
+func apiRouter(service model.Service) func(chi.Router) {
 	return func(r chi.Router) {
 		r.Route("/state", stateRouter(service))
 		r.Route("/note", noteRouter(service))

@@ -29,7 +29,7 @@ func main() {
 		panic(err)
 	}
 
-	s, err := server.NewStandaloneServer(cfg, db)
+	s, err := server.NewServer(cfg, db)
 	if err != nil {
 		panic(err)
 	}

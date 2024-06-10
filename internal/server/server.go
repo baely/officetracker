@@ -1,10 +1,10 @@
 package server
 
 import (
-	"context"
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -12,107 +12,53 @@ import (
 	"github.com/baely/officetracker/internal/auth"
 	"github.com/baely/officetracker/internal/config"
 	"github.com/baely/officetracker/internal/database"
-)
-
-const (
-	internalErrorMsg = "Internal server error"
-)
-
-type ctxValue map[string]interface{}
-
-const (
-	ctxKey           = "ctx"
-	ctxUserIDKey     = "userID"
-	ctxAuthMethodKey = "auth"
-)
-
-type AuthMethod int
-
-const (
-	AuthMethodUnknown = AuthMethod(iota)
-	AuthMethodNone
-	AuthMethodSSO
-	AuthMethodSecret
-	AuthMethodExcluded
+	v1 "github.com/baely/officetracker/internal/implementation/v1"
+	"github.com/baely/officetracker/pkg/model"
 )
 
 type Server struct {
 	http.Server
 	cfg config.AppConfigurer
 	db  database.Databaser
+
+	// v1 implementation
+	v1 model.Service
 }
 
-func (s *Server) handleForm(w http.ResponseWriter, r *http.Request) {
-	// TODO
-}
-
-func handleTos(w http.ResponseWriter, r *http.Request) {
-	// TODO
-}
-
-func handlePrivacy(w http.ResponseWriter, r *http.Request) {
-	// TODO
-}
-
-func (s *Server) logRequest(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		slog.Info(fmt.Sprintf("request: %s %s", r.Method, r.URL.Path))
-		start := time.Now()
-		next.ServeHTTP(w, r)
-		slog.Info(fmt.Sprintf("request: %s %s took %s", r.Method, r.URL.Path, time.Since(start)))
-	})
-}
-
-func NewServer(cfg config.IntegratedApp, db database.Databaser) (*Server, error) {
+func NewServer(cfg config.AppConfigurer, db database.Databaser) (*Server, error) {
 	s := &Server{
 		db:  db,
 		cfg: cfg,
+		v1:  v1.New(db),
 	}
 
 	r := chi.NewMux().With(s.logRequest, injectAuth(db, cfg))
 
 	// Form routes
-	r.Get("/", s.handleForm)
-	r.Get("/{year-month}", s.handleForm)
+	r.Get("/", s.handleIndex)
+	r.Get("/{year-month}", s.handleIndex)
 
 	// API routes
-	r.Route("/api/v1", apiRouter(s.db))
+	r.Route("/api/v1", apiRouter(s.v1))
 
-	// Auth routes
-	r.Route("/auth", auth.Router(cfg, s.db))
+	// Integrated app routes
+	switch integratedCfg := cfg.(type) {
+	case config.IntegratedApp:
+		// Auth routes
+		r.Route("/auth", auth.Router(integratedCfg, s.db))
+		r.Get("/login", s.handleLogin)
+		// Boring stuff
+		r.Get("/tos", s.handleTos)
+		r.Get("/privacy", s.handlePrivacy)
+	}
 
-	// Boring stuff
-	r.Get("/tos", handleTos)
-	r.Get("/privacy", handlePrivacy)
-
+	// TODO: remove
 	chi.Walk(r, func(method string, route string, handler http.Handler, middlewares ...func(http.Handler) http.Handler) error {
 		slog.Info(fmt.Sprintf("route: %s %s", method, route))
 		return nil
 	})
 
-	port := cfg.App.Port
-	if port == "" {
-		port = "8080"
-	}
-	s.Server = http.Server{
-		Addr:    fmt.Sprintf(":%s", port),
-		Handler: r,
-	}
-
-	return s, nil
-}
-
-func NewStandaloneServer(cfg config.StandaloneApp, db database.Databaser) (*Server, error) {
-	s := &Server{
-		db:  db,
-		cfg: cfg,
-	}
-
-	r := chi.NewMux().With(s.logRequest, injectAuth(db, cfg))
-
-	r.Route("/api/v1", apiRouter(s.db))
-
-	port := cfg.App.Port
+	port := cfg.GetApp().Port
 	if port == "" {
 		port = "8080"
 	}
@@ -132,50 +78,101 @@ func (s *Server) Run() error {
 	return nil
 }
 
-func injectAuth(db database.Databaser, cfgIface config.AppConfigurer) func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			ctx := r.Context()
-			val := make(ctxValue)
-
-			switch cfg := cfgIface.(type) {
-			case config.StandaloneApp:
-				val.set(ctxAuthMethodKey, AuthMethodExcluded)
-				val.set(ctxUserIDKey, "42069")
-			case config.IntegratedApp:
-				userID := auth.GetUserID(cfg, r)
-				if userID != 0 {
-					val.set(ctxAuthMethodKey, AuthMethodSSO)
-					val.set(ctxUserIDKey, userID)
-				} else {
-					userID = auth.GetUserFromSecret(db, r)
-					if userID != 0 {
-						val.set(ctxAuthMethodKey, AuthMethodSecret)
-						val.set(ctxUserIDKey, userID)
-					} else {
-						val.set(ctxAuthMethodKey, AuthMethodNone)
-					}
-				}
-			}
-			ctx = context.WithValue(ctx, ctxKey, val)
-			next.ServeHTTP(w, r.WithContext(ctx))
-		})
+// handleIndex handles the index route:
+// - if the app is standalone or integrated and the user is logged in, it shows the form
+// - if the app is integrated and the user is not logged in, it shows the hero
+func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
+	switch cfg := s.cfg.(type) {
+	case config.StandaloneApp:
+		s.handleForm(w, r)
+		return
+	case config.IntegratedApp:
+		if auth.GetUserID(cfg, r) != 0 {
+			s.handleForm(w, r)
+			return
+		} else {
+			s.handleHero(w, r)
+			return
+		}
 	}
+	s.handleHero(w, r)
+	return
 }
 
-func getCtxValue(r *http.Request) ctxValue {
-	ctx := r.Context()
-	if v, ok := ctx.Value(ctxKey).(ctxValue); ok {
-		return v
+func (s *Server) handleForm(w http.ResponseWriter, r *http.Request) {
+	userID, err := getUserID(r)
+	if err != nil {
+		err = fmt.Errorf("failed to get user id: %w", err)
+		errorPage(w, err, internalErrorMsg, http.StatusInternalServerError)
+		return
 	}
-	return ctxValue{}
+	if userID == 0 {
+		http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
+		return
+	}
+
+	yearMonth := chi.URLParam(r, "year-month")
+	if yearMonth == "" {
+		http.Redirect(w, r, fmt.Sprintf("/%s", time.Now().Format("2006-01")), http.StatusTemporaryRedirect)
+		return
+	}
+	yearStr := yearMonth[:4]
+	monthStr := yearMonth[5:]
+	year, err := strconv.Atoi(yearStr)
+	if err != nil {
+		err = fmt.Errorf("failed to convert year to int: %w", err)
+		errorPage(w, err, "Invalid date", http.StatusBadRequest)
+		return
+	}
+	month, err := strconv.Atoi(monthStr)
+	if err != nil {
+		err = fmt.Errorf("failed to convert month to int: %w", err)
+		errorPage(w, err, "Invalid date", http.StatusBadRequest)
+		return
+	}
+
+	monthData, err := s.v1.GetMonth(model.GetMonthRequest{
+		Meta: model.GetMonthRequestMeta{
+			UserID: userID,
+			Year:   year,
+			Month:  month,
+		},
+	})
+	if err != nil {
+		err = fmt.Errorf("failed to get month data: %w", err)
+		errorPage(w, err, internalErrorMsg, http.StatusInternalServerError)
+		return
+	}
+	monthNote, err := s.v1.GetNote(model.GetNoteRequest{
+		Meta: model.GetNoteRequestMeta{
+			UserID: userID,
+			Year:   year,
+			Month:  month,
+		},
+	})
+	if err != nil {
+		err = fmt.Errorf("failed to get month note: %w", err)
+		errorPage(w, err, internalErrorMsg, http.StatusInternalServerError)
+		return
+	}
+
+	serveForm(w, r, monthData.Data, monthNote.Data)
 }
 
-func (c ctxValue) set(key string, val interface{}) ctxValue {
-	c[key] = val
-	return c
+func (s *Server) handleHero(w http.ResponseWriter, r *http.Request) {
+	serveHero(w, r)
 }
 
-func (c ctxValue) get(key string) interface{} {
-	return c[key]
+func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
+	cfg := s.cfg.(config.IntegratedApp)
+	ssoUri := auth.SSOUri(cfg)
+	serveLogin(w, r, ssoUri)
+}
+
+func (s *Server) handleTos(w http.ResponseWriter, r *http.Request) {
+	serveTos(w, r)
+}
+
+func (s *Server) handlePrivacy(w http.ResponseWriter, r *http.Request) {
+	servePrivacy(w, r)
 }
