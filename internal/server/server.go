@@ -192,7 +192,8 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
-	auth.ClearCookie(w)
+	cfg := s.cfg.(config.IntegratedApp)
+	auth.ClearCookie(cfg, w)
 	http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
 }
 

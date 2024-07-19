@@ -44,11 +44,15 @@ func SSOUri(cfg config.IntegratedApp) string {
 	return ghOauthCfg(cfg).AuthCodeURL(state)
 }
 
-func ClearCookie(w http.ResponseWriter) {
+func ClearCookie(cfg config.IntegratedApp, w http.ResponseWriter) {
 	http.SetCookie(w, &http.Cookie{
-		Name:    userCookie,
-		Value:   "",
-		Expires: time.Unix(0, 0),
+		Name:     userCookie,
+		Value:    "",
+		Path:     util.BasePath(cfg.Domain),
+		Expires:  time.Unix(0, 0),
+		Domain:   util.QualifiedDomain(cfg.Domain),
+		HttpOnly: true,
+		Secure:   false,
 	})
 }
 
