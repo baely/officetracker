@@ -9,16 +9,16 @@ import (
 	"github.com/baely/officetracker/internal/database"
 )
 
-func handleLogout() http.HandlerFunc {
+func handleLogout(cfg config.IntegratedApp) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		ClearCookie(w)
+		ClearCookie(cfg, w)
 		http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
 	}
 }
 
 func Router(cfg config.IntegratedApp, db database.Databaser) func(r chi.Router) {
 	return func(r chi.Router) {
-		r.Get("/logout", handleLogout())
+		r.Get("/logout", handleLogout(cfg))
 		r.Get("/callback/github", handleGithubCallback(cfg, db))
 		r.Get("/demo", handleDemoAuth(cfg, db))
 	}

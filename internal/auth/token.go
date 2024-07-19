@@ -42,7 +42,7 @@ func GetUserID(db database.Databaser, cfg config.IntegratedApp, w http.ResponseW
 	if err != nil {
 		err = fmt.Errorf("invalid user: %w", err)
 		slog.Error(err.Error())
-		ClearCookie(w)
+		ClearCookie(cfg, w)
 		return 0
 	}
 
