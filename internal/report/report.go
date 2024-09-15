@@ -2,10 +2,7 @@ package report
 
 import (
 	"fmt"
-	"path"
 	"time"
-
-	"github.com/google/uuid"
 
 	"github.com/baely/officetracker/internal/database"
 	"github.com/baely/officetracker/pkg/model"
@@ -78,9 +75,14 @@ func getMonths(start, end time.Time) []time.Time {
 	return months
 }
 
-// generateFilename generates a filename
-func generateFilename(base string, ext string) string {
-	id := uuid.NewString()
-	filename := id + "." + ext
-	return path.Join(base, filename)
+func getDays(start, end time.Time) []time.Time {
+	var days []time.Time
+	start = time.Date(start.Year(), start.Month(), start.Day(), 0, 0, 0, 0, start.Location())
+	for start.Before(end) {
+		if start.Weekday() > 0 && start.Weekday() < 6 {
+			days = append(days, start)
+		}
+		start = start.AddDate(0, 0, 1)
+	}
+	return days
 }
