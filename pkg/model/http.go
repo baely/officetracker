@@ -170,20 +170,12 @@ type GetReportRequestMeta struct {
 	UserID int `meta:"user_id"`
 }
 
-type GetReportResponse struct {
-	Data Report `json:"data"`
-}
-
 type GetReportCSVRequest struct {
 	Meta GetReportCSVRequestMeta `meta:"meta" json:"-"`
 }
 
 type GetReportCSVRequestMeta struct {
 	UserID int `meta:"user_id"`
-}
-
-type GetReportCSVResponse struct {
-	Data ReportCSV `json:"data"`
 }
 
 type HealthCheckRequest struct {
