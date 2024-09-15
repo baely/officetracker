@@ -6,9 +6,7 @@
     <span id="month-year"></span>
     <button id="next-month">Next</button>
 </div>
-
 <div id="calendar"></div>
-
 <div id="legend" class="legend">
     <div class="legend-item">
         <span class="legend-color present"></span> Work from Home
@@ -21,12 +19,21 @@
     </div>
 </div>
 <div>
+    <h2>Export</h2>
+    <p>
+        Export annual attendance as a PDF report or CSV
+    </p>
+    <p>
+        <button id="export-csv" onclick="window.location='/api/v1/report/office-attendance-csv'">Export to CSV</button>
+        <button id="export-pdf" onclick="generatePdf()">Export to PDF</button>
+    </p>
+</div>
+<div>
     <h2>Notes</h2>
     <p>
         <textarea name="notes" id="notes"></textarea>
     </p>
 </div>
-
 <div class="summary-container">
     <h2>Summary</h2>
     <p id="summary-headline"></p>
@@ -39,6 +46,5 @@
         </tr>
     </table>
 </div>
-
 <script>{{ template "form.js" . }}</script>
 {{ end }}

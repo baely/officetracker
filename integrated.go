@@ -5,6 +5,7 @@ package main
 import (
 	"github.com/baely/officetracker/internal/config"
 	"github.com/baely/officetracker/internal/database"
+	"github.com/baely/officetracker/internal/report"
 	"github.com/baely/officetracker/internal/util"
 
 	"github.com/baely/officetracker/internal/server"
@@ -23,7 +24,9 @@ func main() {
 		panic(err)
 	}
 
-	s, err := server.NewServer(cfg, db)
+	reporter := report.New(db)
+
+	s, err := server.NewServer(cfg, db, reporter)
 	if err != nil {
 		panic(err)
 	}

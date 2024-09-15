@@ -348,3 +348,8 @@ function mapNotes(payload) {
 }
 
 function formatDate(year, month) { return year + "-" + (month + 1).toString().padStart(2, "0"); }
+
+function generatePdf() {
+    let name = prompt("(Optional) Please enter your name", "");
+    window.location.href = "/api/v1/report/office-attendance?name=" + name;
+}
