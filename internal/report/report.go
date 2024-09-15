@@ -31,7 +31,7 @@ func (r Report) Get(month time.Month, year int) model.MonthState {
 type Reporter interface {
 	Generate(userID int, start, end time.Time) (Report, error)
 	GenerateCSV(userID int, start, end time.Time) ([]byte, error)
-	GeneratePDF(userID int, start, end time.Time) ([]byte, error)
+	GeneratePDF(userID int, name string, start, end time.Time) ([]byte, error)
 }
 
 type fileReporter struct {

@@ -163,6 +163,7 @@ type GetSecretResponse struct {
 
 type GetReportRequest struct {
 	Meta GetReportRequestMeta `meta:"meta" json:"-"`
+	Name string               `schema:"name"`
 }
 
 type GetReportRequestMeta struct {

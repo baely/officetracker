@@ -10,6 +10,7 @@ import (
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/gorilla/schema"
 
 	"github.com/baely/officetracker/pkg/model"
 )
@@ -158,6 +159,11 @@ func mapRequest[T any](r *http.Request) (T, error) {
 		return *new(T), err
 	}
 
+	if err = populateQueryParams(&req, r); err != nil {
+		err = fmt.Errorf("failed to populate query params: %w", err)
+		return *new(T), err
+	}
+
 	return req, nil
 }
 
@@ -243,6 +249,18 @@ func populateUrlParams[T any](req *T, r *http.Request) error {
 				}
 			}
 		}
+	}
+	return nil
+}
+
+func populateQueryParams[T any](req *T, r *http.Request) error {
+	u := r.URL
+	v := u.Query()
+	d := schema.NewDecoder()
+	d.IgnoreUnknownKeys(true)
+	if err := d.Decode(req, v); err != nil {
+		err = fmt.Errorf("failed to decode query params: %w", err)
+		return err
 	}
 	return nil
 }

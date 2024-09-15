@@ -13,7 +13,7 @@ func (i *implementation) GetReport(req model.GetReportRequest) (model.Response, 
 	start = time.Date(time.Now().Year(), 1, 1, 0, 0, 0, 0, time.Local)
 	end = time.Date(time.Now().Year()+1, 1, 1, 0, 0, 0, 0, time.Local)
 
-	report, err := i.reporter.GeneratePDF(req.Meta.UserID, start, end)
+	report, err := i.reporter.GeneratePDF(req.Meta.UserID, req.Name, start, end)
 	if err != nil {
 		err = fmt.Errorf("failed to generate pdf report: %w", err)
 		return model.Response{}, err
