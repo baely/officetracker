@@ -197,9 +197,11 @@ func (p *PDF) generateSummaries() {
 		summary := MonthlySummary{}
 
 		for _, state := range p.report.Get(month.Month(), month.Year()).Days {
-			summary.Total++
 			if state.State == model.StateWorkFromOffice {
 				summary.Present++
+				summary.Total++
+			} else if state.State == model.StateWorkFromHome {
+				summary.Total++
 			}
 		}
 
