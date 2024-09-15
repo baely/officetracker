@@ -1,5 +1,10 @@
 package model
 
+type Response struct {
+	ContentType string
+	Data        interface{}
+}
+
 type Service interface {
 	// GetDay returns the state of a day
 	GetDay(GetDayRequest) (GetDayResponse, error)
@@ -20,6 +25,11 @@ type Service interface {
 
 	// GetSecret returns a new secret
 	GetSecret(GetSecretRequest) (GetSecretResponse, error)
+
+	// GetReport returns a PDF report for the specified period
+	GetReport(GetReportRequest) (Response, error)
+	// GetReportCSV returns a CSV report for the specified period
+	GetReportCSV(GetReportCSVRequest) (Response, error)
 
 	// Healthcheck returns the status of the service
 	Healthcheck(HealthCheckRequest) (HealthCheckResponse, error)
@@ -149,6 +159,30 @@ type GetSecretRequestMeta struct {
 
 type GetSecretResponse struct {
 	Secret string `json:"secret"`
+}
+
+type GetReportRequest struct {
+	Meta GetReportRequestMeta `meta:"meta" json:"-"`
+}
+
+type GetReportRequestMeta struct {
+	UserID int `meta:"user_id"`
+}
+
+type GetReportResponse struct {
+	Data Report `json:"data"`
+}
+
+type GetReportCSVRequest struct {
+	Meta GetReportCSVRequestMeta `meta:"meta" json:"-"`
+}
+
+type GetReportCSVRequestMeta struct {
+	UserID int `meta:"user_id"`
+}
+
+type GetReportCSVResponse struct {
+	Data ReportCSV `json:"data"`
 }
 
 type HealthCheckRequest struct {

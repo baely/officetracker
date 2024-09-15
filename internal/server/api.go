@@ -19,6 +19,7 @@ func apiRouter(service model.Service) func(chi.Router) {
 		r.Route("/state", stateRouter(service))
 		r.Route("/note", noteRouter(service))
 		r.Route("/developer", developerRouter(service))
+		r.Route("/report", reportRouter(service))
 		r.Route("/health", healthRouter(service))
 		r.NotFound(func(w http.ResponseWriter, r *http.Request) {
 			writeError(w, "not found", http.StatusNotFound)
@@ -53,6 +54,14 @@ func developerRouter(service model.Service) func(chi.Router) {
 	}
 }
 
+func reportRouter(service model.Service) func(chi.Router) {
+	middlewares := []func(http.Handler) http.Handler{AllowedAuthMethods(AuthMethodSSO, AuthMethodExcluded)}
+	return func(r chi.Router) {
+		r.With(middlewares...).Method(http.MethodGet, "/generate", wrapRaw(service.GetReport))
+		r.With(middlewares...).Method(http.MethodGet, "/generate-csv", wrapRaw(service.GetReportCSV))
+	}
+}
+
 func healthRouter(service model.Service) func(chi.Router) {
 	return func(r chi.Router) {
 		r.Method(http.MethodGet, "/check", wrap(service.Healthcheck))
@@ -60,10 +69,8 @@ func healthRouter(service model.Service) func(chi.Router) {
 	}
 }
 
-func wrap[T, U any](fn func(T) (U, error)) http.HandlerFunc {
+func wrapRaw[T any](fn func(T) (model.Response, error)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Add("Content-Type", "application/json")
-
 		req, err := mapRequest[T](r)
 		if err != nil {
 			err = fmt.Errorf("failed to map request: %w", err)
@@ -80,21 +87,35 @@ func wrap[T, U any](fn func(T) (U, error)) http.HandlerFunc {
 			return
 		}
 
-		body, err := mapResponse(resp)
-		if err != nil {
-			err = fmt.Errorf("failed to map response: %w", err)
-			slog.Error(err.Error())
-			writeError(w, internalErrorMsg, http.StatusInternalServerError)
-			return
-		}
-
-		_, err = w.Write(body)
+		w.Header().Add("Content-Type", resp.ContentType)
+		_, err = w.Write(resp.Data.([]byte))
 		if err != nil {
 			err = fmt.Errorf("failed to write response: %w", err)
 			slog.Error(err.Error())
 			return
 		}
 	}
+}
+
+func wrap[T, U any](fn func(T) (U, error)) http.HandlerFunc {
+	return wrapRaw(func(req T) (model.Response, error) {
+		resp, err := fn(req)
+		if err != nil {
+			err = fmt.Errorf("failed to execute request: %w", err)
+			return model.Response{}, err
+		}
+
+		body, err := mapResponse(resp)
+		if err != nil {
+			err = fmt.Errorf("failed to map response: %w", err)
+			return model.Response{}, err
+		}
+
+		return model.Response{
+			ContentType: "application/json",
+			Data:        body,
+		}, nil
+	})
 }
 
 func writeError(w http.ResponseWriter, msg string, code int) {

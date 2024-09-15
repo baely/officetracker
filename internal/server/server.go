@@ -17,6 +17,7 @@ import (
 	"github.com/baely/officetracker/internal/database"
 	"github.com/baely/officetracker/internal/embed"
 	v1 "github.com/baely/officetracker/internal/implementation/v1"
+	"github.com/baely/officetracker/internal/report"
 	"github.com/baely/officetracker/pkg/model"
 )
 
@@ -29,11 +30,11 @@ type Server struct {
 	v1 model.Service
 }
 
-func NewServer(cfg config.AppConfigurer, db database.Databaser) (*Server, error) {
+func NewServer(cfg config.AppConfigurer, db database.Databaser, reporter report.Reporter) (*Server, error) {
 	s := &Server{
 		db:  db,
 		cfg: cfg,
-		v1:  v1.New(db),
+		v1:  v1.New(db, reporter),
 	}
 
 	r := chi.NewMux().With(s.logRequest, injectAuth(db, cfg))
