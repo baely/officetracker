@@ -94,6 +94,10 @@ func (p *PDF) addCoverPage() {
 
 	p.addSummaryTable()
 
+	p.SetY(-45)
+	p.SetFont("Arial", "I", 8)
+	p.Cell(0, 10, "Disclaimer: This report is based on self-reported data submitted through https://iwasintheoffice.com and has been automatically generated.")
+
 	for _, month := range getMonths(p.start, p.end) {
 		p.addMonthPage(month)
 	}
@@ -105,10 +109,10 @@ func (p *PDF) addSummaryTable() {
 	p.Ln(15)
 
 	p.SetFont("Arial", "B", 12)
-	headers := []string{"Month", "Present", "Total", "Percent"}
-	for _, header := range headers {
-		p.CellFormat(40, 10, padString(header, 2, 2), "1", 0, "L", false, 0, "")
-	}
+	p.CellFormat(60, 10, padString("Month", 2, 2), "1", 0, "L", false, 0, "")
+	p.CellFormat(40, 10, padString("Present", 2, 2), "1", 0, "L", false, 0, "")
+	p.CellFormat(40, 10, padString("Total", 2, 2), "1", 0, "L", false, 0, "")
+	p.CellFormat(40, 10, padString("Percent", 2, 2), "1", 0, "L", false, 0, "")
 	p.Ln(10)
 
 	var present, total int
@@ -118,7 +122,7 @@ func (p *PDF) addSummaryTable() {
 		summary := p.monthlySummaries[month]
 		present += summary.Present
 		total += summary.Total
-		p.CellFormat(40, 10, padString(month.Format("January 2006"), 2, 2), "1", 0, "L", false, 0, "")
+		p.CellFormat(60, 10, padString(month.Format("January 2006"), 2, 2), "1", 0, "L", false, 0, "")
 		p.CellFormat(40, 10, padString(fmt.Sprintf("%d", summary.Present), 2, 2), "1", 0, "L", false, 0, "")
 		p.CellFormat(40, 10, padString(fmt.Sprintf("%d", summary.Total), 2, 2), "1", 0, "L", false, 0, "")
 		p.CellFormat(40, 10, padString(fmt.Sprintf("%.2f%%", summary.Percent), 2, 2), "1", 0, "L", false, 0, "")
@@ -131,7 +135,7 @@ func (p *PDF) addSummaryTable() {
 	}
 
 	p.SetFont("Arial", "B", 12)
-	p.CellFormat(40, 10, padString("Total", 2, 2), "1", 0, "L", false, 0, "")
+	p.CellFormat(60, 10, padString("Total", 2, 2), "1", 0, "L", false, 0, "")
 	p.CellFormat(40, 10, padString(fmt.Sprintf("%d", present), 2, 2), "1", 0, "L", false, 0, "")
 	p.CellFormat(40, 10, padString(fmt.Sprintf("%d", total), 2, 2), "1", 0, "L", false, 0, "")
 	p.CellFormat(40, 10, padString(fmt.Sprintf("%.2f%%", percent), 2, 2), "1", 0, "L", false, 0, "")
