@@ -76,7 +76,8 @@ class Summary {
         this.year = year;
         this.data = {};
         for (const [month, vals] of Object.entries(state)) {
-            let key = formatDate(year, parseInt(month) - 1);
+            let monthYear = month <= 9 ? year : year - 1;
+            let key = formatDate(monthYear, parseInt(month) - 1);
             let stats = { 0: 0, 1: 0, 2: 0, 3: 0 };
             for (const [day, state] of Object.entries(vals)) {
                 stats[state] += 1;
@@ -98,7 +99,8 @@ class Data {
         this.state = state;
         this.notes = notes;
         this.updateDate(true, false);
-        this.summary = new Summary(state, this.currentYear);
+        let year = this.currentMonth < 9 ? this.currentYear : this.currentYear + 1;
+        this.summary = new Summary(state, year);
         this.refreshDOM();
         Data.notesDOM.addEventListener("blur", () => { this.updateNote() });
         document.getElementById("prev-month").addEventListener("click", () => this.updateMonth(-1));
@@ -136,12 +138,13 @@ class Data {
     drawSummary() { this.summary.refreshDOM(); }
 
     fetchData() {
-        fetch("/api/v1/state/" + this.currentYear)
+        let year = this.currentMonth < 9 ? this.currentYear : this.currentYear + 1;
+        fetch("/api/v1/state/" + year)
             .then(r => r.json())
             .then(payload => {
                 this.state = mapState(payload);
                 this.refreshDOM();
-                this.summary.updateYear(this.currentYear, this.state);
+                this.summary.updateYear(year, this.state);
             });
     }
 
@@ -224,17 +227,15 @@ class Data {
 
     updateMonth(delta) {
         this.currentMonth += delta;
-        let sameYear = false;
         if (this.currentMonth < 0) {
             this.currentMonth = 11;
             this.currentYear--;
         } else if (this.currentMonth > 11) {
             this.currentMonth = 0;
             this.currentYear++;
-        } else {
-            sameYear = true;
         }
         window.history.pushState({}, "", "/" + formatDate(this.currentYear, this.currentMonth));
+        let sameYear = !(this.currentMonth === 8 && delta === -1) && !(this.currentMonth === 9 && delta === 1);
         this.updateDate(sameYear, true);
     }
 
