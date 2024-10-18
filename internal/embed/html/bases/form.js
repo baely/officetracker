@@ -149,7 +149,8 @@ class Data {
     }
 
     fetchNotes() {
-        fetch("/api/v1/note/" + this.currentYear)
+        let year = this.currentMonth < 9 ? this.currentYear : this.currentYear + 1;
+        fetch("/api/v1/note/" + year)
             .then(r => r.json())
             .then(payload => {
                 this.notes = mapNotes(payload);
