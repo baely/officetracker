@@ -1,26 +1,10 @@
 package main
 
 import (
-	"net/http"
-
-	"github.com/baely/officetracker/tests/blackbox/auth"
+	cases2 "github.com/baely/officetracker/tests/blackbox/cases"
+	"github.com/baely/officetracker/tests/blackbox/cases/health"
 )
 
-var cases = []Endpoint{
-	{
-		Name: "health",
-		Path: "/api/v1/health/check",
-		Cases: []Case{
-			{
-				Name:            "success",
-				Method:          http.MethodGet,
-				AuthType:        auth.NoAuth,
-				DataSeed:        nil,
-				DataCleanup:     nil,
-				RequestPayload:  nil,
-				ResponseStatus:  http.StatusOK,
-				ResponsePayload: "{\"status\":\"ok\"}",
-			},
-		},
-	},
+var cases = []cases2.Endpoint{
+	health.Check,
 }

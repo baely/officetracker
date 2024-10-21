@@ -1,4 +1,4 @@
-package main
+package cases
 
 import (
 	"github.com/baely/officetracker/internal/database"

@@ -3,6 +3,7 @@ package main
 import (
 	"io"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -22,7 +23,7 @@ type Suite struct {
 
 func (s Suite) Run(t *testing.T) {
 	for _, endpoint := range cases {
-		t.Run(endpoint.Path, func(t *testing.T) {
+		t.Run(strings.TrimPrefix(endpoint.Path, "/"), func(t *testing.T) {
 			for _, tc := range endpoint.Cases {
 				t.Run(tc.Name, func(t *testing.T) {
 					// Seed data
