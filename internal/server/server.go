@@ -135,6 +135,16 @@ func (s *Server) handleForm(w http.ResponseWriter, r *http.Request) {
 		errorPage(w, err, "Invalid date", http.StatusBadRequest)
 		return
 	}
+	month, err := strconv.Atoi(monthStr)
+	if err != nil {
+		err = fmt.Errorf("failed to convert month to int: %w", err)
+		errorPage(w, err, "Invalid date", http.StatusBadRequest)
+		return
+	}
+
+	if month > 9 {
+		year++
+	}
 
 	yearlyData, err := s.v1.GetYear(model.GetYearRequest{
 		Meta: model.GetYearRequestMeta{
