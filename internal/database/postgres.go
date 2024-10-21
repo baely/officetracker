@@ -103,12 +103,12 @@ func (p *postgres) GetMonth(userID int, month int, year int) (model.MonthState, 
 }
 
 func (p *postgres) GetYear(userID int, year int) (model.YearState, error) {
-	q := `SELECT month, day, state FROM entries WHERE user_id = $1 AND year = $2;`
+	q := `SELECT month, day, state FROM entries WHERE user_id = $1 AND ((year = $2 AND month > 9) OR (year = $3 AND month <= 9));`
 	yearState := model.YearState{
 		Months: make(map[int]model.MonthState),
 	}
 	err := p.readOnlyTransaction(func(tx *sql.Tx) error {
-		rows, err := tx.Query(q, userID, year)
+		rows, err := tx.Query(q, userID, year-1, year)
 		if err != nil {
 			return err
 		}
@@ -156,10 +156,10 @@ func (p *postgres) GetNote(userID int, month int, year int) (model.Note, error) 
 }
 
 func (p *postgres) GetNotes(userID int, year int) (map[int]model.Note, error) {
-	q := `SELECT month, notes FROM notes WHERE user_id = $1 AND year = $2;`
+	q := `SELECT month, notes FROM notes WHERE user_id = $1 AND ((year = $2 AND month > 9) OR (year = $3 AND month <= 9));`
 	notes := make(map[int]model.Note)
 	err := p.readOnlyTransaction(func(tx *sql.Tx) error {
-		rows, err := tx.Query(q, userID, year)
+		rows, err := tx.Query(q, userID, year-1, year)
 		if err != nil {
 			return err
 		}

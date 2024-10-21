@@ -107,8 +107,8 @@ func (s *sqliteClient) GetMonth(_ int, month int, year int) (model.MonthState, e
 }
 
 func (s *sqliteClient) GetYear(_ int, year int) (model.YearState, error) {
-	q := `SELECT Day, Month, State FROM entries WHERE Year = ?;`
-	rows, err := s.db.Query(q, year)
+	q := `SELECT Day, Month, State FROM entries WHERE ((Year = ? AND Month > 9) OR (Year = ? AND Month <= 9));`
+	rows, err := s.db.Query(q, year-1, year)
 	if err != nil {
 		return model.YearState{}, err
 	}
@@ -152,8 +152,8 @@ func (s *sqliteClient) GetNote(_ int, month int, year int) (model.Note, error) {
 }
 
 func (s *sqliteClient) GetNotes(_ int, year int) (map[int]model.Note, error) {
-	q := `SELECT Month, Notes FROM notes WHERE Year = ?;`
-	rows, err := s.db.Query(q, year)
+	q := `SELECT Month, Notes FROM notes WHERE ((Year = ? AND Month > 9) OR (Year = ? AND Month <= 9));`
+	rows, err := s.db.Query(q, year-1, year)
 	if err != nil {
 		return nil, err
 	}
