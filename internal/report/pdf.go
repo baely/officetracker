@@ -89,7 +89,7 @@ func (p *PDF) addCoverPage() {
 	}
 
 	p.SetFont("Arial", "I", 24)
-	p.Cell(40, 10, fmt.Sprintf("%sCalendar Year %d", nameStr, p.start.Year()))
+	p.Cell(40, 10, fmt.Sprintf("%sBank Financial Year %d", nameStr, p.end.Year()))
 	p.Ln(30)
 
 	p.addSummaryTable()
