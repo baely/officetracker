@@ -370,7 +370,3 @@ function mapNotes(payload) {
 }
 
 function formatDate(year, month) { return year + "-" + (month + 1).toString().padStart(2, "0"); }
-
-function generatePdf() {
-
-}
