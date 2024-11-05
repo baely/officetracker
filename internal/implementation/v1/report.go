@@ -10,8 +10,8 @@ import (
 func (i *implementation) GetReport(req model.GetReportRequest) (model.Response, error) {
 	var start, end time.Time
 
-	start = time.Date(time.Now().Year(), 1, 1, 0, 0, 0, 0, time.Local)
-	end = time.Date(time.Now().Year()+1, 1, 1, 0, 0, 0, 0, time.Local)
+	start = time.Date(req.Meta.Year-1, time.October, 1, 0, 0, 0, 0, time.Local)
+	end = time.Date(req.Meta.Year, time.October, 1, 0, 0, 0, 0, time.Local)
 
 	report, err := i.reporter.GeneratePDF(req.Meta.UserID, req.Name, start, end)
 	if err != nil {
@@ -28,8 +28,8 @@ func (i *implementation) GetReport(req model.GetReportRequest) (model.Response, 
 func (i *implementation) GetReportCSV(req model.GetReportCSVRequest) (model.Response, error) {
 	var start, end time.Time
 
-	start = time.Date(time.Now().Year(), 1, 1, 0, 0, 0, 0, time.Local)
-	end = time.Date(time.Now().Year()+1, 1, 1, 0, 0, 0, 0, time.Local)
+	start = time.Date(req.Meta.Year-1, time.October, 1, 0, 0, 0, 0, time.Local)
+	end = time.Date(req.Meta.Year, time.October, 1, 0, 0, 0, 0, time.Local)
 
 	report, err := i.reporter.GenerateCSV(req.Meta.UserID, start, end)
 	if err != nil {

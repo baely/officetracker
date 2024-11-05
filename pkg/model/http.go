@@ -168,6 +168,7 @@ type GetReportRequest struct {
 
 type GetReportRequestMeta struct {
 	UserID int `meta:"user_id"`
+	Year   int `meta:"year"`
 }
 
 type GetReportCSVRequest struct {
@@ -176,6 +177,7 @@ type GetReportCSVRequest struct {
 
 type GetReportCSVRequestMeta struct {
 	UserID int `meta:"user_id"`
+	Year   int `meta:"year"`
 }
 
 type HealthCheckRequest struct {

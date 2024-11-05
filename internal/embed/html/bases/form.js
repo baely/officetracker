@@ -262,12 +262,12 @@ class Data {
         let year = this.currentMonth < 9 ? this.currentYear : this.currentYear + 1;
 
         csvButton.onclick = () => {
-            window.location.href = "/api/v1/report/attendance/csv/" + year;
+            window.location.href = "/api/v1/report/csv/" + year + "-attendance";
         }
 
         pdfButton.onclick = () => {
             let name = prompt("(Optional) Please enter your name", "");
-            window.location.href = "/api/v1/report/attendance/pdf/" + year + "?name=" + name;
+            window.location.href = "/api/v1/report/pdf/" + year + "-attendance?name=" + name;
         }
     }
 }
