@@ -163,6 +163,7 @@ class Data {
         this.drawNotes();
         this.drawSummary();
         this.updateTitle();
+        this.updateReportButtons();
     }
 
     updateBackend(day) {
@@ -250,6 +251,25 @@ class Data {
     }
 
     updateTitle() { Data.titleDOM.textContent = monthNames[this.currentMonth] + " " + this.currentYear; }
+
+    updateReportButtons() {
+        const csvButton = document.getElementById("export-csv");
+        const pdfButton = document.getElementById("export-pdf");
+
+        if (csvButton.onclick) { csvButton.onclick = null; }
+        if (pdfButton.onclick) { pdfButton.onclick = null; }
+
+        let year = this.currentMonth < 9 ? this.currentYear : this.currentYear + 1;
+
+        csvButton.onclick = () => {
+            window.location.href = "/api/v1/report/attendance/csv/" + year;
+        }
+
+        pdfButton.onclick = () => {
+            let name = prompt("(Optional) Please enter your name", "");
+            window.location.href = "/api/v1/report/attendance/pdf/" + year + "?name=" + name;
+        }
+    }
 }
 
 let rawState = {{ .YearlyState }};
@@ -352,6 +372,5 @@ function mapNotes(payload) {
 function formatDate(year, month) { return year + "-" + (month + 1).toString().padStart(2, "0"); }
 
 function generatePdf() {
-    let name = prompt("(Optional) Please enter your name", "");
-    window.location.href = "/api/v1/report/office-attendance?name=" + name;
+
 }

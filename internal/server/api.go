@@ -58,8 +58,11 @@ func developerRouter(service model.Service) func(chi.Router) {
 func reportRouter(service model.Service) func(chi.Router) {
 	middlewares := []func(http.Handler) http.Handler{AllowedAuthMethods(AuthMethodSSO, AuthMethodExcluded)}
 	return func(r chi.Router) {
-		r.With(middlewares...).Method(http.MethodGet, "/office-attendance", wrapRaw(service.GetReport))
-		r.With(middlewares...).Method(http.MethodGet, "/office-attendance-csv", wrapRaw(service.GetReportCSV))
+		//r.With(middlewares...).Method(http.MethodGet, "/office-attendance", wrapRaw(service.GetReport))
+		//r.With(middlewares...).Method(http.MethodGet, "/office-attendance-csv", wrapRaw(service.GetReportCSV))
+
+		r.With(middlewares...).Method(http.MethodGet, "/attendance/pdf/{year}", wrapRaw(service.GetReport))
+		r.With(middlewares...).Method(http.MethodGet, "/attendance/csv/{year}", wrapRaw(service.GetReportCSV))
 	}
 }
 
