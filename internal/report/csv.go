@@ -20,11 +20,9 @@ func (r *fileReporter) GenerateCSV(userID int, start, end time.Time) ([]byte, er
 		return nil, err
 	}
 
-	days := getDays(start, end)
-
 	var lines []csvLine
 
-	for _, day := range days {
+	for day := range getDays(start, end) {
 		monthData := report.Get(day.Month(), day.Year())
 		state := monthData.Days[day.Day()].State
 		lines = append(lines, csvLine{
