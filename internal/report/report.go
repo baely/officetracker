@@ -80,14 +80,16 @@ func getMonths(start, end time.Time) func(func(time.Time) bool) {
 func getDays(start, end time.Time) func(func(time.Time) bool) {
 	start = time.Date(start.Year(), start.Month(), start.Day(), 0, 0, 0, 0, start.Location())
 	return func(yield func(time.Time) bool) {
-		if !start.Before(end) {
-			return
-		}
-		if start.Weekday() > 0 && start.Weekday() < 6 {
-			if !yield(start) {
+		for {
+			if !start.Before(end) {
 				return
 			}
+			if start.Weekday() > 0 && start.Weekday() < 6 {
+				if !yield(start) {
+					return
+				}
+			}
+			start = start.AddDate(0, 0, 1)
 		}
-		start = start.AddDate(0, 0, 1)
 	}
 }
