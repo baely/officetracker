@@ -179,18 +179,19 @@ func (p *postgres) GetNotes(userID int, year int) (map[int]model.Note, error) {
 
 }
 
-func (p *postgres) GetUser(userID int) (int, error) {
-	q := `SELECT user_id FROM users WHERE user_id = $1;`
+func (p *postgres) GetUser(userID int) (int, string, error) {
+	q := `SELECT user_id, gh_user FROM users WHERE user_id = $1;`
 	var id int
+	var user string
 	err := p.readOnlyTransaction(func(tx *sql.Tx) error {
 		row := tx.QueryRow(q, userID)
-		err := row.Scan(&id)
+		err := row.Scan(&id, &user)
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil
 		}
 		return err
 	})
-	return id, err
+	return id, user, err
 }
 
 func (p *postgres) SaveUserByGHID(ghID string) (int, error) {
@@ -247,6 +248,14 @@ func (p *postgres) GetUserBySecret(secret string) (int, error) {
 		return err
 	})
 	return id, err
+}
+
+func (p *postgres) UpdateUser(userID int, username string) error {
+	q := `UPDATE users SET gh_user = $1 WHERE user_id = $2;`
+	return p.readWriteTransaction(func(tx *sql.Tx) error {
+		_, err := tx.Exec(q, username, userID)
+		return err
+	})
 }
 
 func incrementer(start int) func() int {

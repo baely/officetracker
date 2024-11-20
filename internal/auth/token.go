@@ -118,7 +118,7 @@ func validUser(db database.Databaser, cfg config.IntegratedApp, token string) (i
 		return userID, nil
 	}
 
-	_, err = db.GetUser(userID)
+	_, _, err = db.GetUser(userID)
 	if err != nil {
 		err = fmt.Errorf("failed to get user: %w", err)
 		return 0, err

@@ -171,8 +171,8 @@ func (s *sqliteClient) GetNotes(_ int, year int) (map[int]model.Note, error) {
 	return notes, nil
 }
 
-func (s *sqliteClient) GetUser(userID int) (int, error) {
-	return userID, nil
+func (s *sqliteClient) GetUser(userID int) (int, string, error) {
+	return userID, "", nil
 }
 
 func (s *sqliteClient) SaveUserByGHID(ghID string) (int, error) {
@@ -189,6 +189,10 @@ func (s *sqliteClient) GetUserByGHID(_ string) (int, error) {
 
 func (s *sqliteClient) GetUserBySecret(_ string) (int, error) {
 	return 1, nil
+}
+
+func (s *sqliteClient) UpdateUser(_ int, _ string) error {
+	return nil
 }
 
 func (s *sqliteClient) initConnection() error {
