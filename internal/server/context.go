@@ -10,6 +10,7 @@ const (
 	ctxKey           = "ctx"
 	ctxUserIDKey     = "userID"
 	ctxAuthMethodKey = "auth"
+	ctxScopesKey     = "scopes"
 )
 
 func getCtxValue(r *http.Request) ctxValue {

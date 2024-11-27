@@ -25,7 +25,8 @@ var (
 
 type tokenClaims struct {
 	jwt.RegisteredClaims
-	User int `json:"user"`
+	User   int      `json:"user"`
+	Scopes []string `json:"scopes"`
 }
 
 func signingKey(cfg config.IntegratedApp) []byte {
@@ -49,6 +50,21 @@ func GetUserID(db database.Databaser, cfg config.IntegratedApp, w http.ResponseW
 	return userID
 }
 
+func GetScopes(r *http.Request) ([]string, error) {
+	cookie, err := r.Cookie(userCookie)
+	if err != nil {
+		return nil, err
+	}
+
+	scopes, err := getScopesFromToken(config.IntegratedApp{}, cookie.Value)
+	if err != nil {
+		err = fmt.Errorf("failed to get scopes: %w", err)
+		return nil, err
+	}
+
+	return scopes, nil
+}
+
 func GetUserFromSecret(db database.Databaser, r *http.Request) int {
 	secret := r.Header.Get("Authorization")
 	if secret == "" {
@@ -67,9 +83,10 @@ func GetUserFromSecret(db database.Databaser, r *http.Request) int {
 	return userID
 }
 
-func generateToken(cfg config.IntegratedApp, userID int) (string, error) {
+func generateToken(cfg config.IntegratedApp, userID int, scopes []string) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"user": userID,
+		"user":   userID,
+		"scopes": scopes,
 	})
 
 	tokenString, err := token.SignedString(signingKey(cfg))
@@ -80,8 +97,8 @@ func generateToken(cfg config.IntegratedApp, userID int) (string, error) {
 	return tokenString, nil
 }
 
-func issueToken(cfg config.IntegratedApp, w http.ResponseWriter, userID int) error {
-	token, err := generateToken(cfg, userID)
+func IssueToken(cfg config.IntegratedApp, w http.ResponseWriter, userID int, scopes []string) error {
+	token, err := generateToken(cfg, userID, scopes)
 	if err != nil {
 		return err
 	}
@@ -141,4 +158,20 @@ func getUserIDFromToken(cfg config.IntegratedApp, token string) (int, error) {
 	}
 
 	return claims.User, nil
+}
+
+func getScopesFromToken(cfg config.IntegratedApp, token string) ([]string, error) {
+	claims := &tokenClaims{}
+
+	t, err := jwt.ParseWithClaims(token, claims, func(t *jwt.Token) (interface{}, error) {
+		return signingKey(cfg), nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	if !t.Valid {
+		return nil, fmt.Errorf("invalid token")
+	}
+
+	return claims.Scopes, nil
 }

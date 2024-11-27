@@ -37,11 +37,11 @@ func NewServer(cfg config.AppConfigurer, db database.Databaser, reporter report.
 		v1:  v1.New(db, reporter),
 	}
 
-	r := chi.NewMux().With(s.logRequest, injectAuth(db, cfg))
+	r := chi.NewMux().With(s.logRequest, injectAuth(db, cfg), copyScopes(cfg))
 
 	// Form routes
 	r.Get("/", s.handleIndex)
-	r.Get("/{year:[0-9]{4}}-{month:[0-9]{1,2}}", s.handleForm)
+	r.With(RequiredScopes(ScopeReadState)).Get("/{year:[0-9]{4}}-{month:[0-9]{1,2}}", s.handleForm)
 
 	// API routes
 	r.Route("/api/v1", apiRouter(s.v1))

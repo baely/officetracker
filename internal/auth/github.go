@@ -20,6 +20,17 @@ const (
 	githubUserEndpoint = "https://api.github.com/user"
 )
 
+var DefaultScopes = []string{
+	"state:read",
+	"state:write",
+	"note:read",
+	"note:write",
+	"developer:read",
+	"developer:write",
+	"report:read",
+	"report:write",
+}
+
 type GithubUserResponse struct {
 	Login string `json:"login"`
 	Id    int    `json:"id"`
@@ -94,7 +105,7 @@ func handleGithubCallback(cfg config.IntegratedApp, db database.Databaser) func(
 			return
 		}
 
-		err = issueToken(cfg, w, userID)
+		err = IssueToken(cfg, w, userID, DefaultScopes)
 		if err != nil {
 			slog.Error(fmt.Sprintf("failed to issue token: %v", err))
 			http.Error(w, "Internal server error", http.StatusInternalServerError)
@@ -151,7 +162,7 @@ func handleDemoAuth(cfg config.IntegratedApp, db database.Databaser) func(http.R
 			http.Error(w, "Internal server error", http.StatusInternalServerError)
 			return
 		}
-		err = issueToken(cfg, w, userID)
+		err = IssueToken(cfg, w, userID, DefaultScopes)
 		if err != nil {
 			slog.Error(fmt.Sprintf("failed to issue token: %v", err))
 			http.Error(w, "Internal server error", http.StatusInternalServerError)

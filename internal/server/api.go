@@ -29,37 +29,37 @@ func apiRouter(service model.Service) func(chi.Router) {
 }
 
 func stateRouter(service model.Service) func(chi.Router) {
-	middlewares := []func(http.Handler) http.Handler{AllowedAuthMethods(AuthMethodSSO, AuthMethodSecret, AuthMethodExcluded)}
+	authMethodMiddleware := AllowedAuthMethods(AuthMethodSSO, AuthMethodSecret, AuthMethodExcluded)
 	return func(r chi.Router) {
-		r.With(middlewares...).Method(http.MethodGet, "/{year}/{month}/{day}", wrap(service.GetDay))
-		r.With(middlewares...).Method(http.MethodPut, "/{year}/{month}/{day}", wrap(service.PutDay))
-		r.With(middlewares...).Method(http.MethodGet, "/{year}/{month}", wrap(service.GetMonth))
-		r.With(middlewares...).Method(http.MethodPut, "/{year}/{month}", wrap(service.PutMonth))
-		r.With(middlewares...).Method(http.MethodGet, "/{year}", wrap(service.GetYear))
+		r.With(authMethodMiddleware, RequiredScopes(ScopeReadState)).Method(http.MethodGet, "/{year}/{month}/{day}", wrap(service.GetDay))
+		r.With(authMethodMiddleware, RequiredScopes(ScopeWriteState)).Method(http.MethodPut, "/{year}/{month}/{day}", wrap(service.PutDay))
+		r.With(authMethodMiddleware, RequiredScopes(ScopeReadState)).Method(http.MethodGet, "/{year}/{month}", wrap(service.GetMonth))
+		r.With(authMethodMiddleware, RequiredScopes(ScopeWriteState)).Method(http.MethodPut, "/{year}/{month}", wrap(service.PutMonth))
+		r.With(authMethodMiddleware, RequiredScopes(ScopeReadState)).Method(http.MethodGet, "/{year}", wrap(service.GetYear))
 	}
 }
 
 func noteRouter(service model.Service) func(chi.Router) {
-	middlewares := []func(http.Handler) http.Handler{AllowedAuthMethods(AuthMethodSSO, AuthMethodSecret, AuthMethodExcluded)}
+	authMethodMiddleware := AllowedAuthMethods(AuthMethodSSO, AuthMethodSecret, AuthMethodExcluded)
 	return func(r chi.Router) {
-		r.With(middlewares...).Method(http.MethodGet, "/{year}/{month}", wrap(service.GetNote))
-		r.With(middlewares...).Method(http.MethodPut, "/{year}/{month}", wrap(service.PutNote))
-		r.With(middlewares...).Method(http.MethodGet, "/{year}", wrap(service.GetNotes))
+		r.With(authMethodMiddleware, RequiredScopes(ScopeReadNote)).Method(http.MethodGet, "/{year}/{month}", wrap(service.GetNote))
+		r.With(authMethodMiddleware, RequiredScopes(ScopeWriteNote)).Method(http.MethodPut, "/{year}/{month}", wrap(service.PutNote))
+		r.With(authMethodMiddleware, RequiredScopes(ScopeReadNote)).Method(http.MethodGet, "/{year}", wrap(service.GetNotes))
 	}
 }
 
 func developerRouter(service model.Service) func(chi.Router) {
-	middlewares := []func(http.Handler) http.Handler{AllowedAuthMethods(AuthMethodSSO)}
+	authMethodMiddleware := AllowedAuthMethods(AuthMethodSSO)
 	return func(r chi.Router) {
-		r.With(middlewares...).Method(http.MethodGet, "/secret", wrap(service.GetSecret))
+		r.With(authMethodMiddleware, RequiredScopes(ScopeReadDeveloper, ScopeWriteDeveloper)).Method(http.MethodGet, "/secret", wrap(service.GetSecret))
 	}
 }
 
 func reportRouter(service model.Service) func(chi.Router) {
-	middlewares := []func(http.Handler) http.Handler{AllowedAuthMethods(AuthMethodSSO, AuthMethodExcluded)}
+	authMethodMiddleware := AllowedAuthMethods(AuthMethodSSO, AuthMethodExcluded)
 	return func(r chi.Router) {
-		r.With(middlewares...).Method(http.MethodGet, "/pdf/{year}-attendance", wrapRaw(service.GetReport))
-		r.With(middlewares...).Method(http.MethodGet, "/csv/{year}-attendance", wrapRaw(service.GetReportCSV))
+		r.With(authMethodMiddleware, RequiredScopes(ScopeReadState, ScopeReadReport, ScopeWriteReport)).Method(http.MethodGet, "/pdf/{year}-attendance", wrapRaw(service.GetReport))
+		r.With(authMethodMiddleware, RequiredScopes(ScopeReadState, ScopeReadReport, ScopeWriteReport)).Method(http.MethodGet, "/csv/{year}-attendance", wrapRaw(service.GetReportCSV))
 	}
 }
 
@@ -190,6 +190,18 @@ func getAuthMethod(r *http.Request) (AuthMethod, error) {
 		return AuthMethodUnknown, fmt.Errorf("failed to get auth method from context")
 	}
 	return authMethod, nil
+}
+
+func getScopes(r *http.Request) ([]Scope, error) {
+	strScopes, ok := getCtxValue(r).get(ctxScopesKey).([]string)
+	if !ok {
+		return nil, fmt.Errorf("failed to get scopes from context")
+	}
+	scopes := make([]Scope, len(strScopes))
+	for i, s := range strScopes {
+		scopes[i] = Scope(s)
+	}
+	return scopes, nil
 }
 
 func populateUserID[T any](req *T, r *http.Request) error {
