@@ -1,6 +1,8 @@
 package config
 
 import (
+	"log/slog"
+
 	"github.com/kelseyhightower/envconfig"
 )
 
@@ -65,5 +67,6 @@ func LoadIntegratedApp() (IntegratedApp, error) {
 	if err != nil {
 		return IntegratedApp{}, err
 	}
+	slog.Info("loaded integrated app config", "config", cfg)
 	return cfg, nil
 }
