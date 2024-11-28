@@ -72,7 +72,7 @@ func handleGithubCallback(cfg config.IntegratedApp, db database.Databaser) func(
 			return
 		}
 
-		ghID, err := getGithubData(token.AccessToken)
+		ghID, ghUser, err := getGithubData(token.AccessToken)
 		if err != nil {
 			slog.Error(fmt.Sprintf("failed to get github data: %v", err))
 			http.Error(w, "Internal server error", http.StatusInternalServerError)
@@ -82,6 +82,14 @@ func handleGithubCallback(cfg config.IntegratedApp, db database.Databaser) func(
 		userID, err := toUserID(db, ghID)
 		if err != nil {
 			slog.Error(fmt.Sprintf("failed to get user id: %v", err))
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+
+		// temp: update user with github data
+		err = db.UpdateUser(userID, ghUser)
+		if err != nil {
+			slog.Error(fmt.Sprintf("failed to update user: %v", err))
 			http.Error(w, "Internal server error", http.StatusInternalServerError)
 			return
 		}
@@ -98,22 +106,25 @@ func handleGithubCallback(cfg config.IntegratedApp, db database.Databaser) func(
 	}
 }
 
-func getGithubData(accessToken string) (string, error) {
+func getGithubData(accessToken string) (userID string, username string, err error) {
 	req, err := http.NewRequest("GET", githubUserEndpoint, nil)
 	if err != nil {
-		return "", err
+		return
 	}
 	req.Header.Add("Accept", "application/vnd.github+json")
 	req.Header.Add("Authorization", "Bearer "+accessToken)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return "", err
+		return
 	}
 	var user GithubUserResponse
 	if err = json.NewDecoder(resp.Body).Decode(&user); err != nil {
-		return "", err
+		return
 	}
-	return fmt.Sprintf("%d", user.Id), nil
+
+	userID = fmt.Sprintf("%d", user.Id)
+	username = user.Login
+	return
 }
 
 func toUserID(db database.Databaser, ghID string) (int, error) {
