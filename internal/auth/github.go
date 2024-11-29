@@ -141,6 +141,7 @@ func toUserID(db database.Databaser, ghID string) (int, error) {
 func handleDemoAuth(cfg config.IntegratedApp, db database.Databaser) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !cfg.App.Demo {
+			slog.Error("demo auth called on non-demo app")
 			http.Redirect(w, r, "/login", http.StatusTemporaryRedirect)
 			return
 		}

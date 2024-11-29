@@ -7,6 +7,7 @@ import (
 	"html/template"
 	"log/slog"
 	"net/http"
+	"slices"
 	"strconv"
 	"time"
 
@@ -37,7 +38,7 @@ func NewServer(cfg config.AppConfigurer, db database.Databaser, reporter report.
 		v1:  v1.New(db, reporter),
 	}
 
-	r := chi.NewMux().With(s.logRequest, injectAuth(db, cfg))
+	r := chi.NewMux().With(injectAuth(db, cfg), s.logRequest)
 
 	// Form routes
 	r.Get("/", s.handleIndex)
@@ -93,21 +94,27 @@ func (s *Server) Run() error {
 // - if the app is standalone or integrated and the user is logged in, it shows the form
 // - if the app is integrated and the user is not logged in, it shows the hero
 func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
-	switch cfg := s.cfg.(type) {
+	switch s.cfg.(type) {
 	case config.StandaloneApp:
 		s.handleForm(w, r)
 		return
 	case config.IntegratedApp:
-		if auth.GetUserID(s.db, cfg, w, r) != 0 {
-			s.handleForm(w, r)
-			return
-		} else {
-			s.handleHero(w, r)
+		method, err := getAuthMethod(r)
+		if err != nil {
+			err = fmt.Errorf("failed to get auth method: %w", err)
+			errorPage(w, err, internalErrorMsg, http.StatusInternalServerError)
 			return
 		}
+
+		var loggedInMethods = []auth.Method{auth.MethodSSO, auth.MethodSecret}
+		if !slices.Contains(loggedInMethods, method) {
+			s.handleHero(w, r)
+		}
+
+		s.handleForm(w, r)
+	default:
+		s.handleHero(w, r)
 	}
-	s.handleHero(w, r)
-	return
 }
 
 func (s *Server) handleForm(w http.ResponseWriter, r *http.Request) {
@@ -215,7 +222,7 @@ func (s *Server) handleDeveloper(w http.ResponseWriter, r *http.Request) {
 		errorPage(w, err, internalErrorMsg, http.StatusInternalServerError)
 		return
 	}
-	if authMethod != AuthMethodSSO {
+	if authMethod != auth.MethodSSO {
 		http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
 	}
 

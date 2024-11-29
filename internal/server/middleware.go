@@ -13,7 +13,7 @@ import (
 	"github.com/baely/officetracker/internal/database"
 )
 
-func AllowedAuthMethods(authMethods ...AuthMethod) func(http.Handler) http.Handler {
+func AllowedAuthMethods(authMethods ...auth.Method) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			authMethod, err := getAuthMethod(r)
@@ -33,38 +33,46 @@ func AllowedAuthMethods(authMethods ...AuthMethod) func(http.Handler) http.Handl
 	}
 }
 
+type statusWriter struct {
+	http.ResponseWriter
+	status int
+}
+
+func (w *statusWriter) WriteHeader(status int) {
+	w.status = status
+	w.ResponseWriter.WriteHeader(status)
+}
+
 func (s *Server) logRequest(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
-		next.ServeHTTP(w, r)
-		slog.Info(fmt.Sprintf("request: %s %s took %s", r.Method, r.URL.Path, time.Since(start)))
+		sw := &statusWriter{ResponseWriter: w}
+		method, _ := getAuthMethod(r)
+		userID, _ := getUserID(r)
+		slog.Info("request received", "method", r.Method, "path", r.URL.Path, "authMethod", method, "userID", userID)
+		next.ServeHTTP(sw, r)
+		slog.Info("request processed", "method", r.Method, "path", r.URL.Path, "status", sw.status, "duration", time.Since(start), "authMethod", method, "userID", userID)
 	})
 }
 
-func injectAuth(db database.Databaser, cfgIface config.AppConfigurer) func(http.Handler) http.Handler {
+func injectAuth(db database.Databaser, cfger config.AppConfigurer) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ctx := r.Context()
 			val := make(ctxValue)
 
-			switch cfg := cfgIface.(type) {
+			switch cfg := cfger.(type) {
 			case config.StandaloneApp:
-				val.set(ctxAuthMethodKey, AuthMethodExcluded)
+				val.set(ctxAuthMethodKey, auth.MethodExcluded)
 				val.set(ctxUserIDKey, 1)
 			case config.IntegratedApp:
-				userID := auth.GetUserID(db, cfg, w, r)
-				if userID != 0 {
-					val.set(ctxAuthMethodKey, AuthMethodSSO)
-					val.set(ctxUserIDKey, userID)
-				} else {
-					userID = auth.GetUserFromSecret(db, r)
-					if userID != 0 {
-						val.set(ctxAuthMethodKey, AuthMethodSecret)
-						val.set(ctxUserIDKey, userID)
-					} else {
-						val.set(ctxAuthMethodKey, AuthMethodNone)
-					}
+				token, authMethod := auth.GetAuth(r)
+				val.set(ctxAuthMethodKey, authMethod)
+				userID, err := auth.GetUserID(cfg, db, token, authMethod)
+				if err != nil {
+					auth.ClearCookie(cfg, w)
 				}
+				val.set(ctxUserIDKey, userID)
 			}
 			ctx = context.WithValue(ctx, ctxKey, val)
 			next.ServeHTTP(w, r.WithContext(ctx))
