@@ -38,7 +38,7 @@ func NewServer(cfg config.AppConfigurer, db database.Databaser, reporter report.
 		v1:  v1.New(db, reporter),
 	}
 
-	r := chi.NewMux().With(injectAuth(db, cfg), s.logRequest)
+	r := chi.NewMux().With(Otel, injectAuth(db, cfg), s.logRequest)
 
 	// Form routes
 	r.Get("/", s.handleIndex)

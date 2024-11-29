@@ -5,8 +5,12 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"regexp"
 	"slices"
 	"time"
+
+	"github.com/go-chi/chi/v5"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
 	"github.com/baely/officetracker/internal/auth"
 	"github.com/baely/officetracker/internal/config"
@@ -78,4 +82,33 @@ func injectAuth(db database.Databaser, cfger config.AppConfigurer) func(http.Han
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
+}
+
+func Otel(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		route := findMatchedRoute(r)
+		h := otelhttp.NewMiddleware(route)
+		h(next).ServeHTTP(w, r)
+	})
+}
+
+func findMatchedRoute(r *http.Request) string {
+	var matchedPattern string
+	router := r.Context().Value(chi.RouteCtxKey).(*chi.Context).Routes
+
+	walkFunc := func(method string, route string, handler http.Handler, middlewares ...func(http.Handler) http.Handler) error {
+		if method == r.Method {
+			// Create regex pattern from the route
+			rp := regexp.MustCompile("\\{[^\\}]*\\}")
+			routeRegex := "^" + rp.ReplaceAllString(route, "([^/]+)") + "$"
+
+			if match, _ := regexp.MatchString(routeRegex, r.URL.Path); match {
+				matchedPattern = route
+			}
+		}
+		return nil
+	}
+
+	_ = chi.Walk(router, walkFunc)
+	return matchedPattern
 }
