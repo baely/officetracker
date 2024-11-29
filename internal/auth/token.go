@@ -43,9 +43,9 @@ func signingKey(cfg config.IntegratedApp) []byte {
 }
 
 func GetUserID(cfg config.AppConfigurer, db database.Databaser, token string, authMethod Method) (int, error) {
-	switch x := cfg.(type) {
+	switch cfg := cfg.(type) {
 	case config.IntegratedApp:
-		if x.App.Demo {
+		if cfg.App.Demo {
 			return 1, nil
 		}
 	}
