@@ -99,13 +99,7 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 		s.handleForm(w, r)
 		return
 	case config.IntegratedApp:
-		method, err := getAuthMethod(r)
-		if err != nil {
-			err = fmt.Errorf("failed to get auth method: %w", err)
-			errorPage(w, err, internalErrorMsg, http.StatusInternalServerError)
-			return
-		}
-
+		method, _ := getAuthMethod(r)
 		var loggedInMethods = []auth.Method{auth.MethodSSO, auth.MethodSecret}
 		if !slices.Contains(loggedInMethods, method) {
 			s.handleHero(w, r)
