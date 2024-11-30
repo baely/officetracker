@@ -52,6 +52,8 @@ jobs:
           service: officetracker
           image: asia-southeast1-docker.pkg.dev/baileybutler-syd/officetracker/officetracker:${{ github.sha }}
           region: asia-southeast1
+          labels: |
+            sha=${{ github.sha }}
           env_vars_file: config/cloud.env
           secrets: |
             SIGNING_KEY=${{ secrets.SIGNING_KEY }}:latest

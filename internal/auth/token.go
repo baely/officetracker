@@ -19,6 +19,16 @@ const (
 	demoUserId = "42069"
 )
 
+type Method int
+
+const (
+	MethodUnknown = Method(iota)
+	MethodNone
+	MethodSSO
+	MethodSecret
+	MethodExcluded
+)
+
 var (
 	loginExpiration = time.Hour * 24 * 30
 )
@@ -32,39 +42,32 @@ func signingKey(cfg config.IntegratedApp) []byte {
 	return []byte(cfg.SigningKey)
 }
 
-func GetUserID(db database.Databaser, cfg config.IntegratedApp, w http.ResponseWriter, r *http.Request) int {
-	cookie, err := r.Cookie(userCookie)
-	if err != nil {
-		return 0
+func GetUserID(cfg config.AppConfigurer, db database.Databaser, token string, authMethod Method) (int, error) {
+	switch cfg := cfg.(type) {
+	case config.IntegratedApp:
+		if cfg.App.Demo {
+			return 1, nil
+		}
 	}
 
-	userID, err := validUser(db, cfg, cookie.Value)
-	if err != nil {
-		err = fmt.Errorf("invalid user: %w", err)
-		slog.Error(err.Error())
-		ClearCookie(cfg, w)
-		return 0
+	switch authMethod {
+	case MethodSSO:
+		return getUserIDFromToken(cfg.(config.IntegratedApp), token)
+	case MethodSecret:
+		return getUserIDFromSecret(db, token)
+	default:
+		return 0, nil
 	}
-
-	return userID
 }
 
-func GetUserFromSecret(db database.Databaser, r *http.Request) int {
-	secret := r.Header.Get("Authorization")
-	if secret == "" {
-		return 0
-	}
-	if !strings.HasPrefix(secret, "Bearer ") {
-		slog.Error("invalid secret format")
-		return 0
-	}
-	secret = strings.TrimPrefix(secret, "Bearer ")
-	userID, err := db.GetUserBySecret(secret)
+func getUserIDFromSecret(db database.Databaser, token string) (int, error) {
+	userID, err := db.GetUserBySecret(token)
 	if err != nil {
-		slog.Error(fmt.Sprintf("failed to get user id from secret: %v", err))
-		return 0
+		err = fmt.Errorf("failed to get user id from secret: %w", err)
+		slog.Error(err.Error())
+		return 0, err
 	}
-	return userID
+	return userID, nil
 }
 
 func generateToken(cfg config.IntegratedApp, userID int) (string, error) {
@@ -100,31 +103,11 @@ func issueToken(cfg config.IntegratedApp, w http.ResponseWriter, userID int) err
 		HttpOnly: true,
 		Secure:   false,
 	}
-	slog.Info(fmt.Sprintf("Issuing cookie for user %d", userID))
+	//slog.Info(fmt.Sprintf("Issuing cookie for user %d", userID))
+	slog.Info("minted new jwt", "userID", userID)
 	http.SetCookie(w, &cookie)
 
 	return nil
-}
-
-func validUser(db database.Databaser, cfg config.IntegratedApp, token string) (int, error) {
-	userID, err := getUserIDFromToken(cfg, token)
-	if err != nil {
-		err = fmt.Errorf("failed to get user id from token: %w", err)
-		return 0, err
-	}
-
-	// If user ID is low, assume it is "new" user ID
-	if userID < 100 {
-		return userID, nil
-	}
-
-	_, _, err = db.GetUser(userID)
-	if err != nil {
-		err = fmt.Errorf("failed to get user: %w", err)
-		return 0, err
-	}
-
-	return userID, nil
 }
 
 func getUserIDFromToken(cfg config.IntegratedApp, token string) (int, error) {
@@ -141,4 +124,45 @@ func getUserIDFromToken(cfg config.IntegratedApp, token string) (int, error) {
 	}
 
 	return claims.User, nil
+}
+
+func validateDevSecret(secret string) string {
+	if !strings.HasPrefix(secret, "Bearer ") {
+		slog.Warn("invalid secret format")
+		return ""
+	}
+	secret = strings.TrimPrefix(secret, "Bearer ")
+	return secret
+}
+
+func GetAuth(r *http.Request) (string, Method) {
+	// try to get from cookie
+	cookie, err := r.Cookie(userCookie)
+	if err == nil && cookie != nil {
+		return cookie.Value, MethodSSO
+	}
+
+	// try to get from header
+	secret := r.Header.Get("Authorization")
+	secret = validateDevSecret(secret)
+	if secret != "" {
+		return secret, MethodSecret
+	}
+
+	return "", MethodNone
+}
+
+func (m Method) String() string {
+	switch m {
+	case MethodNone:
+		return "none"
+	case MethodSSO:
+		return "sso"
+	case MethodSecret:
+		return "secret"
+	case MethodExcluded:
+		return "excluded"
+	default:
+		return "unknown"
+	}
 }
