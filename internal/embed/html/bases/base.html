@@ -142,9 +142,40 @@
         input#api-key {
             width: 100%;
         }
+
+        /* Snowfall container */
+        .snowfall {
+            background-color: rgba(0, 0, 0, 0.15);
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* Snowflake styles */
+        .snowflake {
+            position: fixed;
+            color: #fff;
+            text-shadow: 0 0 1px rgba(0, 0, 0, 0.1);
+            z-index: 0;
+        }
+
+        /*@keyframes fall {*/
+        /*    0% {*/
+        /*        transform: translateY(-100vh) rotate(0deg);*/
+        /*    }*/
+        /*    100% {*/
+        /*        transform: translateY(100vh) rotate(360deg);*/
+        /*    }*/
+        /*}*/
     </style>
 </head>
 <body>
+<!-- Snowfall container -->
+<div class="snowfall" id="snowfall"></div>
 <main>
     <nav>
         <h1><a href="/"><img src="/static/office-building.png" alt="Office building"/>Officetracker</a></h1>
@@ -153,5 +184,126 @@
     <h2>{{block "title" .}}{{end}}</h2>
     <section>{{block "content" .}}{{end}}<section>
 </main>
+<script>
+    // Configuration variables
+    const SNOWFALL_CONFIG = {
+        density: 50,    // Controls number of snowflakes (1-100)
+        fallSpeed: 5    // Controls fall speed (1-10, higher = faster)
+    };
+
+    class SnowfallManager {
+        constructor(config) {
+            this.snowflakes = ['❄', '❅', '❆'];
+            this.density = config.density;
+            this.fallSpeed = config.fallSpeed;
+            this.container = document.getElementById('snowfall');
+            this.active = false;
+            this.paused = false;
+            this.animationFrame = null;  // Track the animation frame
+        }
+
+        createSnowflake() {
+            const snowflake = document.createElement('div');
+            snowflake.className = 'snowflake';
+            snowflake.style.left = `${Math.random() * window.innerWidth}px`;
+            // Random starting position above viewport
+            snowflake.style.top = `${-20 - (Math.random() * 100)}px`;  // Between -120 and -20
+            snowflake.style.fontSize = `${Math.random() * (20 - 10) + 10}px`;
+            snowflake.style.opacity = Math.random() * 0.7 + 0.3;
+            snowflake.textContent = this.snowflakes[Math.floor(Math.random() * this.snowflakes.length)];
+
+            const speedMultiplier = parseInt(snowflake.style.fontSize) / 15;
+            const baseSpeed = (11 - this.fallSpeed) * 0.1;
+            snowflake.speed = baseSpeed * speedMultiplier;
+
+            const maxDrift = snowflake.speed * 0.466;
+            snowflake.drift = (Math.random() - 0.5) * maxDrift * 2;
+
+            return snowflake;
+        }
+
+        moveSnowflake(snowflake) {
+            // Get current position, defaulting to starting position if not set
+            const currentTop = parseFloat(snowflake.style.top);
+            const currentLeft = parseFloat(snowflake.style.left);
+
+            if (isNaN(currentTop) || isNaN(currentLeft)) {
+                snowflake.remove();
+                return false;
+            }
+
+            snowflake.style.top = `${currentTop + snowflake.speed}px`;
+            snowflake.style.left = `${currentLeft + snowflake.drift}px`;
+
+            // Remove if below viewport or outside horizontal bounds
+            if (currentTop > window.innerHeight + 20 ||
+                currentLeft < -20 ||
+                currentLeft > window.innerWidth + 20) {
+                snowflake.remove();
+                return false;
+            }
+            return true;
+        }
+
+        animate() {
+            if (!this.active || this.paused) {
+                this.animationFrame = null;  // Clear reference when stopping
+                return;
+            }
+
+            const snowflakes = this.container.children;
+            Array.from(snowflakes).forEach(snowflake => {
+                this.moveSnowflake(snowflake);
+            });
+
+            if (Math.random() < this.density / 500) {
+                const snowflake = this.createSnowflake();
+                this.container.appendChild(snowflake);
+            }
+
+            this.animationFrame = requestAnimationFrame(() => this.animate());
+        }
+
+        start() {
+            if (this.animationFrame) {
+                cancelAnimationFrame(this.animationFrame);  // Cancel any existing animation
+            }
+            this.active = true;
+            this.paused = false;
+            this.animate();
+        }
+
+        pause() {
+            this.paused = true;
+            if (this.animationFrame) {
+                cancelAnimationFrame(this.animationFrame);
+                this.animationFrame = null;
+            }
+        }
+
+        stop() {
+            this.active = false;
+            this.paused = false;
+            if (this.animationFrame) {
+                cancelAnimationFrame(this.animationFrame);
+                this.animationFrame = null;
+            }
+            this.container.innerHTML = '';
+        }
+    }
+
+    // Initialize and start the snowfall
+    const snowfall = new SnowfallManager(SNOWFALL_CONFIG);
+    snowfall.start();
+
+    // Handle visibility change to stop animation when tab is hidden
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+            snowfall.stop();
+        } else {
+            snowfall.start();
+        }
+    });
+</script>
 </body>
 </html>
