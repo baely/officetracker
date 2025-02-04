@@ -10,7 +10,7 @@ type Redis struct {
 	rdb *redis.Client
 }
 
-func NewRedis(cfg config.Redis) (*Redis, error) {
+func NewRedis(cfg config.Redis) (Redis, error) {
 	rdb := redis.NewClient(&redis.Options{
 		Addr:     cfg.Host,
 		Username: cfg.Username,
@@ -18,7 +18,7 @@ func NewRedis(cfg config.Redis) (*Redis, error) {
 		DB:       cfg.DB,
 	})
 
-	return &Redis{
+	return Redis{
 		rdb: rdb,
 	}, nil
 }
