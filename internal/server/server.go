@@ -24,18 +24,20 @@ import (
 
 type Server struct {
 	http.Server
-	cfg config.AppConfigurer
-	db  database.Databaser
+	cfg   config.AppConfigurer
+	db    database.Databaser
+	redis database.Redis
 
 	// v1 implementation
 	v1 model.Service
 }
 
-func NewServer(cfg config.AppConfigurer, db database.Databaser, reporter report.Reporter) (*Server, error) {
+func NewServer(cfg config.AppConfigurer, db database.Databaser, redis database.Redis, reporter report.Reporter) (*Server, error) {
 	s := &Server{
-		db:  db,
-		cfg: cfg,
-		v1:  v1.New(db, reporter),
+		db:    db,
+		redis: redis,
+		cfg:   cfg,
+		v1:    v1.New(db, reporter),
 	}
 
 	r := chi.NewMux().With(Otel, injectAuth(db, cfg), s.logRequest)
@@ -51,7 +53,7 @@ func NewServer(cfg config.AppConfigurer, db database.Databaser, reporter report.
 	switch integratedCfg := cfg.(type) {
 	case config.IntegratedApp:
 		// Auth routes
-		r.Route("/auth", auth.Router(integratedCfg, s.db))
+		r.Route("/auth", auth.Router(integratedCfg, s.db, s.redis))
 		r.Get("/login", s.handleLogin)
 		r.Get("/logout", s.handleLogout)
 		// Cool stuff
