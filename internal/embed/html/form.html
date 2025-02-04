@@ -19,16 +19,6 @@
     </div>
 </div>
 <div>
-    <h2>Export</h2>
-    <p>
-        Export annual attendance as a PDF report or CSV
-    </p>
-    <p>
-        <button id="export-csv">Export to CSV</button>
-        <button id="export-pdf">Export to PDF</button>
-    </p>
-</div>
-<div>
     <h2>Notes</h2>
     <p>
         <textarea name="notes" id="notes"></textarea>
@@ -45,6 +35,16 @@
             <th>Percent</th>
         </tr>
     </table>
+</div>
+<div>
+    <h2>Export</h2>
+    <p>
+        Export annual attendance as a PDF report or CSV
+    </p>
+    <p>
+        <button id="export-csv">Export to CSV</button>
+        <button id="export-pdf">Export to PDF</button>
+    </p>
 </div>
 <script>{{ template "form.js" . }}</script>
 {{ end }}
