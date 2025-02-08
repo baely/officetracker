@@ -6,7 +6,7 @@ import (
 	"github.com/baely/officetracker/pkg/model"
 )
 
-func (i *implementation) GetDay(req model.GetDayRequest) (model.GetDayResponse, error) {
+func (i *Service) GetDay(req model.GetDayRequest) (model.GetDayResponse, error) {
 	state, err := i.db.GetDay(req.Meta.UserID, req.Meta.Day, req.Meta.Month, req.Meta.Year)
 	if err != nil {
 		err = fmt.Errorf("failed to get day: %w", err)
@@ -18,7 +18,7 @@ func (i *implementation) GetDay(req model.GetDayRequest) (model.GetDayResponse, 
 	}, nil
 }
 
-func (i *implementation) PutDay(req model.PutDayRequest) (model.PutDayResponse, error) {
+func (i *Service) PutDay(req model.PutDayRequest) (model.PutDayResponse, error) {
 	err := i.db.SaveDay(req.Meta.UserID, req.Meta.Day, req.Meta.Month, req.Meta.Year, req.Data)
 	if err != nil {
 		err = fmt.Errorf("failed to save day: %w", err)
@@ -28,7 +28,7 @@ func (i *implementation) PutDay(req model.PutDayRequest) (model.PutDayResponse, 
 	return model.PutDayResponse{}, nil
 }
 
-func (i *implementation) GetMonth(req model.GetMonthRequest) (model.GetMonthResponse, error) {
+func (i *Service) GetMonth(req model.GetMonthRequest) (model.GetMonthResponse, error) {
 	state, err := i.db.GetMonth(req.Meta.UserID, req.Meta.Month, req.Meta.Year)
 	if err != nil {
 		err = fmt.Errorf("failed to get month: %w", err)
@@ -40,7 +40,7 @@ func (i *implementation) GetMonth(req model.GetMonthRequest) (model.GetMonthResp
 	}, nil
 }
 
-func (i *implementation) PutMonth(req model.PutMonthRequest) (model.PutMonthResponse, error) {
+func (i *Service) PutMonth(req model.PutMonthRequest) (model.PutMonthResponse, error) {
 	err := i.db.SaveMonth(req.Meta.UserID, req.Meta.Month, req.Meta.Year, req.Data)
 	if err != nil {
 		err = fmt.Errorf("failed to save month: %w", err)
@@ -50,7 +50,7 @@ func (i *implementation) PutMonth(req model.PutMonthRequest) (model.PutMonthResp
 	return model.PutMonthResponse{}, nil
 }
 
-func (i *implementation) GetYear(req model.GetYearRequest) (model.GetYearResponse, error) {
+func (i *Service) GetYear(req model.GetYearRequest) (model.GetYearResponse, error) {
 	state, err := i.db.GetYear(req.Meta.UserID, req.Meta.Year)
 	if err != nil {
 		err = fmt.Errorf("failed to get year: %w", err)
@@ -62,7 +62,7 @@ func (i *implementation) GetYear(req model.GetYearRequest) (model.GetYearRespons
 	}, nil
 }
 
-func (i *implementation) GetNote(req model.GetNoteRequest) (model.GetNoteResponse, error) {
+func (i *Service) GetNote(req model.GetNoteRequest) (model.GetNoteResponse, error) {
 	note, err := i.db.GetNote(req.Meta.UserID, req.Meta.Month, req.Meta.Year)
 	if err != nil {
 		err = fmt.Errorf("failed to get note: %w", err)
@@ -74,7 +74,7 @@ func (i *implementation) GetNote(req model.GetNoteRequest) (model.GetNoteRespons
 	}, nil
 }
 
-func (i *implementation) PutNote(req model.PutNoteRequest) (model.PutNoteResponse, error) {
+func (i *Service) PutNote(req model.PutNoteRequest) (model.PutNoteResponse, error) {
 	err := i.db.SaveNote(req.Meta.UserID, req.Meta.Month, req.Meta.Year, req.Data.Note)
 	if err != nil {
 		err = fmt.Errorf("failed to save note: %w", err)
@@ -84,7 +84,7 @@ func (i *implementation) PutNote(req model.PutNoteRequest) (model.PutNoteRespons
 	return model.PutNoteResponse{}, nil
 }
 
-func (i *implementation) GetNotes(req model.GetNotesRequest) (model.GetNotesResponse, error) {
+func (i *Service) GetNotes(req model.GetNotesRequest) (model.GetNotesResponse, error) {
 	notes, err := i.db.GetNotes(req.Meta.UserID, req.Meta.Year)
 	if err != nil {
 		err = fmt.Errorf("failed to get notes: %w", err)

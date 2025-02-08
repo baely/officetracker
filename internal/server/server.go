@@ -28,7 +28,7 @@ type Server struct {
 	db  database.Databaser
 
 	// v1 implementation
-	v1 model.Service
+	v1 *v1.Service
 }
 
 func NewServer(cfg config.AppConfigurer, db database.Databaser, reporter report.Reporter) (*Server, error) {
@@ -55,6 +55,7 @@ func NewServer(cfg config.AppConfigurer, db database.Databaser, reporter report.
 		r.Get("/login", s.handleLogin)
 		r.Get("/logout", s.handleLogout)
 		// Cool stuff
+		r.Get("/settings", s.handleSettings)
 		r.Get("/developer", s.handleDeveloper)
 		// Boring stuff
 		r.Get("/tos", s.handleTos)
@@ -207,6 +208,10 @@ func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
 	cfg := s.cfg.(config.IntegratedApp)
 	auth.ClearCookie(cfg, w)
 	http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
+}
+
+func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
+	
 }
 
 func (s *Server) handleDeveloper(w http.ResponseWriter, r *http.Request) {
