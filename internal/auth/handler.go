@@ -16,7 +16,7 @@ func handleLogout(cfg config.IntegratedApp) http.HandlerFunc {
 	}
 }
 
-func Router(cfg config.IntegratedApp, db database.Databaser) func(r chi.Router) {
+func Router(cfg config.IntegratedApp, db database.Databaser, redis database.Redis) func(r chi.Router) {
 	return func(r chi.Router) {
 		r.Get("/logout", handleLogout(cfg))
 		r.Get("/callback/github", handleGithubCallback(cfg, db))

@@ -38,9 +38,14 @@ func main() {
 		panic(err)
 	}
 
+	redis, err := database.NewRedis(cfg.Redis)
+	if err != nil {
+		panic(err)
+	}
+
 	reporter := report.New(db)
 
-	s, err := server.NewServer(cfg, db, reporter)
+	s, err := server.NewServer(cfg, db, redis, reporter)
 	if err != nil {
 		panic(err)
 	}
