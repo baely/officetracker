@@ -20,7 +20,5 @@
         {{end}}
     </ul>
 </p>
-{{ end }}
-{{ define "scripts" }}
-<script src="/static/settings.js"></script>
+<script>{{ template "settings.js" . }}</script>
 {{ end }}
