@@ -170,6 +170,11 @@ func handleGithubCallback(cfg config.IntegratedApp, db database.Databaser, redis
 			// Account linking flow - update existing user's GitHub info
 			err = db.UpdateUserGithub(existingUserID, ghID, ghUser)
 			if err != nil {
+				if err.Error() == "github account already associated with another user" {
+					slog.Error(fmt.Sprintf("github account already linked: %v", err))
+					http.Error(w, "This GitHub account is already linked to another Officetracker account", http.StatusConflict)
+					return
+				}
 				slog.Error(fmt.Sprintf("failed to update user github: %v", err))
 				http.Error(w, "Internal server error", http.StatusInternalServerError)
 				return

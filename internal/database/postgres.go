@@ -279,10 +279,21 @@ func (p *postgres) UpdateUser(userID int, username string) error {
 
 func (p *postgres) UpdateUserGithub(userID int, ghID string, username string) error {
 	return p.readWriteTransaction(func(tx *sql.Tx) error {
-		// Insert new GitHub association
+		// First check if this GitHub ID is already associated with any user
+		var existingUserID int
+		checkQ := `SELECT user_id FROM gh_users WHERE gh_id = $1;`
+		err := tx.QueryRow(checkQ, ghID).Scan(&existingUserID)
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return err
+		}
+		if err == nil && existingUserID != userID {
+			return fmt.Errorf("github account already associated with another user")
+		}
+
+		// Insert new GitHub association or update existing
 		q := `INSERT INTO gh_users (gh_id, user_id, gh_user) VALUES ($1, $2, $3)
-		      ON CONFLICT (gh_id) DO UPDATE SET gh_user = $3;`
-		_, err := tx.Exec(q, ghID, userID, username)
+			      ON CONFLICT (gh_id) DO UPDATE SET gh_user = $3;`
+		_, err = tx.Exec(q, ghID, userID, username)
 		return err
 	})
 }
