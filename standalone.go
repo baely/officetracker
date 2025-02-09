@@ -34,7 +34,7 @@ func main() {
 
 	reporter := report.New(db)
 
-	s, err := server.NewServer(cfg, db, reporter)
+	s, err := server.NewServer(cfg, db, nil, reporter)
 	if err != nil {
 		panic(err)
 	}

@@ -13,13 +13,16 @@ import (
 	"github.com/gorilla/schema"
 
 	"github.com/baely/officetracker/internal/auth"
+	"github.com/baely/officetracker/internal/context"
+	v1 "github.com/baely/officetracker/internal/implementation/v1"
 	"github.com/baely/officetracker/pkg/model"
 )
 
-func apiRouter(service model.Service) func(chi.Router) {
+func apiRouter(service *v1.Service) func(chi.Router) {
 	return func(r chi.Router) {
 		r.Route("/state", stateRouter(service))
 		r.Route("/note", noteRouter(service))
+		r.Route("/settings", settingsRouter(service))
 		r.Route("/developer", developerRouter(service))
 		r.Route("/report", reportRouter(service))
 		r.Route("/health", healthRouter(service))
@@ -29,8 +32,8 @@ func apiRouter(service model.Service) func(chi.Router) {
 	}
 }
 
-func stateRouter(service model.Service) func(chi.Router) {
-	middlewares := []func(http.Handler) http.Handler{AllowedAuthMethods(auth.MethodSSO, auth.MethodSecret, auth.MethodExcluded)}
+func stateRouter(service *v1.Service) func(chi.Router) {
+	middlewares := chi.Middlewares{AllowedAuthMethods(auth.MethodSSO, auth.MethodSecret, auth.MethodExcluded)}
 	return func(r chi.Router) {
 		r.With(middlewares...).Method(http.MethodGet, "/{year}/{month}/{day}", wrap(service.GetDay))
 		r.With(middlewares...).Method(http.MethodPut, "/{year}/{month}/{day}", wrap(service.PutDay))
@@ -40,8 +43,8 @@ func stateRouter(service model.Service) func(chi.Router) {
 	}
 }
 
-func noteRouter(service model.Service) func(chi.Router) {
-	middlewares := []func(http.Handler) http.Handler{AllowedAuthMethods(auth.MethodSSO, auth.MethodSecret, auth.MethodExcluded)}
+func noteRouter(service *v1.Service) func(chi.Router) {
+	middlewares := chi.Middlewares{AllowedAuthMethods(auth.MethodSSO, auth.MethodSecret, auth.MethodExcluded)}
 	return func(r chi.Router) {
 		r.With(middlewares...).Method(http.MethodGet, "/{year}/{month}", wrap(service.GetNote))
 		r.With(middlewares...).Method(http.MethodPut, "/{year}/{month}", wrap(service.PutNote))
@@ -49,22 +52,29 @@ func noteRouter(service model.Service) func(chi.Router) {
 	}
 }
 
-func developerRouter(service model.Service) func(chi.Router) {
-	middlewares := []func(http.Handler) http.Handler{AllowedAuthMethods(auth.MethodSSO)}
+func settingsRouter(service *v1.Service) func(router chi.Router) {
+	middlewares := []func(handler http.Handler) http.Handler{AllowedAuthMethods(auth.MethodSSO)}
+	return func(r chi.Router) {
+		r.With(middlewares...).Method(http.MethodGet, "/", wrap(service.GetSettings))
+	}
+}
+
+func developerRouter(service *v1.Service) func(chi.Router) {
+	middlewares := chi.Middlewares{AllowedAuthMethods(auth.MethodSSO)}
 	return func(r chi.Router) {
 		r.With(middlewares...).Method(http.MethodGet, "/secret", wrap(service.GetSecret))
 	}
 }
 
-func reportRouter(service model.Service) func(chi.Router) {
-	middlewares := []func(http.Handler) http.Handler{AllowedAuthMethods(auth.MethodSSO, auth.MethodExcluded)}
+func reportRouter(service *v1.Service) func(chi.Router) {
+	middlewares := chi.Middlewares{AllowedAuthMethods(auth.MethodSSO, auth.MethodExcluded)}
 	return func(r chi.Router) {
 		r.With(middlewares...).Method(http.MethodGet, "/pdf/{year}-attendance", wrapRaw(service.GetReport))
 		r.With(middlewares...).Method(http.MethodGet, "/csv/{year}-attendance", wrapRaw(service.GetReportCSV))
 	}
 }
 
-func healthRouter(service model.Service) func(chi.Router) {
+func healthRouter(service *v1.Service) func(chi.Router) {
 	return func(r chi.Router) {
 		r.Method(http.MethodGet, "/check", wrap(service.Healthcheck))
 		r.With(AllowedAuthMethods(auth.MethodSecret)).Method(http.MethodGet, "/auth", wrap(service.ValidateAuth))
@@ -178,7 +188,7 @@ func mapResponse[T any](resp T) ([]byte, error) {
 }
 
 func getUserID(r *http.Request) (int, error) {
-	userID, ok := getCtxValue(r).get(ctxUserIDKey).(int)
+	userID, ok := context.GetCtxValue(r).Get(context.CtxUserIDKey).(int)
 	if !ok {
 		return 0, ErrNoUserInCtx
 	}
@@ -186,7 +196,7 @@ func getUserID(r *http.Request) (int, error) {
 }
 
 func getAuthMethod(r *http.Request) (auth.Method, error) {
-	authMethod, ok := getCtxValue(r).get(ctxAuthMethodKey).(auth.Method)
+	authMethod, ok := context.GetCtxValue(r).Get(context.CtxAuthMethodKey).(auth.Method)
 	if !ok {
 		return auth.MethodUnknown, fmt.Errorf("failed to get auth method from context")
 	}

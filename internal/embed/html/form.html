@@ -1,5 +1,6 @@
 {{ template "base.html" . }}
 {{ define "nav" }}{{ template "loggedin.html" }}{{ end }}
+{{ define "postheader" }}<section class="notification">ℹ️ Want to login using your GitHub EMU account too? Follow the instructions on <a href="/settings">/settings</a> to associate additional GitHub accounts.</section>{{ end }}
 {{ define "content" }}
 <div id="calendar-nav">
     <button id="prev-month">Previous</button>

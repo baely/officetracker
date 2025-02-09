@@ -7,7 +7,7 @@ import (
 	"github.com/baely/officetracker/pkg/model"
 )
 
-func (i *implementation) GetReport(req model.GetReportRequest) (model.Response, error) {
+func (i *Service) GetReport(req model.GetReportRequest) (model.Response, error) {
 	var start, end time.Time
 
 	start = time.Date(req.Meta.Year-1, time.October, 1, 0, 0, 0, 0, time.Local)
@@ -25,7 +25,7 @@ func (i *implementation) GetReport(req model.GetReportRequest) (model.Response, 
 	}, nil
 }
 
-func (i *implementation) GetReportCSV(req model.GetReportCSVRequest) (model.Response, error) {
+func (i *Service) GetReportCSV(req model.GetReportCSVRequest) (model.Response, error) {
 	var start, end time.Time
 
 	start = time.Date(req.Meta.Year-1, time.October, 1, 0, 0, 0, 0, time.Local)

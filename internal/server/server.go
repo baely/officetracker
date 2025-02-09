@@ -26,13 +26,13 @@ type Server struct {
 	http.Server
 	cfg   config.AppConfigurer
 	db    database.Databaser
-	redis database.Redis
+	redis *database.Redis
 
 	// v1 implementation
-	v1 model.Service
+	v1 *v1.Service
 }
 
-func NewServer(cfg config.AppConfigurer, db database.Databaser, redis database.Redis, reporter report.Reporter) (*Server, error) {
+func NewServer(cfg config.AppConfigurer, db database.Databaser, redis *database.Redis, reporter report.Reporter) (*Server, error) {
 	s := &Server{
 		db:    db,
 		redis: redis,
@@ -57,6 +57,7 @@ func NewServer(cfg config.AppConfigurer, db database.Databaser, redis database.R
 		r.Get("/login", s.handleLogin)
 		r.Get("/logout", s.handleLogout)
 		// Cool stuff
+		r.Get("/settings", s.handleSettings)
 		r.Get("/developer", s.handleDeveloper)
 		// Boring stuff
 		r.Get("/tos", s.handleTos)
@@ -209,6 +210,30 @@ func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
 	cfg := s.cfg.(config.IntegratedApp)
 	auth.ClearCookie(cfg, w)
 	http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
+}
+
+func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
+	userID, err := getUserID(r)
+	if err != nil {
+		err = fmt.Errorf("failed to get user id: %w", err)
+		errorPage(w, err, internalErrorMsg, http.StatusInternalServerError)
+		return
+	}
+
+	settings, err := s.v1.GetSettings(model.GetSettingsRequest{
+		Meta: model.GetSettingsRequestMeta{
+			UserID: userID,
+		},
+	})
+	if err != nil {
+		err = fmt.Errorf("failed to get settings: %w", err)
+		errorPage(w, err, internalErrorMsg, http.StatusInternalServerError)
+		return
+	}
+
+	serveSettings(w, r, settingsPage{
+		GithubAccounts: settings.GithubAccounts,
+	})
 }
 
 func (s *Server) handleDeveloper(w http.ResponseWriter, r *http.Request) {
