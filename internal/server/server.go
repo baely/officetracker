@@ -275,9 +275,4 @@ func staticHandler(r chi.Router) {
 		w.Header().Set("Cache-Control", "public, max-age=604800, immutable")
 		w.Write(embed.OfficeBuilding)
 	})
-	r.Get("/settings.js", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/javascript")
-		w.Header().Set("Cache-Control", "public, max-age=604800, immutable")
-		w.Write(embed.SettingsJS)
-	})
 }

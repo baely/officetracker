@@ -28,9 +28,6 @@ var (
 	//go:embed static/office-building.png
 	OfficeBuilding []byte
 
-	//go:embed static/settings.js
-	SettingsJS []byte
-
 	//go:embed html/setup_old.html
 	Setup []byte
 )
