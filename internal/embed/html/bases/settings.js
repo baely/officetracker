@@ -8,7 +8,7 @@ const generateAssocUri = _ => {
     fetch("/auth/generate-gh")
         .then(r => r.json())
         .then(payload => {
-            assocUri = payload.secret;
+            assocUri = payload.url;
             assocUriOutput.value = assocUri;
             assocUriCopy.innerText = "Copy";
         });

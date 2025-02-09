@@ -127,7 +127,6 @@ func handleGenerateGithub(cfg config.IntegratedApp, redis *database.Redis) http.
 
 func handleGithubCallback(cfg config.IntegratedApp, db database.Databaser, redis *database.Redis) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		state := r.URL.Query().Get("state")
 		code := r.URL.Query().Get("code")
 		if code == "" {
 			slog.Error("no code provided")
@@ -135,17 +134,22 @@ func handleGithubCallback(cfg config.IntegratedApp, db database.Databaser, redis
 			return
 		}
 
-		// Validate state and get original user ID
-		key := fmt.Sprintf("github:state:%s", state)
-		originalUserID, err := redis.GetStateInt(r.Context(), key)
-		if err != nil {
-			slog.Error(fmt.Sprintf("invalid or expired state: %v", err))
-			http.Redirect(w, r, "/login", http.StatusTemporaryRedirect)
-			return
-		}
+		state := r.URL.Query().Get("state")
+		var existingUserID int
+		var err error
 
-		// Delete the state key since it's been used
-		_ = redis.DeleteState(r.Context(), key)
+		// If state exists, validate it's a linking flow
+		if state != "" {
+			key := fmt.Sprintf("github:state:%s", state)
+			existingUserID, err = redis.GetStateInt(r.Context(), key)
+			if err != nil {
+				slog.Error(fmt.Sprintf("invalid or expired state: %v", err))
+				http.Redirect(w, r, "/login", http.StatusTemporaryRedirect)
+				return
+			}
+			// Delete the state key since it's been used
+			_ = redis.DeleteState(r.Context(), key)
+		}
 
 		token, err := ghOauthCfg(cfg).Exchange(r.Context(), code)
 		if err != nil {
@@ -161,16 +165,47 @@ func handleGithubCallback(cfg config.IntegratedApp, db database.Databaser, redis
 			return
 		}
 
-		// Instead of creating/getting user, update the existing user's GitHub ID
-		err = db.UpdateUserGithub(originalUserID, ghID, ghUser)
+		var userID int
+		if existingUserID != 0 {
+			// Account linking flow - update existing user's GitHub info
+			err = db.UpdateUserGithub(existingUserID, ghID, ghUser)
+			if err != nil {
+				slog.Error(fmt.Sprintf("failed to update user github: %v", err))
+				http.Error(w, "Internal server error", http.StatusInternalServerError)
+				return
+			}
+			userID = existingUserID
+			slog.Info(fmt.Sprintf("linked github account for user: %d", userID))
+		} else {
+			// Fresh login flow - create or get user by GitHub ID
+			userID, err = toUserID(db, ghID)
+			if err != nil {
+				slog.Error(fmt.Sprintf("failed to get/create user: %v", err))
+				http.Error(w, "Internal server error", http.StatusInternalServerError)
+				return
+			}
+			// Update username in case it changed
+			err = db.UpdateUser(userID, ghUser)
+			if err != nil {
+				slog.Error(fmt.Sprintf("failed to update username: %v", err))
+				// Non-critical error, continue
+			}
+			slog.Info(fmt.Sprintf("logged in user: %d", userID))
+		}
+
+		err = issueToken(cfg, w, userID)
 		if err != nil {
-			slog.Error(fmt.Sprintf("failed to update user github: %v", err))
+			slog.Error(fmt.Sprintf("failed to issue token: %v", err))
 			http.Error(w, "Internal server error", http.StatusInternalServerError)
 			return
 		}
 
-		slog.Info(fmt.Sprintf("linked github account for user: %d", originalUserID))
-		http.Redirect(w, r, "/settings", http.StatusTemporaryRedirect)
+		// Redirect to settings if it was a linking flow, otherwise to home
+		if existingUserID != 0 {
+			http.Redirect(w, r, "/settings", http.StatusTemporaryRedirect)
+		} else {
+			http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
+		}
 	}
 }
 
