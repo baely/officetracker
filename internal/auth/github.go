@@ -18,25 +18,19 @@ import (
 	"github.com/baely/officetracker/internal/util"
 )
 
-// Context keys
-type contextKey int
-
-const (
-	ctxKey contextKey = iota
-)
-
 type ctxValue map[string]interface{}
 
 const (
+	ctxKey       = "ctx"
 	ctxUserIDKey = "userID"
 )
 
-func (v ctxValue) get(key string) interface{} {
-	return v[key]
-}
-
 func getCtxValue(r *http.Request) ctxValue {
 	return r.Context().Value(ctxKey).(ctxValue)
+}
+
+func (v ctxValue) get(key string) interface{} {
+	return v[key]
 }
 
 func getUserID(r *http.Request) (int, error) {
