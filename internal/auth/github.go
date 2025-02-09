@@ -119,7 +119,7 @@ func handleGithubCallback(cfg config.IntegratedApp, db database.Databaser, redis
 		var err error
 
 		// If state exists, validate it's a linking flow
-		if state != "" {
+		if state != "state" {
 			key := fmt.Sprintf("github:state:%s", state)
 			existingUserID, err = redis.GetStateInt(r.Context(), key)
 			if err != nil {
