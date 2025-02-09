@@ -1,5 +1,7 @@
 package database
 
+//go:generate mockgen -destination=mocks/mock_databaser.go -package=mocks github.com/baely/officetracker/internal/database Databaser
+
 import (
 	"fmt"
 
