@@ -8,16 +8,19 @@
     where you're not signed in to Officetracker. The link will expire after 10 minutes.
 </p>
 <p>
-    <input type="text" disabled id="api-key">
+    <input type="text" disabled id="assoc-uri">
     <button id="generate-assoc-uri">Generate</button>
     <button id="copy-assoc-uri">Copy</button>
 </p>
 <p>
     The following GitHub accounts are currently associated with your Officetracker account:
     <ul>
-        <li>baely</li>
-        <li>butlerb3_anz</li>
+        {{range .GithubAccounts}}
+        <li>{{.}}</li>
+        {{end}}
     </ul>
 </p>
-<script>{{ template "settings.js" . }}</script>
+{{ end }}
+{{ define "scripts" }}
+<script src="/static/settings.js"></script>
 {{ end }}

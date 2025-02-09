@@ -45,7 +45,9 @@ func serveLogin(w http.ResponseWriter, r *http.Request, page loginPage) {
 	}
 }
 
-type settingsPage struct{}
+type settingsPage struct {
+	GithubAccounts []string
+}
 
 func serveSettings(w http.ResponseWriter, r *http.Request, page settingsPage) {
 	if err := embed.Settings.Execute(w, page); err != nil {

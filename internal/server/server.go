@@ -215,7 +215,27 @@ func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
-	serveSettings(w, r, settingsPage{})
+	userID, err := getUserID(r)
+	if err != nil {
+		err = fmt.Errorf("failed to get user id: %w", err)
+		errorPage(w, err, internalErrorMsg, http.StatusInternalServerError)
+		return
+	}
+
+	settings, err := s.v1.GetSettings(model.GetSettingsRequest{
+		Meta: model.GetSettingsRequestMeta{
+			UserID: userID,
+		},
+	})
+	if err != nil {
+		err = fmt.Errorf("failed to get settings: %w", err)
+		errorPage(w, err, internalErrorMsg, http.StatusInternalServerError)
+		return
+	}
+
+	serveSettings(w, r, settingsPage{
+		GithubAccounts: settings.GithubAccounts,
+	})
 }
 
 func (s *Server) handleDeveloper(w http.ResponseWriter, r *http.Request) {
@@ -254,5 +274,10 @@ func staticHandler(r chi.Router) {
 		w.Header().Set("Content-Type", "image/png")
 		w.Header().Set("Cache-Control", "public, max-age=604800, immutable")
 		w.Write(embed.OfficeBuilding)
+	})
+	r.Get("/settings.js", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/javascript")
+		w.Header().Set("Cache-Control", "public, max-age=604800, immutable")
+		w.Write(embed.SettingsJS)
 	})
 }

@@ -287,6 +287,27 @@ func (p *postgres) UpdateUserGithub(userID int, ghID string, username string) er
 	})
 }
 
+func (p *postgres) GetUserGithubAccounts(userID int) ([]string, error) {
+	q := `SELECT gh_user FROM gh_users WHERE user_id = $1 ORDER BY gh_user;`
+	var accounts []string
+	err := p.readOnlyTransaction(func(tx *sql.Tx) error {
+		rows, err := tx.Query(q, userID)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var username string
+			if err := rows.Scan(&username); err != nil {
+				return err
+			}
+			accounts = append(accounts, username)
+		}
+		return rows.Err()
+	})
+	return accounts, err
+}
+
 func incrementer(start int) func() int {
 	i := start
 	return func() int {

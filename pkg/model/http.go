@@ -126,6 +126,7 @@ type GetSettingsRequestMeta struct {
 }
 
 type GetSettingsResponse struct {
+	GithubAccounts []string `json:"github_accounts"`
 }
 
 type GetSecretRequest struct {
