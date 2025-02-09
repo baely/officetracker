@@ -28,7 +28,7 @@ const (
 type ctxValue map[string]interface{}
 
 const (
-	ctxUserIDKey = "user_id"
+	ctxUserIDKey = "userID"
 )
 
 func (v ctxValue) get(key string) interface{} {
