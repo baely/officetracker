@@ -12,6 +12,7 @@ type IntegratedApp struct {
 	App        App      `envconfig:"APP"`
 	Domain     Domain   `envconfig:"DOMAIN"`
 	Postgres   Postgres `envconfig:"POSTGRES"`
+	Redis      Redis    `envconfig:"REDIS"`
 	Github     Github   `envconfig:"GITHUB"`
 	SigningKey string   `envconfig:"SIGNING_KEY"`
 }
@@ -52,6 +53,13 @@ type Postgres struct {
 	User     string `envconfig:"USER"`
 	Password string `envconfig:"PASSWORD"`
 	DBName   string `envconfig:"DBNAME"`
+}
+
+type Redis struct {
+	Host     string `envconfig:"HOST"`
+	Username string `envconfig:"USERNAME"`
+	Password string `envconfig:"PASSWORD"`
+	DB       int    `envconfig:"DB"`
 }
 
 type Github struct {

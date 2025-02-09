@@ -24,8 +24,11 @@ type Databaser interface {
 
 	GetUserByGHID(ghID string) (int, error)
 	GetUserBySecret(secret string) (int, error)
-	GetUser(userID int) (int, error)
+	GetUser(userID int) (int, string, error)
+	GetUserGithubAccounts(userID int) ([]string, error)
 	SaveUserByGHID(ghID string) (int, error)
+	UpdateUser(userID int, username string) error
+	UpdateUserGithub(userID int, ghID string, username string) error
 
 	SaveSecret(userID int, secret string) error
 }

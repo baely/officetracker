@@ -179,26 +179,36 @@ func (p *postgres) GetNotes(userID int, year int) (map[int]model.Note, error) {
 
 }
 
-func (p *postgres) GetUser(userID int) (int, error) {
-	q := `SELECT user_id FROM users WHERE user_id = $1;`
+func (p *postgres) GetUser(userID int) (int, string, error) {
+	q := `SELECT u.user_id, COALESCE(u.gh_user, '') as gh_user 
+	      FROM users u 
+	      WHERE u.user_id = $1;`
 	var id int
+	var user string
 	err := p.readOnlyTransaction(func(tx *sql.Tx) error {
 		row := tx.QueryRow(q, userID)
-		err := row.Scan(&id)
+		err := row.Scan(&id, &user)
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil
 		}
 		return err
 	})
-	return id, err
+	return id, user, err
 }
 
 func (p *postgres) SaveUserByGHID(ghID string) (int, error) {
-	q := `INSERT INTO users (gh_id) VALUES ($1) RETURNING user_id;`
 	var id int
 	err := p.readWriteTransaction(func(tx *sql.Tx) error {
-		row := tx.QueryRow(q, ghID)
-		err := row.Scan(&id)
+		// First create the user entry with initial GitHub details
+		q1 := `INSERT INTO users (gh_id, gh_user) VALUES ($1, '') RETURNING user_id;`
+		row := tx.QueryRow(q1, ghID)
+		if err := row.Scan(&id); err != nil {
+			return err
+		}
+
+		// Then add to gh_users table
+		q2 := `INSERT INTO gh_users (gh_id, user_id, gh_user) VALUES ($1, $2, '');`
+		_, err := tx.Exec(q2, ghID, id)
 		return err
 	})
 	return id, err
@@ -222,7 +232,7 @@ func (p *postgres) SaveSecret(userID int, secret string) error {
 }
 
 func (p *postgres) GetUserByGHID(ghID string) (int, error) {
-	q := `SELECT user_id FROM users WHERE gh_id = $1;`
+	q := `SELECT user_id FROM gh_users WHERE gh_id = $1;`
 	var id int
 	err := p.readOnlyTransaction(func(tx *sql.Tx) error {
 		row := tx.QueryRow(q, ghID)
@@ -247,6 +257,92 @@ func (p *postgres) GetUserBySecret(secret string) (int, error) {
 		return err
 	})
 	return id, err
+}
+
+func (p *postgres) UpdateUser(userID int, username string) error {
+	return p.readWriteTransaction(func(tx *sql.Tx) error {
+		// Get the gh_id from users table for this user
+		var primaryGhID string
+		primaryQ := `SELECT gh_id FROM users WHERE user_id = $1;`
+		err := tx.QueryRow(primaryQ, userID).Scan(&primaryGhID)
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return err
+		}
+
+		// Update gh_users table for empty usernames
+		ghUsersQ := `UPDATE gh_users SET gh_user = $1 
+						 WHERE gh_user = '' AND gh_id = (
+							 SELECT gh_id FROM users 
+							 WHERE user_id = $2
+						 );`
+		_, err = tx.Exec(ghUsersQ, username, userID)
+		if err != nil {
+			return err
+		}
+
+		// If this GitHub account is the primary one stored in users table, update it there too
+		if primaryGhID != "" {
+			usersQ := `UPDATE users SET gh_user = $1 
+						   WHERE user_id = $2 AND gh_id = $3;`
+			_, err = tx.Exec(usersQ, username, userID, primaryGhID)
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
+}
+
+func (p *postgres) UpdateUserGithub(userID int, ghID string, username string) error {
+	return p.readWriteTransaction(func(tx *sql.Tx) error {
+		// Check if this GitHub ID already exists
+		var existingUserID int
+		checkQ := `SELECT user_id FROM gh_users WHERE gh_id = $1;`
+		err := tx.QueryRow(checkQ, ghID).Scan(&existingUserID)
+
+		if err == nil {
+			// GitHub ID exists - check if it belongs to another user
+			if existingUserID != userID {
+				return fmt.Errorf("github account already associated with another user")
+			}
+
+			// GitHub ID exists and belongs to this user - update username only if it was previously empty
+			updateQ := `UPDATE gh_users SET gh_user = $1 WHERE gh_id = $2 AND gh_user = '';`
+			_, err = tx.Exec(updateQ, username, ghID)
+			return err
+		}
+
+		if !errors.Is(err, sql.ErrNoRows) {
+			return err
+		}
+
+		// GitHub ID doesn't exist - insert new association
+		insertQ := `INSERT INTO gh_users (gh_id, user_id, gh_user) VALUES ($1, $2, $3);`
+		_, err = tx.Exec(insertQ, ghID, userID, username)
+		return err
+	})
+}
+
+func (p *postgres) GetUserGithubAccounts(userID int) ([]string, error) {
+	q := `SELECT gh_user FROM gh_users WHERE user_id = $1 ORDER BY gh_user;`
+	var accounts []string
+	err := p.readOnlyTransaction(func(tx *sql.Tx) error {
+		rows, err := tx.Query(q, userID)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var username string
+			if err := rows.Scan(&username); err != nil {
+				return err
+			}
+			accounts = append(accounts, username)
+		}
+		return rows.Err()
+	})
+	return accounts, err
 }
 
 func incrementer(start int) func() int {

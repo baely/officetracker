@@ -7,6 +7,7 @@ import (
 	"html/template"
 	"log/slog"
 	"net/http"
+	"slices"
 	"strconv"
 	"time"
 
@@ -23,21 +24,23 @@ import (
 
 type Server struct {
 	http.Server
-	cfg config.AppConfigurer
-	db  database.Databaser
+	cfg   config.AppConfigurer
+	db    database.Databaser
+	redis *database.Redis
 
 	// v1 implementation
-	v1 model.Service
+	v1 *v1.Service
 }
 
-func NewServer(cfg config.AppConfigurer, db database.Databaser, reporter report.Reporter) (*Server, error) {
+func NewServer(cfg config.AppConfigurer, db database.Databaser, redis *database.Redis, reporter report.Reporter) (*Server, error) {
 	s := &Server{
-		db:  db,
-		cfg: cfg,
-		v1:  v1.New(db, reporter),
+		db:    db,
+		redis: redis,
+		cfg:   cfg,
+		v1:    v1.New(db, reporter),
 	}
 
-	r := chi.NewMux().With(s.logRequest, injectAuth(db, cfg))
+	r := chi.NewMux().With(Otel, injectAuth(db, cfg), s.logRequest)
 
 	// Form routes
 	r.Get("/", s.handleIndex)
@@ -50,10 +53,11 @@ func NewServer(cfg config.AppConfigurer, db database.Databaser, reporter report.
 	switch integratedCfg := cfg.(type) {
 	case config.IntegratedApp:
 		// Auth routes
-		r.Route("/auth", auth.Router(integratedCfg, s.db))
+		r.Route("/auth", auth.Router(integratedCfg, s.db, s.redis))
 		r.Get("/login", s.handleLogin)
 		r.Get("/logout", s.handleLogout)
 		// Cool stuff
+		r.Get("/settings", s.handleSettings)
 		r.Get("/developer", s.handleDeveloper)
 		// Boring stuff
 		r.Get("/tos", s.handleTos)
@@ -93,21 +97,21 @@ func (s *Server) Run() error {
 // - if the app is standalone or integrated and the user is logged in, it shows the form
 // - if the app is integrated and the user is not logged in, it shows the hero
 func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
-	switch cfg := s.cfg.(type) {
+	switch s.cfg.(type) {
 	case config.StandaloneApp:
 		s.handleForm(w, r)
 		return
 	case config.IntegratedApp:
-		if auth.GetUserID(s.db, cfg, w, r) != 0 {
-			s.handleForm(w, r)
-			return
-		} else {
+		method, _ := getAuthMethod(r)
+		var loggedInMethods = []auth.Method{auth.MethodSSO, auth.MethodSecret}
+		if !slices.Contains(loggedInMethods, method) {
 			s.handleHero(w, r)
-			return
 		}
+
+		s.handleForm(w, r)
+	default:
+		s.handleHero(w, r)
 	}
-	s.handleHero(w, r)
-	return
 }
 
 func (s *Server) handleForm(w http.ResponseWriter, r *http.Request) {
@@ -208,6 +212,30 @@ func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
 }
 
+func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
+	userID, err := getUserID(r)
+	if err != nil {
+		err = fmt.Errorf("failed to get user id: %w", err)
+		errorPage(w, err, internalErrorMsg, http.StatusInternalServerError)
+		return
+	}
+
+	settings, err := s.v1.GetSettings(model.GetSettingsRequest{
+		Meta: model.GetSettingsRequestMeta{
+			UserID: userID,
+		},
+	})
+	if err != nil {
+		err = fmt.Errorf("failed to get settings: %w", err)
+		errorPage(w, err, internalErrorMsg, http.StatusInternalServerError)
+		return
+	}
+
+	serveSettings(w, r, settingsPage{
+		GithubAccounts: settings.GithubAccounts,
+	})
+}
+
 func (s *Server) handleDeveloper(w http.ResponseWriter, r *http.Request) {
 	authMethod, err := getAuthMethod(r)
 	if err != nil {
@@ -215,7 +243,7 @@ func (s *Server) handleDeveloper(w http.ResponseWriter, r *http.Request) {
 		errorPage(w, err, internalErrorMsg, http.StatusInternalServerError)
 		return
 	}
-	if authMethod != AuthMethodSSO {
+	if authMethod != auth.MethodSSO {
 		http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
 	}
 

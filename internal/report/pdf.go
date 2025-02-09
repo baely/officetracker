@@ -89,7 +89,7 @@ func (p *PDF) addCoverPage() {
 	}
 
 	p.SetFont("Arial", "I", 24)
-	p.Cell(40, 10, fmt.Sprintf("%sCalendar Year %d", nameStr, p.start.Year()))
+	p.Cell(40, 10, fmt.Sprintf("%sBank Financial Year %d", nameStr, p.end.Year()))
 	p.Ln(30)
 
 	p.addSummaryTable()
@@ -98,7 +98,7 @@ func (p *PDF) addCoverPage() {
 	p.SetFont("Arial", "I", 8)
 	p.Cell(0, 10, "Disclaimer: This report is based on self-reported data submitted through https://iwasintheoffice.com and has been automatically generated.")
 
-	for _, month := range getMonths(p.start, p.end) {
+	for month := range getMonths(p.start, p.end) {
 		p.addMonthPage(month)
 	}
 }
@@ -118,7 +118,7 @@ func (p *PDF) addSummaryTable() {
 	var present, total int
 
 	p.SetFont("Arial", "", 12)
-	for _, month := range getMonths(p.start, p.end) {
+	for month := range getMonths(p.start, p.end) {
 		summary := p.monthlySummaries[month]
 		present += summary.Present
 		total += summary.Total
@@ -184,7 +184,7 @@ func (p *PDF) addMonthTable(month time.Time) {
 	p.Ln(8)
 
 	p.SetFont("Arial", "", 10)
-	for _, day := range getDays(month, month.AddDate(0, 1, 0)) {
+	for day := range getDays(month, month.AddDate(0, 1, 0)) {
 		status := p.report.Get(day.Month(), day.Year()).Days[day.Day()].State
 		statusStr := getStatusString(status)
 
@@ -197,7 +197,7 @@ func (p *PDF) addMonthTable(month time.Time) {
 
 func (p *PDF) generateSummaries() {
 	p.monthlySummaries = make(map[time.Time]MonthlySummary)
-	for _, month := range getMonths(p.start, p.end) {
+	for month := range getMonths(p.start, p.end) {
 		summary := MonthlySummary{}
 
 		for _, state := range p.report.Get(month.Month(), month.Year()).Days {

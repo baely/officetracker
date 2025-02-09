@@ -45,6 +45,17 @@ func serveLogin(w http.ResponseWriter, r *http.Request, page loginPage) {
 	}
 }
 
+type settingsPage struct {
+	GithubAccounts []string
+}
+
+func serveSettings(w http.ResponseWriter, r *http.Request, page settingsPage) {
+	if err := embed.Settings.Execute(w, page); err != nil {
+		err = fmt.Errorf("failed to execute settings template: %w", err)
+		errorPage(w, err, internalErrorMsg, http.StatusInternalServerError)
+	}
+}
+
 type developerPage struct{}
 
 func serveDeveloper(w http.ResponseWriter, r *http.Request, page developerPage) {

@@ -5,38 +5,6 @@ type Response struct {
 	Data        interface{}
 }
 
-type Service interface {
-	// GetDay returns the state of a day
-	GetDay(GetDayRequest) (GetDayResponse, error)
-	// PutDay saves the state of a day
-	PutDay(PutDayRequest) (PutDayResponse, error)
-	// GetMonth returns the state of a month
-	GetMonth(GetMonthRequest) (GetMonthResponse, error)
-	// PutMonth saves the state of a month
-	PutMonth(PutMonthRequest) (PutMonthResponse, error)
-	// GetYear returns the state of a year
-	GetYear(GetYearRequest) (GetYearResponse, error)
-	// GetNote returns the note for a month
-	GetNote(GetNoteRequest) (GetNoteResponse, error)
-	// PutNote saves the note for a month
-	PutNote(PutNoteRequest) (PutNoteResponse, error)
-	// GetNotes returns the notes for a year
-	GetNotes(request GetNotesRequest) (GetNotesResponse, error)
-
-	// GetSecret returns a new secret
-	GetSecret(GetSecretRequest) (GetSecretResponse, error)
-
-	// GetReport returns a PDF report for the specified period
-	GetReport(GetReportRequest) (Response, error)
-	// GetReportCSV returns a CSV report for the specified period
-	GetReportCSV(GetReportCSVRequest) (Response, error)
-
-	// Healthcheck returns the status of the service
-	Healthcheck(HealthCheckRequest) (HealthCheckResponse, error)
-	// ValidateAuth validates the auth method
-	ValidateAuth(ValidateAuthRequest) (ValidateAuthResponse, error)
-}
-
 type GetYearRequest struct {
 	Meta GetYearRequestMeta `meta:"meta" json:"-"`
 }
@@ -149,6 +117,18 @@ type GetNotesResponse struct {
 	Data map[int]Note `json:"data"`
 }
 
+type GetSettingsRequest struct {
+	Meta GetSettingsRequestMeta `meta:"meta" json:"-"`
+}
+
+type GetSettingsRequestMeta struct {
+	UserID int `meta:"user_id"`
+}
+
+type GetSettingsResponse struct {
+	GithubAccounts []string `json:"github_accounts"`
+}
+
 type GetSecretRequest struct {
 	Meta GetSecretRequestMeta `meta:"meta" json:"-"`
 }
@@ -168,6 +148,7 @@ type GetReportRequest struct {
 
 type GetReportRequestMeta struct {
 	UserID int `meta:"user_id"`
+	Year   int `meta:"year"`
 }
 
 type GetReportCSVRequest struct {
@@ -176,6 +157,7 @@ type GetReportCSVRequest struct {
 
 type GetReportCSVRequestMeta struct {
 	UserID int `meta:"user_id"`
+	Year   int `meta:"year"`
 }
 
 type HealthCheckRequest struct {

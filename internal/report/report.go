@@ -45,9 +45,8 @@ func (r *fileReporter) Generate(userID int, start, end time.Time) (Report, error
 	report := Report{
 		Months: make(map[Key]model.MonthState),
 	}
-	months := getMonths(start, end)
 
-	for _, month := range months {
+	for month := range getMonths(start, end) {
 		key := Key{
 			Month: month.Month(),
 			Year:  month.Year(),
@@ -63,26 +62,34 @@ func (r *fileReporter) Generate(userID int, start, end time.Time) (Report, error
 	return report, nil
 }
 
-func getMonths(start, end time.Time) []time.Time {
-	var months []time.Time
+func getMonths(start, end time.Time) func(func(time.Time) bool) {
 	start = time.Date(start.Year(), start.Month(), 1, 0, 0, 0, 0, start.Location())
-
-	for start.Before(end) {
-		months = append(months, start)
-		start = start.AddDate(0, 1, 0)
+	return func(yield func(time.Time) bool) {
+		for {
+			if !start.Before(end) {
+				return
+			}
+			if !yield(start) {
+				break
+			}
+			start = start.AddDate(0, 1, 0)
+		}
 	}
-
-	return months
 }
 
-func getDays(start, end time.Time) []time.Time {
-	var days []time.Time
+func getDays(start, end time.Time) func(func(time.Time) bool) {
 	start = time.Date(start.Year(), start.Month(), start.Day(), 0, 0, 0, 0, start.Location())
-	for start.Before(end) {
-		if start.Weekday() > 0 && start.Weekday() < 6 {
-			days = append(days, start)
+	return func(yield func(time.Time) bool) {
+		for {
+			if !start.Before(end) {
+				return
+			}
+			if start.Weekday() > 0 && start.Weekday() < 6 {
+				if !yield(start) {
+					return
+				}
+			}
+			start = start.AddDate(0, 0, 1)
 		}
-		start = start.AddDate(0, 0, 1)
 	}
-	return days
 }
