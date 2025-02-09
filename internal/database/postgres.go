@@ -180,7 +180,9 @@ func (p *postgres) GetNotes(userID int, year int) (map[int]model.Note, error) {
 }
 
 func (p *postgres) GetUser(userID int) (int, string, error) {
-	q := `SELECT user_id, gh_user FROM users WHERE user_id = $1;`
+	q := `SELECT u.user_id, COALESCE(u.gh_user, '') as gh_user 
+	      FROM users u 
+	      WHERE u.user_id = $1;`
 	var id int
 	var user string
 	err := p.readOnlyTransaction(func(tx *sql.Tx) error {
@@ -195,11 +197,18 @@ func (p *postgres) GetUser(userID int) (int, string, error) {
 }
 
 func (p *postgres) SaveUserByGHID(ghID string) (int, error) {
-	q := `INSERT INTO users (gh_id) VALUES ($1) RETURNING user_id;`
 	var id int
 	err := p.readWriteTransaction(func(tx *sql.Tx) error {
-		row := tx.QueryRow(q, ghID)
-		err := row.Scan(&id)
+		// First create the user entry with initial GitHub details
+		q1 := `INSERT INTO users (gh_id, gh_user) VALUES ($1, '') RETURNING user_id;`
+		row := tx.QueryRow(q1, ghID)
+		if err := row.Scan(&id); err != nil {
+			return err
+		}
+
+		// Then add to gh_users table
+		q2 := `INSERT INTO gh_users (gh_id, user_id, gh_user) VALUES ($1, $2, '');`
+		_, err := tx.Exec(q2, ghID, id)
 		return err
 	})
 	return id, err
@@ -223,7 +232,7 @@ func (p *postgres) SaveSecret(userID int, secret string) error {
 }
 
 func (p *postgres) GetUserByGHID(ghID string) (int, error) {
-	q := `SELECT user_id FROM users WHERE gh_id = $1;`
+	q := `SELECT user_id FROM gh_users WHERE gh_id = $1;`
 	var id int
 	err := p.readOnlyTransaction(func(tx *sql.Tx) error {
 		row := tx.QueryRow(q, ghID)
@@ -251,17 +260,29 @@ func (p *postgres) GetUserBySecret(secret string) (int, error) {
 }
 
 func (p *postgres) UpdateUser(userID int, username string) error {
-	q := `UPDATE users SET gh_user = $1 WHERE user_id = $2;`
 	return p.readWriteTransaction(func(tx *sql.Tx) error {
-		_, err := tx.Exec(q, username, userID)
+		// Update username in users table for primary GitHub account
+		q1 := `UPDATE users SET gh_user = $1 
+		       WHERE user_id = $2 AND gh_id IS NOT NULL;`
+		_, err := tx.Exec(q1, username, userID)
+		if err != nil {
+			return err
+		}
+
+		// Also update the corresponding gh_users entry
+		q2 := `UPDATE gh_users SET gh_user = $1 
+		       WHERE user_id = $2 AND gh_id = (SELECT gh_id FROM users WHERE user_id = $2);`
+		_, err = tx.Exec(q2, username, userID)
 		return err
 	})
 }
 
 func (p *postgres) UpdateUserGithub(userID int, ghID string, username string) error {
-	q := `UPDATE users SET gh_id = $1, gh_user = $2 WHERE user_id = $3;`
 	return p.readWriteTransaction(func(tx *sql.Tx) error {
-		_, err := tx.Exec(q, ghID, username, userID)
+		// Insert new GitHub association
+		q := `INSERT INTO gh_users (gh_id, user_id, gh_user) VALUES ($1, $2, $3)
+		      ON CONFLICT (gh_id) DO UPDATE SET gh_user = $3;`
+		_, err := tx.Exec(q, ghID, userID, username)
 		return err
 	})
 }
