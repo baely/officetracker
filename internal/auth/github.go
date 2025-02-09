@@ -1,6 +1,8 @@
 package auth
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -15,6 +17,35 @@ import (
 	"github.com/baely/officetracker/internal/database"
 	"github.com/baely/officetracker/internal/util"
 )
+
+// Context keys
+type contextKey int
+
+const (
+	ctxKey contextKey = iota
+)
+
+type ctxValue map[string]interface{}
+
+const (
+	ctxUserIDKey = "user_id"
+)
+
+func (v ctxValue) get(key string) interface{} {
+	return v[key]
+}
+
+func getCtxValue(r *http.Request) ctxValue {
+	return r.Context().Value(ctxKey).(ctxValue)
+}
+
+func getUserID(r *http.Request) (int, error) {
+	userID, ok := getCtxValue(r).get(ctxUserIDKey).(int)
+	if !ok {
+		return 0, fmt.Errorf("no user id in context")
+	}
+	return userID, nil
+}
 
 const (
 	githubUserEndpoint = "https://api.github.com/user"
@@ -56,14 +87,65 @@ func ClearCookie(cfg config.IntegratedApp, w http.ResponseWriter) {
 	})
 }
 
-func handleGithubCallback(cfg config.IntegratedApp, db database.Databaser) func(http.ResponseWriter, *http.Request) {
+func handleGenerateGithub(cfg config.IntegratedApp, redis *database.Redis) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		userID, err := getUserID(r)
+		if err != nil || userID == 0 {
+			slog.Error("no user id in context")
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+
+		// Generate a secure random state
+		stateBytes := make([]byte, 32)
+		if _, err := rand.Read(stateBytes); err != nil {
+			slog.Error(fmt.Sprintf("failed to generate state: %v", err))
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+		state := base64.URLEncoding.EncodeToString(stateBytes)
+
+		// Store the state in Redis with the user ID, expiring in 10 minutes
+		key := fmt.Sprintf("github:state:%s", state)
+		err = redis.SetState(r.Context(), key, userID, 10*time.Minute)
+		if err != nil {
+			slog.Error(fmt.Sprintf("failed to store state: %v", err))
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+
+		// Generate the GitHub OAuth URL with the state
+		authURL := ghOauthCfg(cfg).AuthCodeURL(state)
+
+		// Return the URL to the client
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{
+			"url": authURL,
+		})
+	}
+}
+
+func handleGithubCallback(cfg config.IntegratedApp, db database.Databaser, redis *database.Redis) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		state := r.URL.Query().Get("state")
 		code := r.URL.Query().Get("code")
 		if code == "" {
 			slog.Error("no code provided")
 			http.Error(w, "Internal server error", http.StatusInternalServerError)
 			return
 		}
+
+		// Validate state and get original user ID
+		key := fmt.Sprintf("github:state:%s", state)
+		originalUserID, err := redis.GetStateInt(r.Context(), key)
+		if err != nil {
+			slog.Error(fmt.Sprintf("invalid or expired state: %v", err))
+			http.Redirect(w, r, "/login", http.StatusTemporaryRedirect)
+			return
+		}
+
+		// Delete the state key since it's been used
+		_ = redis.DeleteState(r.Context(), key)
 
 		token, err := ghOauthCfg(cfg).Exchange(r.Context(), code)
 		if err != nil {
@@ -79,30 +161,16 @@ func handleGithubCallback(cfg config.IntegratedApp, db database.Databaser) func(
 			return
 		}
 
-		userID, err := toUserID(db, ghID)
+		// Instead of creating/getting user, update the existing user's GitHub ID
+		err = db.UpdateUserGithub(originalUserID, ghID, ghUser)
 		if err != nil {
-			slog.Error(fmt.Sprintf("failed to get user id: %v", err))
+			slog.Error(fmt.Sprintf("failed to update user github: %v", err))
 			http.Error(w, "Internal server error", http.StatusInternalServerError)
 			return
 		}
 
-		// temp: update user with github data
-		err = db.UpdateUser(userID, ghUser)
-		if err != nil {
-			slog.Error(fmt.Sprintf("failed to update user: %v", err))
-			http.Error(w, "Internal server error", http.StatusInternalServerError)
-			return
-		}
-
-		err = issueToken(cfg, w, userID)
-		if err != nil {
-			slog.Error(fmt.Sprintf("failed to issue token: %v", err))
-			http.Error(w, "Internal server error", http.StatusInternalServerError)
-			return
-		}
-
-		slog.Info(fmt.Sprintf("logged in user: %d", userID))
-		http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
+		slog.Info(fmt.Sprintf("linked github account for user: %d", originalUserID))
+		http.Redirect(w, r, "/settings", http.StatusTemporaryRedirect)
 	}
 }
 
@@ -138,7 +206,7 @@ func toUserID(db database.Databaser, ghID string) (int, error) {
 	return userID, nil
 }
 
-func handleDemoAuth(cfg config.IntegratedApp, db database.Databaser) func(http.ResponseWriter, *http.Request) {
+func handleDemoAuth(cfg config.IntegratedApp, db database.Databaser) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !cfg.App.Demo {
 			slog.Error("demo auth called on non-demo app")

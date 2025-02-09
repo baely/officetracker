@@ -26,13 +26,13 @@ type Server struct {
 	http.Server
 	cfg   config.AppConfigurer
 	db    database.Databaser
-	redis database.Redis
+	redis *database.Redis
 
 	// v1 implementation
 	v1 *v1.Service
 }
 
-func NewServer(cfg config.AppConfigurer, db database.Databaser, redis database.Redis, reporter report.Reporter) (*Server, error) {
+func NewServer(cfg config.AppConfigurer, db database.Databaser, redis *database.Redis, reporter report.Reporter) (*Server, error) {
 	s := &Server{
 		db:    db,
 		redis: redis,
@@ -57,12 +57,14 @@ func NewServer(cfg config.AppConfigurer, db database.Databaser, redis database.R
 		r.Get("/login", s.handleLogin)
 		r.Get("/logout", s.handleLogout)
 		// Cool stuff
-		r.Get("/settings", s.handleSettings)
 		r.Get("/developer", s.handleDeveloper)
 		// Boring stuff
 		r.Get("/tos", s.handleTos)
 		r.Get("/privacy", s.handlePrivacy)
 	}
+
+	// temp: remove back to integrateed
+	r.Get("/settings", s.handleSettings)
 
 	r.Route("/static", staticHandler)
 	r.Get("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
@@ -213,7 +215,7 @@ func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
-	
+	serveSettings(w, r, settingsPage{})
 }
 
 func (s *Server) handleDeveloper(w http.ResponseWriter, r *http.Request) {

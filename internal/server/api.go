@@ -32,7 +32,7 @@ func apiRouter(service *v1.Service) func(chi.Router) {
 }
 
 func stateRouter(service *v1.Service) func(chi.Router) {
-	middlewares := []func(http.Handler) http.Handler{AllowedAuthMethods(auth.MethodSSO, auth.MethodSecret, auth.MethodExcluded)}
+	middlewares := chi.Middlewares{AllowedAuthMethods(auth.MethodSSO, auth.MethodSecret, auth.MethodExcluded)}
 	return func(r chi.Router) {
 		r.With(middlewares...).Method(http.MethodGet, "/{year}/{month}/{day}", wrap(service.GetDay))
 		r.With(middlewares...).Method(http.MethodPut, "/{year}/{month}/{day}", wrap(service.PutDay))
@@ -43,7 +43,7 @@ func stateRouter(service *v1.Service) func(chi.Router) {
 }
 
 func noteRouter(service *v1.Service) func(chi.Router) {
-	middlewares := []func(http.Handler) http.Handler{AllowedAuthMethods(auth.MethodSSO, auth.MethodSecret, auth.MethodExcluded)}
+	middlewares := chi.Middlewares{AllowedAuthMethods(auth.MethodSSO, auth.MethodSecret, auth.MethodExcluded)}
 	return func(r chi.Router) {
 		r.With(middlewares...).Method(http.MethodGet, "/{year}/{month}", wrap(service.GetNote))
 		r.With(middlewares...).Method(http.MethodPut, "/{year}/{month}", wrap(service.PutNote))
@@ -59,14 +59,14 @@ func settingsRouter(service *v1.Service) func(router chi.Router) {
 }
 
 func developerRouter(service *v1.Service) func(chi.Router) {
-	middlewares := []func(http.Handler) http.Handler{AllowedAuthMethods(auth.MethodSSO)}
+	middlewares := chi.Middlewares{AllowedAuthMethods(auth.MethodSSO)}
 	return func(r chi.Router) {
 		r.With(middlewares...).Method(http.MethodGet, "/secret", wrap(service.GetSecret))
 	}
 }
 
 func reportRouter(service *v1.Service) func(chi.Router) {
-	middlewares := []func(http.Handler) http.Handler{AllowedAuthMethods(auth.MethodSSO, auth.MethodExcluded)}
+	middlewares := chi.Middlewares{AllowedAuthMethods(auth.MethodSSO, auth.MethodExcluded)}
 	return func(r chi.Router) {
 		r.With(middlewares...).Method(http.MethodGet, "/pdf/{year}-attendance", wrapRaw(service.GetReport))
 		r.With(middlewares...).Method(http.MethodGet, "/csv/{year}-attendance", wrapRaw(service.GetReportCSV))

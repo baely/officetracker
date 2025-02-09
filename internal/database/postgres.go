@@ -258,6 +258,14 @@ func (p *postgres) UpdateUser(userID int, username string) error {
 	})
 }
 
+func (p *postgres) UpdateUserGithub(userID int, ghID string, username string) error {
+	q := `UPDATE users SET gh_id = $1, gh_user = $2 WHERE user_id = $3;`
+	return p.readWriteTransaction(func(tx *sql.Tx) error {
+		_, err := tx.Exec(q, ghID, username, userID)
+		return err
+	})
+}
+
 func incrementer(start int) func() int {
 	i := start
 	return func() int {

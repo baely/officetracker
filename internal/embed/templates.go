@@ -13,6 +13,7 @@ var (
 	Form      = template.Must(template.ParseFS(templates, "html/bases/*", "html/form.html"))
 	Hero      = template.Must(template.ParseFS(templates, "html/bases/*", "html/hero.html"))
 	Login     = template.Must(template.ParseFS(templates, "html/bases/*", "html/login.html"))
+	Settings  = template.Must(template.ParseFS(templates, "html/bases/*", "html/settings.html"))
 	Developer = template.Must(template.ParseFS(templates, "html/bases/*", "html/developer.html"))
 	Tos       = template.Must(template.ParseFS(templates, "html/bases/*", "html/tos.html"))
 	Privacy   = template.Must(template.ParseFS(templates, "html/bases/*", "html/privacy.html"))
