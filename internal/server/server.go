@@ -57,14 +57,12 @@ func NewServer(cfg config.AppConfigurer, db database.Databaser, redis *database.
 		r.Get("/login", s.handleLogin)
 		r.Get("/logout", s.handleLogout)
 		// Cool stuff
+		r.Get("/settings", s.handleSettings)
 		r.Get("/developer", s.handleDeveloper)
 		// Boring stuff
 		r.Get("/tos", s.handleTos)
 		r.Get("/privacy", s.handlePrivacy)
 	}
-
-	// temp: remove back to integrateed
-	r.Get("/settings", s.handleSettings)
 
 	r.Route("/static", staticHandler)
 	r.Get("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
