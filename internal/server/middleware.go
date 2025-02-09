@@ -14,6 +14,7 @@ import (
 
 	"github.com/baely/officetracker/internal/auth"
 	"github.com/baely/officetracker/internal/config"
+	context2 "github.com/baely/officetracker/internal/context"
 	"github.com/baely/officetracker/internal/database"
 )
 
@@ -63,22 +64,22 @@ func injectAuth(db database.Databaser, cfger config.AppConfigurer) func(http.Han
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ctx := r.Context()
-			val := make(ctxValue)
+			val := make(context2.CtxValue)
 
 			switch cfg := cfger.(type) {
 			case config.StandaloneApp:
-				val.set(ctxAuthMethodKey, auth.MethodExcluded)
-				val.set(ctxUserIDKey, 1)
+				val.Set(context2.CtxAuthMethodKey, auth.MethodExcluded)
+				val.Set(context2.CtxUserIDKey, 1)
 			case config.IntegratedApp:
 				token, authMethod := auth.GetAuth(r)
-				val.set(ctxAuthMethodKey, authMethod)
+				val.Set(context2.CtxAuthMethodKey, authMethod)
 				userID, err := auth.GetUserID(cfg, db, token, authMethod)
 				if err != nil {
 					auth.ClearCookie(cfg, w)
 				}
-				val.set(ctxUserIDKey, userID)
+				val.Set(context2.CtxUserIDKey, userID)
 			}
-			ctx = context.WithValue(ctx, ctxKey, val)
+			ctx = context.WithValue(ctx, context2.CtxKey, val)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}

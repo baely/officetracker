@@ -13,6 +13,7 @@ import (
 	"github.com/gorilla/schema"
 
 	"github.com/baely/officetracker/internal/auth"
+	"github.com/baely/officetracker/internal/context"
 	v1 "github.com/baely/officetracker/internal/implementation/v1"
 	"github.com/baely/officetracker/pkg/model"
 )
@@ -187,7 +188,7 @@ func mapResponse[T any](resp T) ([]byte, error) {
 }
 
 func getUserID(r *http.Request) (int, error) {
-	userID, ok := getCtxValue(r).get(ctxUserIDKey).(int)
+	userID, ok := context.GetCtxValue(r).Get(context.CtxUserIDKey).(int)
 	if !ok {
 		return 0, ErrNoUserInCtx
 	}
@@ -195,7 +196,7 @@ func getUserID(r *http.Request) (int, error) {
 }
 
 func getAuthMethod(r *http.Request) (auth.Method, error) {
-	authMethod, ok := getCtxValue(r).get(ctxAuthMethodKey).(auth.Method)
+	authMethod, ok := context.GetCtxValue(r).Get(context.CtxAuthMethodKey).(auth.Method)
 	if !ok {
 		return auth.MethodUnknown, fmt.Errorf("failed to get auth method from context")
 	}

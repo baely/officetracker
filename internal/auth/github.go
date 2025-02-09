@@ -14,27 +14,13 @@ import (
 	"golang.org/x/oauth2/github"
 
 	"github.com/baely/officetracker/internal/config"
+	"github.com/baely/officetracker/internal/context"
 	"github.com/baely/officetracker/internal/database"
 	"github.com/baely/officetracker/internal/util"
 )
 
-type ctxValue map[string]interface{}
-
-const (
-	ctxKey       = "ctx"
-	ctxUserIDKey = "userID"
-)
-
-func getCtxValue(r *http.Request) ctxValue {
-	return r.Context().Value(ctxKey).(ctxValue)
-}
-
-func (v ctxValue) get(key string) interface{} {
-	return v[key]
-}
-
 func getUserID(r *http.Request) (int, error) {
-	userID, ok := getCtxValue(r).get(ctxUserIDKey).(int)
+	userID, ok := context.GetCtxValue(r).Get(context.CtxUserIDKey).(int)
 	if !ok {
 		return 0, fmt.Errorf("no user id in context")
 	}
