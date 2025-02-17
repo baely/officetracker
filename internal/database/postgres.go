@@ -259,39 +259,34 @@ func (p *postgres) GetUserBySecret(secret string) (int, error) {
 	return id, err
 }
 
-func (p *postgres) UpdateUser(userID int, username string) error {
+func (p *postgres) UpdateUser(userID int, ghID string, username string) error {
 	return p.readWriteTransaction(func(tx *sql.Tx) error {
-		// Get the gh_id from users table for this user
-		var primaryGhID string
-		primaryQ := `SELECT gh_id FROM users WHERE user_id = $1;`
-		err := tx.QueryRow(primaryQ, userID).Scan(&primaryGhID)
-		if err != nil && !errors.Is(err, sql.ErrNoRows) {
-			return err
-		}
-
-		// Update gh_users table for empty usernames
-		ghUsersQ := `UPDATE gh_users SET gh_user = $1 
-						 WHERE gh_user = '' AND gh_id = (
-							 SELECT gh_id FROM users 
-							 WHERE user_id = $2
-						 );`
-		_, err = tx.Exec(ghUsersQ, username, userID)
-		if err != nil {
-			return err
-		}
-
-		// If this GitHub account is the primary one stored in users table, update it there too
-		if primaryGhID != "" {
-			usersQ := `UPDATE users SET gh_user = $1 
-						   WHERE user_id = $2 AND gh_id = $3;`
-			_, err = tx.Exec(usersQ, username, userID, primaryGhID)
+			// First update the gh_users table with the new username for the specific ghID
+			ghUsersQ := `UPDATE gh_users SET gh_user = $1 WHERE gh_id = $2;`
+			_, err := tx.Exec(ghUsersQ, username, ghID)
 			if err != nil {
 				return err
 			}
-		}
 
-		return nil
-	})
+			// Check if this ghID is the primary one in the users table
+			var primaryGhID string
+			primaryQ := `SELECT gh_id FROM users WHERE user_id = $1;`
+			err = tx.QueryRow(primaryQ, userID).Scan(&primaryGhID)
+			if err != nil && !errors.Is(err, sql.ErrNoRows) {
+				return err
+			}
+
+			// If this is the primary GitHub ID, update the users table as well
+			if primaryGhID == ghID {
+				usersQ := `UPDATE users SET gh_user = $1 WHERE user_id = $2;`
+				_, err = tx.Exec(usersQ, username, userID)
+				if err != nil {
+					return err
+				}
+			}
+
+			return nil
+		})
 }
 
 func (p *postgres) UpdateUserGithub(userID int, ghID string, username string) error {
