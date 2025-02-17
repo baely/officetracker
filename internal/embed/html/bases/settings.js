@@ -4,17 +4,20 @@ const assocUriCopy = document.getElementById("copy-assoc-uri");
 
 let assocUri = "";
 
+const assocUriElement = document.getElementById("assoc-uri");
+const generateButton = document.getElementById("generate-assoc-uri");
+
 const generateAssocUri = _ => {
     fetch("/auth/generate-gh")
         .then(r => r.json())
         .then(payload => {
-            assocUri = payload.url;
-            assocUriOutput.value = assocUri;
-            assocUriCopy.innerText = "Copy";
+            assocUriElement.href = payload.url;
+            assocUriElement.classList.remove('disabled');
+            assocUriElement.classList.add('enabled');
         });
 }
 
-assocUriInput.addEventListener("click", generateAssocUri);
+generateButton.addEventListener("click", generateAssocUri);
 
 assocUriCopy.addEventListener("click", () => {
     navigator.clipboard.writeText(assocUriOutput.value).then(() => {
