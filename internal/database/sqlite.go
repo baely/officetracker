@@ -200,7 +200,7 @@ func (s *sqliteClient) GetUserBySecret(_ string) (int, error) {
 	return 1, nil
 }
 
-func (s *sqliteClient) UpdateUser(_ int, _ string) error {
+func (s *sqliteClient) UpdateUser(_ int, _ string, _ string) error {
 	// Standalone mode doesn't use GitHub usernames
 	return nil
 }

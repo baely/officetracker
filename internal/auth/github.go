@@ -170,7 +170,7 @@ func handleGithubCallback(cfg config.IntegratedApp, db database.Databaser, redis
 				return
 			}
 			// Update username in case it changed
-			err = db.UpdateUser(userID, ghUser)
+			err = db.UpdateUser(userID, ghID, ghUser)
 			if err != nil {
 				slog.Error(fmt.Sprintf("failed to update username: %v", err))
 				// Non-critical error, continue

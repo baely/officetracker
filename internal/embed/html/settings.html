@@ -4,13 +4,14 @@
 {{ define "content" }}
 <h3>Auth</h3>
 <p>
-    Click below to generate a temporary link for connecting another GitHub account. This link can be used in a browser
-    where you're not signed in to Officetracker. The link will expire after 10 minutes.
+    Click Generate Link below to create a temporary link for connecting another GitHub account. The link will expire after 10 minutes.
 </p>
 <p>
-    <input type="text" disabled id="assoc-uri">
-    <button id="generate-assoc-uri">Generate</button>
-    <button id="copy-assoc-uri">Copy</button>
+    <button id="generate-assoc-uri">Generate Link</button>
+    <a href="#" class="github-btn disabled" id="assoc-uri">
+        <img src="../static/github-mark-white.png" alt="GitHub" class="github-logo">
+        Connect GitHub Account
+    </a>
 </p>
 <p>
     The following GitHub accounts are currently associated with your Officetracker account:
