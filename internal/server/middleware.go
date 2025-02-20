@@ -60,6 +60,17 @@ func (s *Server) logRequest(next http.Handler) http.Handler {
 	})
 }
 
+// delay slows down the response for user with ID 1
+func (s *Server) delay(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		userID, _ := getUserID(r)
+		if userID == 1 {
+			time.Sleep(700 * time.Millisecond)
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
 func injectAuth(db database.Databaser, cfger config.AppConfigurer) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
