@@ -1,54 +1,101 @@
 # Office Tracker
+A web application designed to track compliance with Return-to-Office (RTO) mandates, featuring a user-friendly calendar interface for logging office presence and generating comprehensive summary statistics and reports for compliance assessment.
 
----
+![Screenshot of web app](docs/assets/screenshot-v1.png)
 
-[Live demo](https://iwasintheoffice.com)
+## Features
 
-![Screenshot of web app](docs/assets/screenshot.png)
+- 📊 Track daily office presence on a monthly basis
+- 🔄 Real-time updates and synchronization
+- 📱 Responsive web interface
+- 📊 Export reports in CSV and PDF formats
+- 🔐 GitHub OAuth authentication (in integrated mode)
+- 🚀 Multiple deployment options (standalone or integrated)
+- 🐳 Docker support for easy deployment
 
-## Description
-
-Office Tracker is a web application designed to track daily office presence on a monthly basis. The application supports two modes of operation:
-
-1. **Integrated Mode**: Stores data on a cloud postgres instance and uses GitHub OAuth for user authentication.
-2. **Standalone Mode**: Employs local storage for data and does not require user authentication.
-
-## Run Guide
+## Deployment Options
 
 ### Integrated Mode
 
-To run the application in Integrated Mode, it is recommended to use the provided Dockerfile. Alternatively, you can pull the latest Docker image from the Google Artifact Registry:
+The integrated mode offers a full-featured experience with:
+- Cloud PostgreSQL database storage
+- Redis caching
+- GitHub OAuth authentication
+- Multi-user support
 
-`asia-southeast1-docker.pkg.dev/baileybutler-syd/officetracker/officetracker:latest`
+#### Prerequisites
+- Docker and Docker Compose
+- GitHub OAuth credentials
+- PostgreSQL database
+- Redis instance
 
-You will need to create a `config/local.env` file based on the provided `sample.env` and populate it with the required environment variables.
+#### Configuration
 
-**Running the Application:**
+1. Copy the sample configuration:
+```shell
+cp config/sample.env config/local.env
+```
+
+2. Configure your `local.env` with required credentials and settings
+
+#### Running with Docker
 
 ```shell
 docker compose up
 ```
 
+Alternatively, pull the latest image:
+```shell
+docker pull asia-southeast1-docker.pkg.dev/baileybutler-syd/officetracker/officetracker:latest
+```
+
 ### Standalone Mode
 
-To run the application in Standalone Mode, compile the Go code with the `standalone` build tag:
+Perfect for personal use or testing, standalone mode runs with:
+- Local SQLite database
+- No authentication required
+- Single-user focused
+
+#### Building from Source
 
 ```shell
 go build -tags=standalone -o officetracker .
 ```
 
-Then, execute the binary:
+#### Running Standalone
 
 ```shell
 ./officetracker
 ```
 
-You can also run the binary with optional flags:
-- `-port`: Specify the port the server should listen on (default is `8080`).
-- `-database`: Specify the path to the database file (default is `officetracker.db`).
+Command line options:
+- `-port`: HTTP server port (default: 8080)
+- `-database`: SQLite database path (default: officetracker.db)
 
 Example:
-
 ```shell
 ./officetracker -port 1234 -database mydb.db
 ```
+
+## Development
+
+### Project Structure
+- `/internal`: Core application logic
+- `/pkg`: Shared models and utilities
+- `/config`: Configuration templates
+- `/docs`: Documentation and assets
+- `/tests`: Test suites
+
+### Requirements
+- Go 1.23
+- PostgreSQL (for integrated mode)
+- Redis (for integrated mode)
+- GitHub OAuth App (for integrated mode)
+
+## Contributing
+
+For bugs, questions, and discussions please use the GitHub Issues.
+
+## Live Demo
+
+Try it out at [https://iwasintheoffice.com](https://iwasintheoffice.com)
