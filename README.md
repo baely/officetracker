@@ -1,6 +1,5 @@
 # Office Tracker
-
-A modern, flexible office presence tracking solution that helps teams monitor and coordinate their office attendance.
+A web application designed to track compliance with Return-to-Office (RTO) mandates, featuring a user-friendly calendar interface for logging office presence and generating comprehensive summary statistics and reports for compliance assessment.
 
 ![Screenshot of web app](docs/assets/screenshot-v1.png)
 
@@ -92,10 +91,6 @@ Example:
 - PostgreSQL (for integrated mode)
 - Redis (for integrated mode)
 - GitHub OAuth App (for integrated mode)
-
-## License
-
-This project is proprietary software. All rights reserved.
 
 ## Contributing
 
