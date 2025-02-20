@@ -47,6 +47,7 @@ func serveLogin(w http.ResponseWriter, r *http.Request, page loginPage) {
 
 type settingsPage struct {
 	GithubAccounts []string
+	GithubAuthURL  string
 }
 
 func serveSettings(w http.ResponseWriter, r *http.Request, page settingsPage) {

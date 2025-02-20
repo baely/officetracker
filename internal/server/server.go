@@ -219,7 +219,6 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 		errorPage(w, err, internalErrorMsg, http.StatusInternalServerError)
 		return
 	}
-
 	settings, err := s.v1.GetSettings(model.GetSettingsRequest{
 		Meta: model.GetSettingsRequestMeta{
 			UserID: userID,
@@ -231,8 +230,16 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	cfg := s.cfg.(config.IntegratedApp)
+	authURL, err := auth.GenerateGitHubAuthLink(cfg, s.redis, userID)
+	if err != nil {
+		errorPage(w, fmt.Errorf("failed to generate github auth link: %v", err), internalErrorMsg, http.StatusInternalServerError)
+		return
+	}
+
 	serveSettings(w, r, settingsPage{
 		GithubAccounts: settings.GithubAccounts,
+		GithubAuthURL:  authURL,
 	})
 }
 
