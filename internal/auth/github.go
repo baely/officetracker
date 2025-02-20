@@ -15,13 +15,13 @@ import (
 	"golang.org/x/oauth2/github"
 
 	"github.com/baely/officetracker/internal/config"
-	"github.com/baely/officetracker/internal/context"
+	context2 "github.com/baely/officetracker/internal/context"
 	"github.com/baely/officetracker/internal/database"
 	"github.com/baely/officetracker/internal/util"
 )
 
 func getUserID(r *http.Request) (int, error) {
-	userID, ok := context.GetCtxValue(r).Get(context.CtxUserIDKey).(int)
+	userID, ok := context2.GetCtxValue(r).Get(context2.CtxUserIDKey).(int)
 	if !ok {
 		return 0, fmt.Errorf("no user id in context")
 	}
