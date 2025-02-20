@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
@@ -68,7 +69,7 @@ func ClearCookie(cfg config.IntegratedApp, w http.ResponseWriter) {
 }
 
 // GenerateGitHubAuthLink creates a GitHub OAuth URL with state and stores the state in Redis
-func GenerateGitHubAuthLink(cfg config.IntegratedApp, redis *database.Redis, userID int) (string, error) {
+func GenerateGitHubAuthLink(ctx context.Context, cfg config.IntegratedApp, redis *database.Redis, userID int) (string, error) {
 	// Generate a secure random state
 	stateBytes := make([]byte, 32)
 	if _, err := rand.Read(stateBytes); err != nil {
@@ -96,7 +97,7 @@ func handleGenerateGithub(cfg config.IntegratedApp, redis *database.Redis) http.
 			return
 		}
 
-		authURL, err := GenerateGitHubAuthLink(cfg, redis, userID)
+		authURL, err := GenerateGitHubAuthLink(r.Context(), cfg, redis, userID)
 		if err != nil {
 			slog.Error(fmt.Sprintf("failed to generate github auth link: %v", err))
 			http.Error(w, "Internal server error", http.StatusInternalServerError)

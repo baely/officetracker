@@ -231,7 +231,7 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 	}
 
 	cfg := s.cfg.(config.IntegratedApp)
-	authURL, err := auth.GenerateGitHubAuthLink(cfg, s.redis, userID)
+	authURL, err := auth.GenerateGitHubAuthLink(r.Context(), cfg, s.redis, userID)
 	if err != nil {
 		errorPage(w, fmt.Errorf("failed to generate github auth link: %v", err), internalErrorMsg, http.StatusInternalServerError)
 		return
