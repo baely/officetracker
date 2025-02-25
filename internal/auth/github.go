@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
@@ -14,13 +15,13 @@ import (
 	"golang.org/x/oauth2/github"
 
 	"github.com/baely/officetracker/internal/config"
-	"github.com/baely/officetracker/internal/context"
+	context2 "github.com/baely/officetracker/internal/context"
 	"github.com/baely/officetracker/internal/database"
 	"github.com/baely/officetracker/internal/util"
 )
 
 func getUserID(r *http.Request) (int, error) {
-	userID, ok := context.GetCtxValue(r).Get(context.CtxUserIDKey).(int)
+	userID, ok := context2.GetCtxValue(r).Get(context2.CtxUserIDKey).(int)
 	if !ok {
 		return 0, fmt.Errorf("no user id in context")
 	}
@@ -67,6 +68,26 @@ func ClearCookie(cfg config.IntegratedApp, w http.ResponseWriter) {
 	})
 }
 
+// GenerateGitHubAuthLink creates a GitHub OAuth URL with state and stores the state in Redis
+func GenerateGitHubAuthLink(ctx context.Context, cfg config.IntegratedApp, redis *database.Redis, userID int) (string, error) {
+	// Generate a secure random state
+	stateBytes := make([]byte, 32)
+	if _, err := rand.Read(stateBytes); err != nil {
+		return "", fmt.Errorf("failed to generate state: %v", err)
+	}
+	state := base64.URLEncoding.EncodeToString(stateBytes)
+
+	// Store the state in Redis with the user ID, expiring in 10 minutes
+	key := fmt.Sprintf("github:state:%s", state)
+	err := redis.SetState(context.Background(), key, userID, 10*time.Minute)
+	if err != nil {
+		return "", fmt.Errorf("failed to store state: %v", err)
+	}
+
+	// Generate the GitHub OAuth URL with the state
+	return ghOauthCfg(cfg).AuthCodeURL(state), nil
+}
+
 func handleGenerateGithub(cfg config.IntegratedApp, redis *database.Redis) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userID, err := getUserID(r)
@@ -76,26 +97,12 @@ func handleGenerateGithub(cfg config.IntegratedApp, redis *database.Redis) http.
 			return
 		}
 
-		// Generate a secure random state
-		stateBytes := make([]byte, 32)
-		if _, err := rand.Read(stateBytes); err != nil {
-			slog.Error(fmt.Sprintf("failed to generate state: %v", err))
-			http.Error(w, "Internal server error", http.StatusInternalServerError)
-			return
-		}
-		state := base64.URLEncoding.EncodeToString(stateBytes)
-
-		// Store the state in Redis with the user ID, expiring in 10 minutes
-		key := fmt.Sprintf("github:state:%s", state)
-		err = redis.SetState(r.Context(), key, userID, 10*time.Minute)
+		authURL, err := GenerateGitHubAuthLink(r.Context(), cfg, redis, userID)
 		if err != nil {
-			slog.Error(fmt.Sprintf("failed to store state: %v", err))
+			slog.Error(fmt.Sprintf("failed to generate github auth link: %v", err))
 			http.Error(w, "Internal server error", http.StatusInternalServerError)
 			return
 		}
-
-		// Generate the GitHub OAuth URL with the state
-		authURL := ghOauthCfg(cfg).AuthCodeURL(state)
 
 		// Return the URL to the client
 		w.Header().Set("Content-Type", "application/json")
