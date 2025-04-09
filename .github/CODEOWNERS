@@ -1,8 +1,9 @@
 # These owners will be the default owners for everything in the repo.
 * @baely
 
-# Allow dependabot to auto-approve its own PRs
-/.github/ @baely @dependabot[bot]
-/go.mod @baely @dependabot[bot]
-/go.sum @baely @dependabot[bot]
-/Dockerfile @baely @dependabot[bot]
+# Files commonly updated by Dependabot
+/.github/dependabot.yml @baely
+/.github/workflows/ @baely
+/go.mod @baely
+/go.sum @baely
+/Dockerfile @baely
