@@ -4,7 +4,7 @@ go 1.23
 toolchain go1.24.1
 
 require (
-	github.com/go-chi/chi/v5 v5.2.0
+	github.com/go-chi/chi/v5 v5.2.1
 	github.com/golang-jwt/jwt/v5 v5.2.2
 	github.com/gorilla/schema v1.4.1
 	github.com/honeycombio/otel-config-go v1.17.0
