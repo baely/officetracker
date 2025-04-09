@@ -1,6 +1,7 @@
 module github.com/baely/officetracker
 
 go 1.23
+toolchain go1.24.1
 
 require (
 	github.com/go-chi/chi/v5 v5.2.0
@@ -14,7 +15,7 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.24
 	github.com/redis/go-redis/v9 v9.7.0
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.59.0
-	golang.org/x/oauth2 v0.25.0
+	golang.org/x/oauth2 v0.29.0
 )
 
 require (
