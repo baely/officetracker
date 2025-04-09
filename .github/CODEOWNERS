@@ -2,8 +2,9 @@
 * @baely
 
 # Files commonly updated by Dependabot
-/.github/dependabot.yml @baely
-/.github/workflows/ @baely
-/go.mod @baely
-/go.sum @baely
-/Dockerfile @baely
+# The github-actions bot is added as a code owner to allow auto-approval via github-actions
+/.github/dependabot.yml @baely @github-actions[bot]
+/.github/workflows/ @baely @github-actions[bot]
+/go.mod @baely @github-actions[bot]
+/go.sum @baely @github-actions[bot]
+/Dockerfile @baely @github-actions[bot]
