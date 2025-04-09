@@ -1,10 +1,2 @@
-# These owners will be the default owners for everything in the repo.
+# Default owner for all files in the repository
 * @baely
-
-# Files commonly updated by Dependabot
-.github/dependabot.yml @baely
-.github/workflows/ @baely
-go.mod @baely
-go.sum @baely
-Dockerfile @baely
-internal/database/postgres/migrations/Dockerfile @baely
