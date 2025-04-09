@@ -7,11 +7,19 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Calistoga&display=swap" rel="stylesheet">
+    <!-- Seasonal theme variables -->
+    <style>
+        {{ .Theme }}
+    </style>
     <style>
         html, body { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; margin: 0; padding: 0; }
-        body { background-color: #f7f8f8; height: 100vh; overflow-x: hidden; overflow-y: auto; width: 100vw; }
+        body { background-color: var(--main-background, #f7f8f8); height: 100vh; overflow-x: hidden; overflow-y: auto; width: 100vw; }
         main { background-color: white; margin: 0 auto; max-width: 540px; min-height: calc(100vh - 96px); padding: 48px; }
-        main nav { background-color: #dee; margin: -48px -48px 0; padding: 48px 48px 32px; }
+        main nav { 
+            background-color: var(--main-nav-background, #dee); 
+            margin: -48px -48px 0; 
+            padding: 48px 48px 32px; 
+        }
         main nav h1 { font-family: "Calistoga", serif; font-size: 2em; margin: 0 24px 0 0; }
         main nav h1 a:link, main nav h1 a:visited { text-decoration: none; }
         main nav h1 img { height: 32px; margin: 0 4px -2px 0; }
@@ -69,15 +77,15 @@
         }
 
         .weekday-header, .day {
-            border: 1px solid #dee2e6; /* Bootstrap-like border color */
+            border: 1px solid var(--calendar-border-color, #dee2e6);
             padding: 0.5rem;
             text-align: center;
-            background-color: #f8f9fa; /* Bootstrap-like background color */
+            background-color: var(--calendar-background-color, #f8f9fa);
         }
 
         .weekday-header {
             font-weight: bold;
-            color: #495057; /* Bootstrap-like text color */
+            color: var(--calendar-header-color, #495057);
         }
 
         .day {
@@ -107,12 +115,12 @@
         }
 
         .untracked { background-color: #FFFFFF; }
-        .present { background-color: #4CAF50; }
-        .not-present { background-color: #F44336; }
-        .other { background-color: #2196F3; }
+        .present { background-color: var(--present-color, #4CAF50); }
+        .not-present { background-color: var(--not-present-color, #F44336); }
+        .other { background-color: var(--other-color, #2196F3); }
 
         .today {
-            border: 5px solid #FFC107;
+            border: 5px solid var(--today-border-color, #FFC107);
             font-weight: bold;
             padding: 3px;
         }
