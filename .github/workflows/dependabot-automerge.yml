@@ -17,7 +17,7 @@ jobs:
           github-token: "${{ secrets.GITHUB_TOKEN }}"
           
       - name: Auto-approve PRs
-        uses: hmarr/auto-approve-action@v3
+        uses: hmarr/auto-approve-action@v4
         if: ${{ steps.metadata.outputs.update-type != 'version-update:semver-major' }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
