@@ -7,11 +7,12 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Calistoga&display=swap" rel="stylesheet">
+    <link href="/static/themes.css" rel="stylesheet">
     <style>
         html, body { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; margin: 0; padding: 0; }
-        body { background-color: #f7f8f8; height: 100vh; overflow-x: hidden; overflow-y: auto; width: 100vw; }
-        main { background-color: white; margin: 0 auto; max-width: 540px; min-height: calc(100vh - 96px); padding: 48px; }
-        main nav { background-color: #dee; margin: -48px -48px 0; padding: 48px 48px 32px; }
+        body { height: 100vh; overflow-x: hidden; overflow-y: auto; width: 100vw; }
+        main { margin: 0 auto; max-width: 540px; min-height: calc(100vh - 96px); padding: 48px; }
+        main nav { margin: -48px -48px 0; padding: 48px 48px 32px; }
         main nav h1 { font-family: "Calistoga", serif; font-size: 2em; margin: 0 24px 0 0; }
         main nav h1 a:link, main nav h1 a:visited { text-decoration: none; }
         main nav h1 img { height: 32px; margin: 0 4px -2px 0; }
@@ -69,15 +70,13 @@
         }
 
         .weekday-header, .day {
-            border: 1px solid #dee2e6; /* Bootstrap-like border color */
+            border: 1px solid; /* Color from CSS vars */
             padding: 0.5rem;
             text-align: center;
-            background-color: #f8f9fa; /* Bootstrap-like background color */
         }
 
         .weekday-header {
             font-weight: bold;
-            color: #495057; /* Bootstrap-like text color */
         }
 
         .day {
@@ -102,17 +101,12 @@
         .legend-color {
             width: 1rem;
             height: 1rem;
-            border: 1px solid #dee2e6;
+            border: 1px solid;
             margin-right: 0.5rem;
         }
 
-        .untracked { background-color: #FFFFFF; }
-        .present { background-color: #4CAF50; }
-        .not-present { background-color: #F44336; }
-        .other { background-color: #2196F3; }
-
         .today {
-            border: 5px solid #FFC107;
+            border-width: 5px;
             font-weight: bold;
             padding: 3px;
         }
@@ -120,13 +114,10 @@
         textarea#notes {
             width: 100%;
             padding: 10px;
-            border: 1px solid #dee2e6;
             border-radius: 4px;
             font-family: Arial, sans-serif;
             font-size: 1rem;
             line-height: 1.5;
-            color: #495057;
-            background-color: #f8f9fa;
             box-sizing: border-box;
             resize: vertical;
         }
@@ -137,21 +128,46 @@
         }
 
         .summary-container th, .summary-container td {
-            border: 1px solid #ddd;
+            border: 1px solid;
             padding: 8px;
             text-align: left;
-        }
-
-        .summary-container th {
-            background-color: #f4f4f4;
         }
 
         input#api-key {
             width: 100%;
         }
+        
+        /* Theme selector styles */
+        .theme-selector {
+            margin: 1rem 0;
+        }
+        
+        .theme-selector label {
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+        
+        .theme-selector select {
+            padding: 0.5rem;
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+            background-color: var(--content-bg);
+            color: var(--text-color);
+        }
+        
+        .theme-option {
+            margin: 0.5rem 0;
+        }
+        
+        .theme-option label {
+            margin-left: 0.5rem;
+        }
     </style>
 </head>
 <body>
+<!-- Dynamic theme elements -->
+<div id="theme-elements"></div>
+
 <main>
     <nav>
         <h1><a href="/"><img src="/static/office-building.png" alt="Office building"/>Officetracker</a></h1>
@@ -161,4 +177,105 @@
     <h2>{{block "title" .}}{{end}}</h2>
     <section>{{block "content" .}}{{end}}<section>
 </main>
+
+<script>
+// Theme management
+function initializeTheme() {
+    // Default theme is 'default' (light)
+    let currentTheme = localStorage.getItem('officetracker-theme') || 'default';
+    let weatherEnabled = localStorage.getItem('officetracker-weather-enabled') === 'true';
+    let timeBasedEnabled = localStorage.getItem('officetracker-time-based-enabled') === 'true';
+    
+    applyTheme(currentTheme, weatherEnabled, timeBasedEnabled);
+    
+    // Every time the page loads, try to fetch the user's theme preferences from the server
+    fetchThemePreferences();
+}
+
+function fetchThemePreferences() {
+    // Only try to fetch if the user is logged in
+    if (document.querySelector('a[href="/settings"]')) {
+        fetch('/api/v1/settings/')
+            .then(response => response.json())
+            .then(data => {
+                if (data && data.theme_preferences) {
+                    const prefs = data.theme_preferences;
+                    localStorage.setItem('officetracker-theme', prefs.theme);
+                    localStorage.setItem('officetracker-weather-enabled', prefs.weather_enabled);
+                    localStorage.setItem('officetracker-time-based-enabled', prefs.time_based_enabled);
+                    
+                    applyTheme(prefs.theme, prefs.weather_enabled, prefs.time_based_enabled);
+                }
+            })
+            .catch(error => console.error('Error fetching theme preferences:', error));
+    }
+}
+
+function applyTheme(themeName, weatherEnabled, timeBasedEnabled) {
+    // Remove existing theme classes
+    document.body.className = '';
+    
+    // Apply the selected theme
+    if (themeName === 'default') {
+        // Default theme has no class
+    } else {
+        document.body.classList.add('theme-' + themeName);
+        
+        // For city-skyline theme with special features
+        if (themeName === 'city-skyline') {
+            // Add parallax elements
+            const themeElements = document.getElementById('theme-elements');
+            themeElements.innerHTML = '';
+            
+            // Add clouds
+            for (let i = 1; i <= 3; i++) {
+                const cloud = document.createElement('div');
+                cloud.className = 'cloud cloud' + i;
+                themeElements.appendChild(cloud);
+            }
+            
+            // Add birds
+            for (let i = 1; i <= 3; i++) {
+                const bird = document.createElement('div');
+                bird.className = 'bird bird' + i;
+                themeElements.appendChild(bird);
+            }
+            
+            // Add plane
+            const plane = document.createElement('div');
+            plane.className = 'plane';
+            themeElements.appendChild(plane);
+            
+            // Apply time-based theme if enabled
+            if (timeBasedEnabled) {
+                const hour = new Date().getHours();
+                if (hour >= 5 && hour < 10) {
+                    document.body.classList.add('time-morning');
+                } else if (hour >= 10 && hour < 17) {
+                    document.body.classList.add('time-day');
+                } else if (hour >= 17 && hour < 21) {
+                    document.body.classList.add('time-evening');
+                } else {
+                    document.body.classList.add('time-night');
+                }
+            }
+            
+            // Apply weather effect if enabled
+            if (weatherEnabled) {
+                // In a real implementation, we would fetch the user's location
+                // and check the weather API. For now, we'll just randomly select a weather.
+                const weathers = ['clear', 'rain', 'snow', 'cloudy'];
+                const randomWeather = weathers[Math.floor(Math.random() * weathers.length)];
+                
+                if (randomWeather !== 'clear') {
+                    document.body.classList.add('weather-' + randomWeather);
+                }
+            }
+        }
+    }
+}
+
+// Initialize theme when page loads
+document.addEventListener('DOMContentLoaded', initializeTheme);
+</script>
 </html>

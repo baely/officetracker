@@ -20,4 +20,117 @@
         {{end}}
     </ul>
 </p>
+
+<h3>Themes</h3>
+<p>
+    Select a visual theme for Officetracker.
+</p>
+
+<div class="theme-selector">
+    <div class="theme-option">
+        <label for="theme-select">Select Theme:</label>
+        <select id="theme-select">
+            <option value="default">Default</option>
+            <option value="light">Light</option>
+            <option value="dark">Dark</option>
+            <option value="city-skyline">City Skyline</option>
+        </select>
+    </div>
+    
+    <div class="theme-option" id="weather-option" style="display: none;">
+        <input type="checkbox" id="weather-enabled">
+        <label for="weather-enabled">Enable weather effects</label>
+    </div>
+    
+    <div class="theme-option" id="time-option" style="display: none;">
+        <input type="checkbox" id="time-based-enabled">
+        <label for="time-based-enabled">Enable time-based background</label>
+    </div>
+    
+    <div class="theme-option">
+        <button id="save-theme">Save Theme Settings</button>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Server-provided theme preferences, if available
+        const serverTheme = "{{.ThemePreferences.Theme}}";
+        const serverWeatherEnabled = {{.ThemePreferences.WeatherEnabled}};
+        const serverTimeBasedEnabled = {{.ThemePreferences.TimeBasedEnabled}};
+        
+        // Load current theme preferences, prioritizing server values if available
+        const currentTheme = serverTheme || localStorage.getItem('officetracker-theme') || 'default';
+        const weatherEnabled = (serverTheme !== "") ? serverWeatherEnabled : (localStorage.getItem('officetracker-weather-enabled') === 'true');
+        const timeBasedEnabled = (serverTheme !== "") ? serverTimeBasedEnabled : (localStorage.getItem('officetracker-time-based-enabled') === 'true');
+        
+        // Set form values
+        document.getElementById('theme-select').value = currentTheme;
+        document.getElementById('weather-enabled').checked = weatherEnabled;
+        document.getElementById('time-based-enabled').checked = timeBasedEnabled;
+        
+        // Show/hide options based on selected theme
+        toggleOptions(currentTheme);
+        
+        // Event listener for theme change
+        document.getElementById('theme-select').addEventListener('change', function() {
+            toggleOptions(this.value);
+        });
+        
+        // Event listener for save button
+        document.getElementById('save-theme').addEventListener('click', function() {
+            const theme = document.getElementById('theme-select').value;
+            const weatherEnabled = document.getElementById('weather-enabled').checked;
+            const timeBasedEnabled = document.getElementById('time-based-enabled').checked;
+            
+            // Save to localStorage
+            localStorage.setItem('officetracker-theme', theme);
+            localStorage.setItem('officetracker-weather-enabled', weatherEnabled);
+            localStorage.setItem('officetracker-time-based-enabled', timeBasedEnabled);
+            
+            // Apply theme immediately
+            applyTheme(theme, weatherEnabled, timeBasedEnabled);
+            
+            // Save to server
+            fetch('/api/v1/settings/theme', {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    data: {
+                        theme: theme,
+                        weather_enabled: weatherEnabled,
+                        time_based_enabled: timeBasedEnabled
+                    }
+                }),
+                credentials: "include"
+            })
+            .then(response => {
+                if (response.ok) {
+                    alert('Theme settings saved successfully!');
+                } else {
+                    throw new Error('Failed to save theme settings');
+                }
+            })
+            .catch(error => {
+                console.error('Error saving theme settings:', error);
+                alert('Failed to save theme settings. Please try again.');
+            });
+        });
+    });
+    
+    function toggleOptions(theme) {
+        const weatherOption = document.getElementById('weather-option');
+        const timeOption = document.getElementById('time-option');
+        
+        if (theme === 'city-skyline') {
+            weatherOption.style.display = 'block';
+            timeOption.style.display = 'block';
+        } else {
+            weatherOption.style.display = 'none';
+            timeOption.style.display = 'none';
+        }
+    }
+</script>
 {{ end }}

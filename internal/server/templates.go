@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/baely/officetracker/internal/embed"
+	"github.com/baely/officetracker/pkg/model"
 )
 
 type formPage struct {
@@ -46,8 +47,9 @@ func serveLogin(w http.ResponseWriter, r *http.Request, page loginPage) {
 }
 
 type settingsPage struct {
-	GithubAccounts []string
-	GithubAuthURL  string
+	GithubAccounts   []string
+	GithubAuthURL    string
+	ThemePreferences model.ThemePreferences
 }
 
 func serveSettings(w http.ResponseWriter, r *http.Request, page settingsPage) {

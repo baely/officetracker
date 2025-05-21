@@ -238,8 +238,9 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 	}
 
 	serveSettings(w, r, settingsPage{
-		GithubAccounts: settings.GithubAccounts,
-		GithubAuthURL:  authURL,
+		GithubAccounts:   settings.GithubAccounts,
+		GithubAuthURL:    authURL,
+		ThemePreferences: settings.ThemePreferences,
 	})
 }
 
@@ -279,5 +280,10 @@ func staticHandler(r chi.Router) {
 		w.Header().Set("Content-Type", "image/png")
 		w.Header().Set("Cache-Control", "public, max-age=604800, immutable")
 		w.Write(embed.OfficeBuilding)
+	})
+	r.Get("/themes.css", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/css")
+		w.Header().Set("Cache-Control", "public, max-age=604800, immutable")
+		w.Write(embed.ThemesCSS)
 	})
 }
