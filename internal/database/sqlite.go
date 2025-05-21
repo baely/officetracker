@@ -19,13 +19,15 @@ const (
 )
 
 type sqliteClient struct {
-	cfg config.SQLite
-	db  *sql.DB
+	cfg    config.SQLite
+	db     *sql.DB
+	appCfg config.AppConfigurer // To access default theme
 }
 
-func NewSQLiteClient(cfg config.SQLite) (Databaser, error) {
+func NewSQLiteClient(cfg config.SQLite, appCfg config.AppConfigurer) (Databaser, error) {
 	db := &sqliteClient{
-		cfg: cfg,
+		cfg:    cfg,
+		appCfg: appCfg,
 	}
 
 	if db.cfg.Location == "" {
@@ -185,6 +187,13 @@ func (s *sqliteClient) SaveUserByGHID(ghID string) (int, error) {
 	return 1, nil
 }
 
+// SaveUserByGHID's signature updated for interface consistency, though functionality is minimal for SQLite.
+func (s *sqliteClient) SaveUserByGHID(ghID string, username string) (int, error) {
+	// All users in standalone mode have ID 1
+	return 1, nil
+}
+
+
 func (s *sqliteClient) SaveSecret(userID int, secret string) error {
 	// Standalone mode doesn't use secrets
 	return nil
@@ -210,6 +219,25 @@ func (s *sqliteClient) UpdateUserGithub(_ int, _ string, _ string) error {
 	return nil
 }
 
+// GetUserTheme for SQLite. In standalone, might always return default or a fixed theme.
+func (s *sqliteClient) GetUserTheme(userID int) (string, error) {
+	// Standalone mode typically doesn't have per-user themes.
+	// Return the system default theme.
+	if s.appCfg != nil {
+		return s.appCfg.GetApp().DefaultTheme, nil
+	}
+	return "default", nil // Fallback if appCfg is somehow nil
+}
+
+// SetUserTheme for SQLite. Likely a no-op in standalone mode.
+func (s *sqliteClient) SetUserTheme(userID int, theme string) error {
+	// Standalone mode typically doesn't store per-user themes.
+	// This could potentially write to a local config if needed, but for now, it's a no-op.
+	slog.Info("SetUserTheme called in SQLite mode (no-op)", "userID", userID, "theme", theme)
+	return nil
+}
+
+
 func (s *sqliteClient) initConnection() error {
 	slog.Info(fmt.Sprintf("Connecting to sqlite database: %s", s.cfg.Location))
 	db, err := sql.Open("sqlite3", s.cfg.Location)
@@ -230,12 +258,25 @@ CREATE TABLE IF NOT EXISTS notes (
     Year INTEGER,
     Notes TEXT,
     PRIMARY KEY (Month, Year)
-)`
+);
+
+-- Minimal users table for SQLite to align with interface, though not fully utilized.
+-- In standalone, user management is very basic (often just a single implicit user).
+CREATE TABLE IF NOT EXISTS users (
+    user_id INTEGER PRIMARY KEY AUTOINCREMENT, -- In SQLite, user_id is often fixed or not used.
+    theme TEXT DEFAULT 'default' -- Store theme preference if ever needed.
+);
+`
 
 	if _, err = db.Exec(sqlCreate); err != nil {
 		return err
 	}
 	s.db = db
+
+	// For standalone, ensure a default user record exists if we plan to use SetUserTheme.
+	// However, given current SaveUserByGHID returns 1, it implies a fixed user.
+	// For simplicity, we'll assume SetUserTheme remains a no-op or operates on a known row if necessary.
+	// Example: _, err = db.Exec("INSERT OR IGNORE INTO users (user_id, theme) VALUES (1, ?)", s.appCfg.GetApp().DefaultTheme)
 
 	return nil
 }

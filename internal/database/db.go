@@ -29,4 +29,7 @@ type Databaser interface {
 	UpdateUserGithub(userID int, ghID string, username string) error
 
 	SaveSecret(userID int, secret string) error
+
+	GetUserTheme(userID int) (string, error)
+	SetUserTheme(userID int, theme string) error
 }

@@ -1,0 +1,280 @@
+body {
+    font-family: Arial, sans-serif;
+    background: #000; /* Dark background for the city theme */
+    color: #fff; /* Light text for contrast */
+    margin: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    overflow: hidden; /* Hide scrollbars as background will be fixed */
+}
+
+#city-background {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: -1;
+    /* Placeholder for scrolling city animation/image - actual image to be added later */
+    /* background: url('placeholder_city_background.jpg') repeat-x; */
+    background-color: #1a1a1a; /* Fallback color if image is missing */
+    animation: scrollCity 60s linear infinite;
+}
+
+@keyframes scrollCity {
+    from { background-position: 0 0; }
+    to { background-position: -1920px 0; } /* Adjust width based on the actual background image */
+}
+
+.container {
+    background: rgba(20, 20, 20, 0.85); /* Slightly more opaque semi-transparent dark container */
+    padding: 25px;
+    border-radius: 10px; /* Slightly larger border radius */
+    box-shadow: 0 0 20px rgba(0, 170, 255, 0.3); /* Theme-colored shadow */
+    margin-bottom: 20px;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: row;
+    column-gap: 50px;
+    flex-wrap: wrap;
+    box-sizing: border-box;
+    justify-content: center;
+    overflow-y: auto; /* Allow vertical scroll within container */
+    min-width: min-content;
+    position: relative;
+    z-index: 1;
+}
+
+.column {
+    width: 360px;
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+}
+
+/* Weather Widget Styles */
+#weather-widget {
+    padding: 15px;
+    margin-bottom: 20px;
+    background: rgba(30, 30, 30, 0.75); /* Darker, semi-transparent background */
+    border-radius: 6px;
+    text-align: center;
+    border: 1px solid #00aaff; /* Accent border */
+}
+
+#weather-widget p {
+    margin: 5px 0;
+    font-size: 0.95em;
+}
+
+#weather-widget #temperature {
+    font-weight: bold;
+    color: #00ddff; /* Bright blue for temperature */
+}
+
+#weather-widget #condition {
+    font-style: italic;
+    color: #aaa;
+}
+
+#weather-widget #location {
+    font-size: 0.8em;
+    color: #ccc;
+}
+
+
+/* Calendar Navigation Styles */
+#calendar-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center; /* Vertically align items */
+    margin-bottom: 20px;
+}
+
+#calendar-nav #month-year {
+    font-weight: bold;
+    font-size: 1.7em; /* Larger font size */
+    margin: 10px;
+    color: #00aaff; /* Bright color for accents */
+    text-shadow: 0 0 5px rgba(0, 170, 255, 0.5); /* Subtle glow */
+}
+
+/* Calendar Grid Styles */
+#calendar {
+    display: grid;
+    gap: 0.5rem;
+    margin: auto;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.weekday-header, .day {
+    border: 1px solid #444; /* Darker border */
+    padding: 0.75rem; /* Increased padding */
+    text-align: center;
+    background-color: #2a2a2a; /* Slightly lighter than main dark background */
+}
+
+.weekday-header {
+    font-weight: bold;
+    color: #00aaff; /* Accent color */
+    background-color: #333; /* Darker background for headers */
+}
+
+.day {
+    cursor: pointer;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+.day:hover {
+    background-color: #555;
+    transform: scale(1.05); /* Slight zoom effect on hover */
+}
+
+.day.today { /* Style for the current day */
+    background-color: #007bff;
+    color: #fff;
+    border-color: #0056b3;
+}
+
+.day.selected { /* Style for a selected day */
+    background-color: #00aaff;
+    color: #000;
+    box-shadow: 0 0 10px rgba(0, 170, 255, 0.7);
+}
+
+
+/* Button Styles */
+button, .btn {
+    color: #fff;
+    background-color: #007bff; /* Bootstrap primary color */
+    border: 1px solid #007bff;
+    padding: 0.5rem 1rem; /* Adjusted padding */
+    font-size: 1rem;
+    line-height: 1.5;
+    border-radius: 0.3rem; /* Slightly adjusted border radius */
+    cursor: pointer;
+    transition: background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, transform 0.15s ease;
+    text-decoration: none; /* For .btn used as links */
+    display: inline-block; /* Ensure .btn behaves like a button */
+    text-align: center;
+}
+
+button:hover, .btn:hover {
+    background-color: #0056b3; /* Darken on hover */
+    border-color: #004085;
+    transform: translateY(-2px); /* Slight lift effect */
+}
+
+button:focus, .btn:focus {
+    outline: none;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.5); /* Focus ring */
+}
+
+/* Specific Button Group Styles */
+.additional-buttons {
+    margin-top: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px; /* Space between buttons */
+}
+
+.additional-buttons .btn {
+    display: block; /* Make buttons take full width of their container if needed */
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.additional-buttons .btn-setup {
+    background-color: #17a2b8; /* Info color (teal) */
+    border-color: #17a2b8;
+}
+
+.additional-buttons .btn-setup:hover {
+    background-color: #117a8b;
+    border-color: #10707f;
+}
+
+.additional-buttons .btn-download { /* Example for a download button */
+    background-color: #28a745; /* Success color (green) */
+    border-color: #28a745;
+}
+
+.additional-buttons .btn-download:hover {
+    background-color: #1e7e34;
+    border-color: #1c7430;
+}
+
+
+/* Login Page Specific Styles */
+.login-container { /* Use this class for the container on the login page if different styling is needed */
+    background: rgba(20, 20, 20, 0.9);
+    padding: 40px;
+    border-radius: 10px;
+    box-shadow: 0 0 20px rgba(0, 170, 255, 0.4);
+    text-align: center;
+    position: relative;
+    z-index: 1;
+    max-width: 400px; /* Max width for login box */
+    width: 90%;
+}
+
+.github-btn { /* Styles for GitHub login button, assuming it's an <a> tag styled as a button */
+    width: 100%;
+    padding: 15px;
+    border-radius: 5px; /* Slightly more rounded */
+    border: none;
+    background-color: #007bff; /* Theme-consistent button color */
+    color: white;
+    cursor: pointer;
+    font-size: 1.2em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    text-decoration: none;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+.github-btn:hover {
+    background-color: #0056b3;
+    transform: translateY(-2px); /* Lift effect */
+}
+
+.github-logo {
+    margin-right: 12px; /* More space for logo */
+    width: 24px;
+    height: 24px;
+}
+
+/* Utility Classes */
+.text-center {
+    text-align: center;
+}
+
+.mt-1 { margin-top: 0.25rem; }
+.mt-2 { margin-top: 0.5rem; }
+.mt-3 { margin-top: 1rem; }
+.mb-1 { margin-bottom: 0.25rem; }
+.mb-2 { margin-bottom: 0.5rem; }
+.mb-3 { margin-bottom: 1rem; }
+
+/* Add a placeholder for the actual city background image */
+/* In a real scenario, you'd replace 'placeholder_city_background.jpg' 
+   in #city-background with the actual path to your image. */
+/* For now, a solid dark color or gradient can be used if no image is available. */
+#city-background {
+    /* background: linear-gradient(to bottom, #000000, #1a0a2e); */ /* Example gradient */
+    /* Or keep the animated placeholder color if an image isn't ready */
+     background: url('placeholder_city_background.jpg') repeat-x; /* Ensure this is intended if no image yet */
+     animation: scrollCity 60s linear infinite;
+}
+
+/* If using a static image and not animation, you can set it like this:
+#city-background {
+    background: url('path/to/your/static_city_image.jpg') no-repeat center center fixed;
+    background-size: cover;
+}
+*/

@@ -20,4 +20,43 @@
         {{end}}
     </ul>
 </p>
+
+<hr/>
+
+<h3>Theme</h3>
+<p>Select your preferred theme for the application.</p>
+<form method="POST" action="/settings">
+    <div>
+        <label for="theme-select">Choose a theme:</label>
+        <select name="theme" id="theme-select">
+            {{/* Ensure .AvailableThemes and .UserTheme are passed to this template */}}
+            {{range $themeKey, $themeDetails := .AvailableThemes}}
+                <option value="{{$themeKey}}" {{if eq $themeKey $.UserTheme}}selected{{end}}>
+                    {{$themeDetails.Name}}
+                </option>
+            {{else}}
+                <option value="">No themes available</option>
+            {{end}}
+            {{/* It might be useful to also list a "default" option if UserTheme can be empty,
+                 or ensure DefaultTheme from config is one of the AvailableThemes or handled. */}}
+            {{ if and (ne .UserTheme .DefaultTheme) (not (index .AvailableThemes .DefaultTheme)) }}
+                 <!-- Optional: Add default theme if not in AvailableThemes and not current UserTheme -->
+                 <!-- This part might be complex if DefaultTheme's display name isn't easily available -->
+                 <!-- For simplicity, ensure DefaultTheme is part of AvailableThemes map in Go code -->
+            {{ end }}
+        </select>
+    </div>
+    <div style="margin-top: 10px;">
+        <button type="submit">Save Theme Preference</button>
+    </div>
+</form>
+<p>
+    <small>
+        Current theme setting: <strong>{{ .UserTheme }}</strong>.
+        The default system theme is <strong>{{ .AppConfig.DefaultTheme }}</strong>.
+        {{/* Note: .AppConfig.DefaultTheme needs to be passed to this template if you want to display it.
+             Alternatively, if UserTheme is empty, it implies default is used. */}}
+    </small>
+</p>
+
 {{ end }}

@@ -31,9 +31,10 @@ func (a StandaloneApp) GetApp() App {
 }
 
 type App struct {
-	Env  string `envconfig:"ENV"`
-	Port string `envconfig:"PORT"`
-	Demo bool   `envconfig:"DEMO"`
+	Env          string `envconfig:"ENV"`
+	Port         string `envconfig:"PORT"`
+	Demo         bool   `envconfig:"DEMO"`
+	DefaultTheme string `envconfig:"DEFAULT_THEME" default:"default"` // Added DefaultTheme
 }
 
 type Domain struct {
