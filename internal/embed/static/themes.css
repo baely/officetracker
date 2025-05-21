@@ -86,12 +86,34 @@
     right: 0;
     bottom: 0;
     background-image: 
-        radial-gradient(white 2px, transparent 0),
-        radial-gradient(white 1px, transparent 0);
+        radial-gradient(rgba(255, 255, 255, 0.9) 2px, transparent 0),
+        radial-gradient(rgba(255, 255, 255, 0.7) 1px, transparent 0);
     background-size: 20px 20px, 30px 30px;
     background-position: 0 0, 10px 10px;
     pointer-events: none;
     animation: snow 20s linear infinite;
+    z-index: -1;
+}
+
+/* If we get thunderstorm weather code from the API */
+.theme-city-skyline.weather-thunderstorm:after {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: 
+        linear-gradient(to bottom, 
+            rgba(0, 0, 0, 0.4) 0%, 
+            rgba(0, 0, 0, 0.1) 100%),
+        repeating-linear-gradient(to bottom, 
+            transparent 0px, 
+            transparent 5px, 
+            rgba(255, 255, 255, 0.3) 5px, 
+            rgba(255, 255, 255, 0.3) 10px);
+    pointer-events: none;
+    animation: rain 0.5s linear infinite;
     z-index: -1;
 }
 

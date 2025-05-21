@@ -277,65 +277,73 @@ function applyTheme(themeName, weatherEnabled, timeBasedEnabled) {
             // Apply weather effect if enabled
             if (weatherEnabled) {
                 // Fetch weather data for Melbourne, Australia
-                fetchMelbourneWeather();
+                fetchMelbourneWeather(timeBasedEnabled);
             }
         }
     }
 }
 
-function fetchMelbourneWeather() {
+function fetchMelbourneWeather(timeBasedEnabled) {
     // Melbourne coordinates
     const lat = -37.8142;
     const lon = 144.9631;
     
-    // Use a free weather API that doesn't require authentication
-    // This is a mockup since we don't have a real API key
-    // In a real implementation, you would use a proper weather API
+    // Use Open-Meteo API to get real weather data
+    // https://open-meteo.com/
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=weather_code,is_day&timezone=Australia/Melbourne`;
     
-    // For now, let's simulate fetching weather
-    setTimeout(() => {
-        // Simulate based on current date (more rain in winter, more clear in summer)
-        const now = new Date();
-        const month = now.getMonth(); // 0-11 where 0 is January
-        
-        // Weather probabilities for Melbourne by season
-        let weatherType;
-        
-        // Summer (Dec-Feb in Southern Hemisphere)
-        if (month === 11 || month === 0 || month === 1) {
-            const rand = Math.random();
-            if (rand < 0.6) weatherType = 'clear';
-            else if (rand < 0.8) weatherType = 'cloudy';
-            else weatherType = 'rain';
-        } 
-        // Autumn (Mar-May)
-        else if (month >= 2 && month <= 4) {
-            const rand = Math.random();
-            if (rand < 0.4) weatherType = 'clear';
-            else if (rand < 0.8) weatherType = 'cloudy';
-            else weatherType = 'rain';
-        }
-        // Winter (Jun-Aug)
-        else if (month >= 5 && month <= 7) {
-            const rand = Math.random();
-            if (rand < 0.3) weatherType = 'clear';
-            else if (rand < 0.6) weatherType = 'cloudy';
-            else weatherType = 'rain';
-        }
-        // Spring (Sep-Nov)
-        else {
-            const rand = Math.random();
-            if (rand < 0.4) weatherType = 'clear';
-            else if (rand < 0.8) weatherType = 'cloudy';
-            else weatherType = 'rain';
-        }
-        
-        // Apply the weather effect
-        if (weatherType !== 'clear') {
-            document.body.classList.add('weather-' + weatherType);
-        }
-        
-    }, 100); // Small timeout to simulate API call
+    fetch(url)
+        .then(response => response.json())
+        .then(data => {
+            // Process the weather data from Open-Meteo API
+            // Weather codes are based on WMO standards: 
+            // https://open-meteo.com/en/docs (see Weather variable documentation section)
+            const weatherCode = data.current.weather_code;
+            const isDay = data.current.is_day === 1;
+            
+            let weatherType = 'clear';
+            
+            // Clear (0, 1)
+            if (weatherCode === 0 || weatherCode === 1) {
+                weatherType = 'clear';
+            }
+            // Cloudy (2, 3, 45, 48)
+            else if (weatherCode === 2 || weatherCode === 3 || weatherCode === 45 || weatherCode === 48) {
+                weatherType = 'cloudy';
+            }
+            // Rainy (51-67, 80-82)
+            else if ((weatherCode >= 51 && weatherCode <= 67) || (weatherCode >= 80 && weatherCode <= 82)) {
+                weatherType = 'rain';
+            }
+            // Snowy (71-77, 85-86) - unlikely in Melbourne but included for completeness
+            else if ((weatherCode >= 71 && weatherCode <= 77) || (weatherCode >= 85 && weatherCode <= 86)) {
+                weatherType = 'snow';
+            }
+            // Thunderstorm (95-99)
+            else if (weatherCode >= 95 && weatherCode <= 99) {
+                weatherType = 'thunderstorm';
+            }
+            
+            // Apply the weather effect
+            if (weatherType !== 'clear') {
+                document.body.classList.add('weather-' + weatherType);
+            }
+            
+            // If it's night, also add the night class regardless of weather
+            if (!isDay && timeBasedEnabled) {
+                document.body.classList.add('time-night');
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching weather data:', error);
+            // Fallback to a random weather if API fails
+            const weatherTypes = ['clear', 'cloudy', 'rain'];
+            const randomWeather = weatherTypes[Math.floor(Math.random() * weatherTypes.length)];
+            
+            if (randomWeather !== 'clear') {
+                document.body.classList.add('weather-' + randomWeather);
+            }
+        });
 }
 
 // Initialize theme when page loads
