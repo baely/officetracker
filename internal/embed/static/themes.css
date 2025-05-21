@@ -1,17 +1,6 @@
 /* Theme system for Officetracker */
 
-/* Base theme (default) */
-:root {
-    --primary-bg: #f7f8f8;
-    --secondary-bg: #dee;
-    --content-bg: white;
-    --text-color: #333;
-    --border-color: #dee2e6;
-    --highlight-color: #FFC107;
-    --present-color: #4CAF50;
-    --not-present-color: #F44336;
-    --other-color: #2196F3;
-}
+/* Base theme (default) has default styling in original CSS, no vars needed */
 
 /* City Skyline Theme */
 .theme-city-skyline {
@@ -207,48 +196,61 @@
     --other-color: #2196F3;
 }
 
-/* Light theme */
-.theme-light {
-    --primary-bg: #f7f8f8;
-    --secondary-bg: #eee;
-    --content-bg: white;
-    --text-color: #333;
-    --border-color: #dee2e6;
-    --highlight-color: #FFC107;
-    --present-color: #4CAF50;
-    --not-present-color: #F44336;
-    --other-color: #2196F3;
-}
+/* No light theme as it's redundant with default */
 
-/* Apply CSS variables to elements */
-body {
+/* Apply CSS variables only to themed elements (dark and city-skyline) */
+body.theme-dark, 
+body.theme-city-skyline {
     background-color: var(--primary-bg);
     color: var(--text-color);
 }
 
-main {
+body.theme-dark main,
+body.theme-city-skyline main {
     background-color: var(--content-bg);
 }
 
-main nav {
+body.theme-dark main nav,
+body.theme-city-skyline main nav {
     background-color: var(--secondary-bg);
 }
 
-.weekday-header, .day {
+body.theme-dark .weekday-header, 
+body.theme-dark .day,
+body.theme-city-skyline .weekday-header, 
+body.theme-city-skyline .day {
     border-color: var(--border-color);
     background-color: var(--content-bg);
     color: var(--text-color);
 }
 
-.weekday-header {
+body.theme-dark .weekday-header,
+body.theme-city-skyline .weekday-header {
     color: var(--text-color);
 }
 
-.present { background-color: var(--present-color); }
-.not-present { background-color: var(--not-present-color); }
-.other { background-color: var(--other-color); }
+/* These should apply to all themes since they're consistent */
+.present { background-color: #4CAF50; }
+.not-present { background-color: #F44336; }
+.other { background-color: #2196F3; }
 
-.today {
+body.theme-dark .present,
+body.theme-city-skyline .present { 
+    background-color: var(--present-color); 
+}
+
+body.theme-dark .not-present,
+body.theme-city-skyline .not-present { 
+    background-color: var(--not-present-color); 
+}
+
+body.theme-dark .other,
+body.theme-city-skyline .other { 
+    background-color: var(--other-color); 
+}
+
+body.theme-dark .today,
+body.theme-city-skyline .today {
     border-color: var(--highlight-color);
 }
 

@@ -10,9 +10,9 @@
     <link href="/static/themes.css" rel="stylesheet">
     <style>
         html, body { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; margin: 0; padding: 0; }
-        body { height: 100vh; overflow-x: hidden; overflow-y: auto; width: 100vw; }
-        main { margin: 0 auto; max-width: 540px; min-height: calc(100vh - 96px); padding: 48px; }
-        main nav { margin: -48px -48px 0; padding: 48px 48px 32px; }
+        body { background-color: #f7f8f8; height: 100vh; overflow-x: hidden; overflow-y: auto; width: 100vw; }
+        main { background-color: white; margin: 0 auto; max-width: 540px; min-height: calc(100vh - 96px); padding: 48px; }
+        main nav { background-color: #dee; margin: -48px -48px 0; padding: 48px 48px 32px; }
         main nav h1 { font-family: "Calistoga", serif; font-size: 2em; margin: 0 24px 0 0; }
         main nav h1 a:link, main nav h1 a:visited { text-decoration: none; }
         main nav h1 img { height: 32px; margin: 0 4px -2px 0; }
@@ -70,13 +70,15 @@
         }
 
         .weekday-header, .day {
-            border: 1px solid; /* Color from CSS vars */
+            border: 1px solid #dee2e6; /* Bootstrap-like border color */
             padding: 0.5rem;
             text-align: center;
+            background-color: #f8f9fa; /* Bootstrap-like background color */
         }
 
         .weekday-header {
             font-weight: bold;
+            color: #495057; /* Bootstrap-like text color */
         }
 
         .day {
@@ -101,12 +103,17 @@
         .legend-color {
             width: 1rem;
             height: 1rem;
-            border: 1px solid;
+            border: 1px solid #dee2e6;
             margin-right: 0.5rem;
         }
 
+        .untracked { background-color: #FFFFFF; }
+        .present { background-color: #4CAF50; }
+        .not-present { background-color: #F44336; }
+        .other { background-color: #2196F3; }
+
         .today {
-            border-width: 5px;
+            border: 5px solid #FFC107;
             font-weight: bold;
             padding: 3px;
         }
@@ -114,10 +121,13 @@
         textarea#notes {
             width: 100%;
             padding: 10px;
+            border: 1px solid #dee2e6;
             border-radius: 4px;
             font-family: Arial, sans-serif;
             font-size: 1rem;
             line-height: 1.5;
+            color: #495057;
+            background-color: #f8f9fa;
             box-sizing: border-box;
             resize: vertical;
         }
@@ -128,9 +138,13 @@
         }
 
         .summary-container th, .summary-container td {
-            border: 1px solid;
+            border: 1px solid #ddd;
             padding: 8px;
             text-align: left;
+        }
+
+        .summary-container th {
+            background-color: #f4f4f4;
         }
 
         input#api-key {
@@ -150,9 +164,9 @@
         .theme-selector select {
             padding: 0.5rem;
             border-radius: 4px;
-            border: 1px solid var(--border-color);
-            background-color: var(--content-bg);
-            color: var(--text-color);
+            border: 1px solid #dee2e6;
+            background-color: white;
+            color: #495057;
         }
         
         .theme-option {
@@ -215,6 +229,10 @@ function applyTheme(themeName, weatherEnabled, timeBasedEnabled) {
     // Remove existing theme classes
     document.body.className = '';
     
+    // Reset dynamic elements
+    const themeElements = document.getElementById('theme-elements');
+    themeElements.innerHTML = '';
+    
     // Apply the selected theme
     if (themeName === 'default') {
         // Default theme has no class
@@ -223,10 +241,6 @@ function applyTheme(themeName, weatherEnabled, timeBasedEnabled) {
         
         // For city-skyline theme with special features
         if (themeName === 'city-skyline') {
-            // Add parallax elements
-            const themeElements = document.getElementById('theme-elements');
-            themeElements.innerHTML = '';
-            
             // Add clouds
             for (let i = 1; i <= 3; i++) {
                 const cloud = document.createElement('div');
@@ -262,17 +276,66 @@ function applyTheme(themeName, weatherEnabled, timeBasedEnabled) {
             
             // Apply weather effect if enabled
             if (weatherEnabled) {
-                // In a real implementation, we would fetch the user's location
-                // and check the weather API. For now, we'll just randomly select a weather.
-                const weathers = ['clear', 'rain', 'snow', 'cloudy'];
-                const randomWeather = weathers[Math.floor(Math.random() * weathers.length)];
-                
-                if (randomWeather !== 'clear') {
-                    document.body.classList.add('weather-' + randomWeather);
-                }
+                // Fetch weather data for Melbourne, Australia
+                fetchMelbourneWeather();
             }
         }
     }
+}
+
+function fetchMelbourneWeather() {
+    // Melbourne coordinates
+    const lat = -37.8142;
+    const lon = 144.9631;
+    
+    // Use a free weather API that doesn't require authentication
+    // This is a mockup since we don't have a real API key
+    // In a real implementation, you would use a proper weather API
+    
+    // For now, let's simulate fetching weather
+    setTimeout(() => {
+        // Simulate based on current date (more rain in winter, more clear in summer)
+        const now = new Date();
+        const month = now.getMonth(); // 0-11 where 0 is January
+        
+        // Weather probabilities for Melbourne by season
+        let weatherType;
+        
+        // Summer (Dec-Feb in Southern Hemisphere)
+        if (month === 11 || month === 0 || month === 1) {
+            const rand = Math.random();
+            if (rand < 0.6) weatherType = 'clear';
+            else if (rand < 0.8) weatherType = 'cloudy';
+            else weatherType = 'rain';
+        } 
+        // Autumn (Mar-May)
+        else if (month >= 2 && month <= 4) {
+            const rand = Math.random();
+            if (rand < 0.4) weatherType = 'clear';
+            else if (rand < 0.8) weatherType = 'cloudy';
+            else weatherType = 'rain';
+        }
+        // Winter (Jun-Aug)
+        else if (month >= 5 && month <= 7) {
+            const rand = Math.random();
+            if (rand < 0.3) weatherType = 'clear';
+            else if (rand < 0.6) weatherType = 'cloudy';
+            else weatherType = 'rain';
+        }
+        // Spring (Sep-Nov)
+        else {
+            const rand = Math.random();
+            if (rand < 0.4) weatherType = 'clear';
+            else if (rand < 0.8) weatherType = 'cloudy';
+            else weatherType = 'rain';
+        }
+        
+        // Apply the weather effect
+        if (weatherType !== 'clear') {
+            document.body.classList.add('weather-' + weatherType);
+        }
+        
+    }, 100); // Small timeout to simulate API call
 }
 
 // Initialize theme when page loads
