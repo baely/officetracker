@@ -125,9 +125,28 @@ type GetSettingsRequestMeta struct {
 	UserID int `meta:"user_id"`
 }
 
-type GetSettingsResponse struct {
-	GithubAccounts []string `json:"github_accounts"`
+type ThemePreferences struct {
+	Theme            string `json:"theme"`
+	WeatherEnabled   bool   `json:"weather_enabled"`
+	TimeBasedEnabled bool   `json:"time_based_enabled"`
+	Location         string `json:"location,omitempty"`
 }
+
+type GetSettingsResponse struct {
+	GithubAccounts   []string        `json:"github_accounts"`
+	ThemePreferences ThemePreferences `json:"theme_preferences"`
+}
+
+type UpdateThemePreferencesRequest struct {
+	Meta UpdateThemePreferencesRequestMeta `meta:"meta" json:"-"`
+	Data ThemePreferences                  `json:"data"`
+}
+
+type UpdateThemePreferencesRequestMeta struct {
+	UserID int `meta:"user_id"`
+}
+
+type UpdateThemePreferencesResponse struct {}
 
 type GetSecretRequest struct {
 	Meta GetSecretRequestMeta `meta:"meta" json:"-"`

@@ -210,6 +210,85 @@ func (s *sqliteClient) UpdateUserGithub(_ int, _ string, _ string) error {
 	return nil
 }
 
+func (s *sqliteClient) GetThemePreferences(_ int) (model.ThemePreferences, error) {
+	// Check if the preferences table exists
+	q := `SELECT name FROM sqlite_master WHERE type='table' AND name='user_preferences';`
+	row := s.db.QueryRow(q)
+	var tableName string
+	err := row.Scan(&tableName)
+	if errors.Is(err, sql.ErrNoRows) {
+		// Table doesn't exist, return defaults
+		return model.ThemePreferences{
+			Theme:            "default",
+			WeatherEnabled:   false,
+			TimeBasedEnabled: false,
+		}, nil
+	}
+	
+	// Table exists, get preferences
+	q = `SELECT theme, weather_enabled, time_based_enabled, location FROM user_preferences LIMIT 1;`
+	row = s.db.QueryRow(q)
+	var prefs model.ThemePreferences
+	var location sql.NullString
+	
+	err = row.Scan(&prefs.Theme, &prefs.WeatherEnabled, &prefs.TimeBasedEnabled, &location)
+	if errors.Is(err, sql.ErrNoRows) {
+		// No preferences yet, return defaults
+		return model.ThemePreferences{
+			Theme:            "default",
+			WeatherEnabled:   false,
+			TimeBasedEnabled: false,
+		}, nil
+	}
+	
+	if err != nil {
+		return model.ThemePreferences{}, err
+	}
+	
+	if location.Valid {
+		prefs.Location = location.String
+	}
+	
+	return prefs, nil
+}
+
+func (s *sqliteClient) SaveThemePreferences(_ int, prefs model.ThemePreferences) error {
+	// Make sure the table exists
+	q := `CREATE TABLE IF NOT EXISTS user_preferences (
+        theme TEXT DEFAULT 'default',
+        weather_enabled INTEGER DEFAULT 0,
+        time_based_enabled INTEGER DEFAULT 0,
+        location TEXT DEFAULT NULL
+    );`
+	
+	_, err := s.db.Exec(q)
+	if err != nil {
+		return err
+	}
+	
+	// Check if any preferences exist
+	q = `SELECT COUNT(*) FROM user_preferences;`
+	row := s.db.QueryRow(q)
+	var count int
+	err = row.Scan(&count)
+	if err != nil {
+		return err
+	}
+	
+	if count == 0 {
+		// Insert new preferences
+		q = `INSERT INTO user_preferences (theme, weather_enabled, time_based_enabled, location) 
+             VALUES (?, ?, ?, ?);`
+		_, err = s.db.Exec(q, prefs.Theme, prefs.WeatherEnabled, prefs.TimeBasedEnabled, prefs.Location)
+	} else {
+		// Update existing preferences
+		q = `UPDATE user_preferences SET theme = ?, weather_enabled = ?, time_based_enabled = ?, location = ?;`
+		_, err = s.db.Exec(q, prefs.Theme, prefs.WeatherEnabled, prefs.TimeBasedEnabled, prefs.Location)
+	}
+	
+	return err
+}
+
 func (s *sqliteClient) initConnection() error {
 	slog.Info(fmt.Sprintf("Connecting to sqlite database: %s", s.cfg.Location))
 	db, err := sql.Open("sqlite3", s.cfg.Location)
@@ -230,7 +309,14 @@ CREATE TABLE IF NOT EXISTS notes (
     Year INTEGER,
     Notes TEXT,
     PRIMARY KEY (Month, Year)
-)`
+);
+
+CREATE TABLE IF NOT EXISTS user_preferences (
+    theme TEXT DEFAULT 'default',
+    weather_enabled INTEGER DEFAULT 0,
+    time_based_enabled INTEGER DEFAULT 0,
+    location TEXT DEFAULT NULL
+);`
 
 	if _, err = db.Exec(sqlCreate); err != nil {
 		return err

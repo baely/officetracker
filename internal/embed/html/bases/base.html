@@ -7,6 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Calistoga&display=swap" rel="stylesheet">
+    <link href="/static/themes.css" rel="stylesheet">
     <style>
         html, body { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; margin: 0; padding: 0; }
         body { background-color: #f7f8f8; height: 100vh; overflow-x: hidden; overflow-y: auto; width: 100vw; }
@@ -149,9 +150,49 @@
         input#api-key {
             width: 100%;
         }
+        
+        /* Theme selector styles */
+        .theme-selector {
+            margin: 1rem 0;
+        }
+        
+        .theme-selector label {
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+        
+        .theme-selector select {
+            padding: 0.5rem;
+            border-radius: 4px;
+            border: 1px solid #dee2e6;
+            background-color: white;
+            color: #495057;
+        }
+        
+        .theme-option {
+            margin: 0.5rem 0;
+        }
+        
+        .theme-option label {
+            margin-left: 0.5rem;
+        }
+        
+        /* Improved checkbox styling */
+        .checkbox-wrapper {
+            display: flex;
+            align-items: center;
+        }
+        
+        .checkbox-wrapper input[type="checkbox"] {
+            margin: 0;
+            margin-right: 0.5rem;
+        }
     </style>
 </head>
 <body>
+<!-- Dynamic theme elements -->
+<div id="theme-elements"></div>
+
 <main>
     <nav>
         <h1><a href="/"><img src="/static/office-building.png" alt="Office building"/>Officetracker</a></h1>
@@ -161,4 +202,162 @@
     <h2>{{block "title" .}}{{end}}</h2>
     <section>{{block "content" .}}{{end}}<section>
 </main>
+
+<script>
+// Theme management
+function initializeTheme() {
+    // Default theme is 'default' (light)
+    let currentTheme = localStorage.getItem('officetracker-theme') || 'default';
+    let weatherEnabled = localStorage.getItem('officetracker-weather-enabled') === 'true';
+    let timeBasedEnabled = localStorage.getItem('officetracker-time-based-enabled') === 'true';
+    
+    applyTheme(currentTheme, weatherEnabled, timeBasedEnabled);
+    
+    // Every time the page loads, try to fetch the user's theme preferences from the server
+    fetchThemePreferences();
+}
+
+function fetchThemePreferences() {
+    // Only try to fetch if the user is logged in
+    if (document.querySelector('a[href="/settings"]')) {
+        fetch('/api/v1/settings/')
+            .then(response => response.json())
+            .then(data => {
+                if (data && data.theme_preferences) {
+                    const prefs = data.theme_preferences;
+                    localStorage.setItem('officetracker-theme', prefs.theme);
+                    localStorage.setItem('officetracker-weather-enabled', prefs.weather_enabled);
+                    localStorage.setItem('officetracker-time-based-enabled', prefs.time_based_enabled);
+                    
+                    applyTheme(prefs.theme, prefs.weather_enabled, prefs.time_based_enabled);
+                }
+            })
+            .catch(error => console.error('Error fetching theme preferences:', error));
+    }
+}
+
+function applyTheme(themeName, weatherEnabled, timeBasedEnabled) {
+    // Remove existing theme classes
+    document.body.className = '';
+    
+    // Reset dynamic elements
+    const themeElements = document.getElementById('theme-elements');
+    themeElements.innerHTML = '';
+    
+    // Apply the selected theme
+    if (themeName === 'default') {
+        // Default theme has no class
+    } else {
+        document.body.classList.add('theme-' + themeName);
+        
+        // For city-skyline theme with special features
+        if (themeName === 'city-skyline') {
+            // Add clouds
+            for (let i = 1; i <= 3; i++) {
+                const cloud = document.createElement('div');
+                cloud.className = 'cloud cloud' + i;
+                themeElements.appendChild(cloud);
+            }
+            
+            // Add birds
+            for (let i = 1; i <= 3; i++) {
+                const bird = document.createElement('div');
+                bird.className = 'bird bird' + i;
+                themeElements.appendChild(bird);
+            }
+            
+            // Add plane
+            const plane = document.createElement('div');
+            plane.className = 'plane';
+            themeElements.appendChild(plane);
+            
+            // Apply time-based theme if enabled
+            if (timeBasedEnabled) {
+                const hour = new Date().getHours();
+                if (hour >= 5 && hour < 10) {
+                    document.body.classList.add('time-morning');
+                } else if (hour >= 10 && hour < 17) {
+                    document.body.classList.add('time-day');
+                } else if (hour >= 17 && hour < 21) {
+                    document.body.classList.add('time-evening');
+                } else {
+                    document.body.classList.add('time-night');
+                }
+            }
+            
+            // Apply weather effect if enabled
+            if (weatherEnabled) {
+                // Fetch weather data for Melbourne, Australia
+                fetchMelbourneWeather(timeBasedEnabled);
+            }
+        }
+    }
+}
+
+function fetchMelbourneWeather(timeBasedEnabled) {
+    // Melbourne coordinates
+    const lat = -37.8142;
+    const lon = 144.9631;
+    
+    // Use Open-Meteo API to get real weather data
+    // https://open-meteo.com/
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=weather_code,is_day&timezone=Australia/Melbourne`;
+    
+    fetch(url)
+        .then(response => response.json())
+        .then(data => {
+            // Process the weather data from Open-Meteo API
+            // Weather codes are based on WMO standards: 
+            // https://open-meteo.com/en/docs (see Weather variable documentation section)
+            const weatherCode = data.current.weather_code;
+            const isDay = data.current.is_day === 1;
+            
+            let weatherType = 'clear';
+            
+            // Clear (0, 1)
+            if (weatherCode === 0 || weatherCode === 1) {
+                weatherType = 'clear';
+            }
+            // Cloudy (2, 3, 45, 48)
+            else if (weatherCode === 2 || weatherCode === 3 || weatherCode === 45 || weatherCode === 48) {
+                weatherType = 'cloudy';
+            }
+            // Rainy (51-67, 80-82)
+            else if ((weatherCode >= 51 && weatherCode <= 67) || (weatherCode >= 80 && weatherCode <= 82)) {
+                weatherType = 'rain';
+            }
+            // Snowy (71-77, 85-86) - unlikely in Melbourne but included for completeness
+            else if ((weatherCode >= 71 && weatherCode <= 77) || (weatherCode >= 85 && weatherCode <= 86)) {
+                weatherType = 'snow';
+            }
+            // Thunderstorm (95-99)
+            else if (weatherCode >= 95 && weatherCode <= 99) {
+                weatherType = 'thunderstorm';
+            }
+            
+            // Apply the weather effect
+            if (weatherType !== 'clear') {
+                document.body.classList.add('weather-' + weatherType);
+            }
+            
+            // If it's night, also add the night class regardless of weather
+            if (!isDay && timeBasedEnabled) {
+                document.body.classList.add('time-night');
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching weather data:', error);
+            // Fallback to a random weather if API fails
+            const weatherTypes = ['clear', 'cloudy', 'rain'];
+            const randomWeather = weatherTypes[Math.floor(Math.random() * weatherTypes.length)];
+            
+            if (randomWeather !== 'clear') {
+                document.body.classList.add('weather-' + randomWeather);
+            }
+        });
+}
+
+// Initialize theme when page loads
+document.addEventListener('DOMContentLoaded', initializeTheme);
+</script>
 </html>
