@@ -127,6 +127,24 @@ type GetSettingsRequestMeta struct {
 
 type GetSettingsResponse struct {
 	GithubAccounts []string `json:"github_accounts"`
+	Theme          string   `json:"theme,omitempty"` // Added Theme field
+}
+
+type PutSettingsRequest struct {
+	Meta PutSettingsRequestMeta `meta:"meta" json:"-"`
+	Data PutSettingsData        `json:"data"`
+}
+
+type PutSettingsData struct {
+	Theme string `json:"theme"`
+}
+
+type PutSettingsRequestMeta struct {
+	UserID int `meta:"user_id"`
+}
+
+type PutSettingsResponse struct {
+	Message string `json:"message,omitempty"` // Optional: confirmation message
 }
 
 type GetSecretRequest struct {

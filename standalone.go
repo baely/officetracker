@@ -27,7 +27,7 @@ func main() {
 		},
 	}
 
-	db, err := database.NewSQLiteClient(cfg.SQLite)
+	db, err := database.NewSQLiteClient(cfg.SQLite, cfg) // Pass cfg as AppConfigurer
 	if err != nil {
 		panic(err)
 	}
