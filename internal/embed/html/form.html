@@ -1,5 +1,11 @@
 {{ template "base.html" . }}
 {{ define "nav" }}{{ template "loggedin.html" }}{{ end }}
+{{ define "postheader" }}
+<section class="notification">
+    <h3>New Feature: Custom Themes!</h3>
+    <p>We've added exciting new theme options to enhance your experience. Visit your <a href="/settings">Settings</a> page to try out the new dark mode and dynamic city skyline theme with real-time Melbourne weather.</p>
+</section>
+{{ end }}
 {{ define "content" }}
 <div id="calendar-nav">
     <button id="prev-month">Previous</button>
