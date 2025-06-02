@@ -387,3 +387,41 @@ func (p *postgres) readWriteTransaction(fn func(*sql.Tx) error) error {
 	}
 	return p.rcvTx(fn, opts)
 }
+
+func (p *postgres) GetThemePreferences(userID int) (model.ThemePreferences, error) {
+	q := `SELECT theme, weather_enabled, time_based_enabled, location FROM user_preferences WHERE user_id = $1;`
+	var prefs model.ThemePreferences
+	
+	err := p.readOnlyTransaction(func(tx *sql.Tx) error {
+		row := tx.QueryRow(q, userID)
+		var location sql.NullString
+		err := row.Scan(&prefs.Theme, &prefs.WeatherEnabled, &prefs.TimeBasedEnabled, &location)
+		if errors.Is(err, sql.ErrNoRows) {
+			// Return default values if no preferences exist
+			prefs = model.ThemePreferences{
+				Theme:            "default",
+				WeatherEnabled:   false,
+				TimeBasedEnabled: false,
+			}
+			return nil
+		}
+		if location.Valid {
+			prefs.Location = location.String
+		}
+		return err
+	})
+	
+	return prefs, err
+}
+
+func (p *postgres) SaveThemePreferences(userID int, prefs model.ThemePreferences) error {
+	q := `INSERT INTO user_preferences (user_id, theme, weather_enabled, time_based_enabled, location)
+		  VALUES ($1, $2, $3, $4, $5)
+		  ON CONFLICT (user_id)
+		  DO UPDATE SET theme = $2, weather_enabled = $3, time_based_enabled = $4, location = $5;`
+	
+	return p.readWriteTransaction(func(tx *sql.Tx) error {
+		_, err := tx.Exec(q, userID, prefs.Theme, prefs.WeatherEnabled, prefs.TimeBasedEnabled, prefs.Location)
+		return err
+	})
+}

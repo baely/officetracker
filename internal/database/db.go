@@ -28,5 +28,8 @@ type Databaser interface {
 	UpdateUser(userID int, ghID string, username string) error
 	UpdateUserGithub(userID int, ghID string, username string) error
 
+	GetThemePreferences(userID int) (model.ThemePreferences, error)
+	SaveThemePreferences(userID int, prefs model.ThemePreferences) error
+
 	SaveSecret(userID int, secret string) error
 }
