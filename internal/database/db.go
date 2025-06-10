@@ -34,6 +34,4 @@ type Databaser interface {
 	SaveSecret(userID int, secret string) error
 
 	IsUserSuspended(userID int) (bool, error)
-	SuspendUser(userID int) error
-	UnsuspendUser(userID int) error
 }

@@ -439,19 +439,3 @@ func (p *postgres) IsUserSuspended(userID int) (bool, error) {
 	})
 	return suspended, err
 }
-
-func (p *postgres) SuspendUser(userID int) error {
-	q := `UPDATE users SET suspended = true WHERE user_id = $1;`
-	return p.readWriteTransaction(func(tx *sql.Tx) error {
-		_, err := tx.Exec(q, userID)
-		return err
-	})
-}
-
-func (p *postgres) UnsuspendUser(userID int) error {
-	q := `UPDATE users SET suspended = false WHERE user_id = $1;`
-	return p.readWriteTransaction(func(tx *sql.Tx) error {
-		_, err := tx.Exec(q, userID)
-		return err
-	})
-}
