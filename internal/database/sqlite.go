@@ -289,6 +289,11 @@ func (s *sqliteClient) SaveThemePreferences(_ int, prefs model.ThemePreferences)
 	return err
 }
 
+func (s *sqliteClient) IsUserSuspended(_ int) (bool, error) {
+	// Standalone mode doesn't support suspension
+	return false, nil
+}
+
 func (s *sqliteClient) initConnection() error {
 	slog.Info(fmt.Sprintf("Connecting to sqlite database: %s", s.cfg.Location))
 	db, err := sql.Open("sqlite3", s.cfg.Location)

@@ -425,3 +425,17 @@ func (p *postgres) SaveThemePreferences(userID int, prefs model.ThemePreferences
 		return err
 	})
 }
+
+func (p *postgres) IsUserSuspended(userID int) (bool, error) {
+	q := `SELECT suspended FROM users WHERE user_id = $1;`
+	var suspended bool
+	err := p.readOnlyTransaction(func(tx *sql.Tx) error {
+		row := tx.QueryRow(q, userID)
+		err := row.Scan(&suspended)
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil
+		}
+		return err
+	})
+	return suspended, err
+}
