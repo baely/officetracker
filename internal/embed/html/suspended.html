@@ -1,0 +1,23 @@
+{{ template "base.html" . }}
+{{ define "title" }}Account Suspended{{ end }}
+{{ define "content" }}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-warning text-dark">
+                    <h4 class="mb-0">Account Suspended</h4>
+                </div>
+                <div class="card-body">
+                    <p class="lead">Your account has been suspended.</p>
+                    <p>If you believe this is an error, please contact support.</p>
+                    <hr>
+                    <p class="text-muted">
+                        <small>You will not be able to access your account until the suspension is lifted.</small>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{{ end }}

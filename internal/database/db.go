@@ -32,4 +32,8 @@ type Databaser interface {
 	SaveThemePreferences(userID int, prefs model.ThemePreferences) error
 
 	SaveSecret(userID int, secret string) error
+
+	IsUserSuspended(userID int) (bool, error)
+	SuspendUser(userID int) error
+	UnsuspendUser(userID int) error
 }

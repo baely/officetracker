@@ -88,6 +88,16 @@ func servePrivacy(w http.ResponseWriter, r *http.Request, page privacyPage) {
 	}
 }
 
+type suspendedPage struct {
+}
+
+func serveSuspended(w http.ResponseWriter, r *http.Request, page suspendedPage) {
+	if err := embed.Suspended.Execute(w, page); err != nil {
+		err = fmt.Errorf("failed to execute suspended template: %w", err)
+		errorPage(w, err, internalErrorMsg, http.StatusInternalServerError)
+	}
+}
+
 type ErrorPage struct {
 	ErrorMessage string
 }

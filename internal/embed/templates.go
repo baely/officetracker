@@ -17,6 +17,7 @@ var (
 	Developer = template.Must(template.ParseFS(templates, "html/bases/*", "html/developer.html"))
 	Tos       = template.Must(template.ParseFS(templates, "html/bases/*", "html/tos.html"))
 	Privacy   = template.Must(template.ParseFS(templates, "html/bases/*", "html/privacy.html"))
+	Suspended = template.Must(template.ParseFS(templates, "html/bases/*", "html/suspended.html"))
 	Error     = template.Must(template.ParseFS(templates, "html/bases/*", "html/error.html"))
 )
 
