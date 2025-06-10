@@ -1,23 +1,20 @@
 {{ template "base.html" . }}
 {{ define "title" }}Account Suspended{{ end }}
 {{ define "content" }}
-<div class="container mt-5">
-    <div class="row justify-content-center">
-        <div class="col-md-8">
-            <div class="card">
-                <div class="card-header bg-warning text-dark">
-                    <h4 class="mb-0">Account Suspended</h4>
-                </div>
-                <div class="card-body">
-                    <p class="lead">Your account has been suspended.</p>
-                    <p>If you believe this is an error, please contact support.</p>
-                    <hr>
-                    <p class="text-muted">
-                        <small>You will not be able to access your account until the suspension is lifted.</small>
-                    </p>
-                </div>
-            </div>
-        </div>
-    </div>
+<div class="section">
+    <p>Your access to Officetracker has been suspended due to a violation of our Terms of Service.</p>
+    <h3>What this means</h3>
+    <ul>
+        <li>You are no longer able to access your account or use our services</li>
+        <li>This suspension may be temporary or permanent depending on the nature of the violation</li>
+    </ul>
+    <h3>Common reasons for suspension include</h3>
+    <ul>
+        <li>Violation of our Terms of Service</li>
+        <li>Misuse of our platform or services</li>
+        <li>Security concerns</li>
+    </ul>
+    <h3>Think this was a mistake?</h3>
+    <p>If you believe your account was suspended in error, you may contact our support team at <a href="mailto:support@iwasintheoffice.com">support@iwasintheoffice.com</a> with your account details and an explanation. Please note that not all suspension decisions can be reversed.</p>
 </div>
 {{ end }}
