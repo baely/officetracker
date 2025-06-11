@@ -42,24 +42,30 @@ func NewServer(cfg config.AppConfigurer, db database.Databaser, redis *database.
 
 	r := chi.NewMux().With(Otel, injectAuth(db, cfg), s.logRequest)
 
-	// Form routes
-	r.Get("/", s.handleIndex)
-	r.Get("/{year:[0-9]{4}}-{month:[0-9]{1,2}}", s.handleForm)
+	// Suspension page (must be accessible to suspended users)
+	r.Get("/suspended", s.handleSuspended)
 
-	// API routes
-	r.Route("/api/v1", apiRouter(s.v1))
+	// Form routes (protected by suspension check)
+	r.With(checkSuspension(db)).Get("/", s.handleIndex)
+	r.With(checkSuspension(db)).Get("/{year:[0-9]{4}}-{month:[0-9]{1,2}}", s.handleForm)
+
+	// API routes (protected by suspension check)
+	r.Route("/api/v1", func(r chi.Router) {
+		r.Use(checkSuspension(db))
+		apiRouter(s.v1)(r)
+	})
 
 	// Integrated app routes
 	switch integratedCfg := cfg.(type) {
 	case config.IntegratedApp:
-		// Auth routes
+		// Auth routes (not protected by suspension check to allow login/logout)
 		r.Route("/auth", auth.Router(integratedCfg, s.db, s.redis))
 		r.Get("/login", s.handleLogin)
 		r.Get("/logout", s.handleLogout)
-		// Cool stuff
-		r.Get("/settings", s.handleSettings)
-		r.Get("/developer", s.handleDeveloper)
-		// Boring stuff
+		// Cool stuff (protected by suspension check)
+		r.With(checkSuspension(db)).Get("/settings", s.handleSettings)
+		r.With(checkSuspension(db)).Get("/developer", s.handleDeveloper)
+		// Boring stuff (not protected by suspension check)
 		r.Get("/tos", s.handleTos)
 		r.Get("/privacy", s.handlePrivacy)
 	}
@@ -238,8 +244,9 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 	}
 
 	serveSettings(w, r, settingsPage{
-		GithubAccounts: settings.GithubAccounts,
-		GithubAuthURL:  authURL,
+		GithubAccounts:   settings.GithubAccounts,
+		GithubAuthURL:    authURL,
+		ThemePreferences: settings.ThemePreferences,
 	})
 }
 
@@ -265,6 +272,10 @@ func (s *Server) handlePrivacy(w http.ResponseWriter, r *http.Request) {
 	servePrivacy(w, r, privacyPage{})
 }
 
+func (s *Server) handleSuspended(w http.ResponseWriter, r *http.Request) {
+	serveSuspended(w, r, suspendedPage{})
+}
+
 func (s *Server) handleNotFound(w http.ResponseWriter, r *http.Request) {
 	errorPage(w, nil, "Not found", http.StatusNotFound)
 }
@@ -279,5 +290,10 @@ func staticHandler(r chi.Router) {
 		w.Header().Set("Content-Type", "image/png")
 		w.Header().Set("Cache-Control", "public, max-age=604800, immutable")
 		w.Write(embed.OfficeBuilding)
+	})
+	r.Get("/themes.css", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/css")
+		w.Header().Set("Cache-Control", "public, max-age=604800, immutable")
+		w.Write(embed.ThemesCSS)
 	})
 }

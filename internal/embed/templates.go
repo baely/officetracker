@@ -17,6 +17,7 @@ var (
 	Developer = template.Must(template.ParseFS(templates, "html/bases/*", "html/developer.html"))
 	Tos       = template.Must(template.ParseFS(templates, "html/bases/*", "html/tos.html"))
 	Privacy   = template.Must(template.ParseFS(templates, "html/bases/*", "html/privacy.html"))
+	Suspended = template.Must(template.ParseFS(templates, "html/bases/*", "html/suspended.html"))
 	Error     = template.Must(template.ParseFS(templates, "html/bases/*", "html/error.html"))
 )
 
@@ -27,6 +28,9 @@ var (
 
 	//go:embed static/office-building.png
 	OfficeBuilding []byte
+
+	//go:embed static/themes.css
+	ThemesCSS []byte
 
 	//go:embed html/setup_old.html
 	Setup []byte

@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/baely/officetracker/internal/embed"
+	"github.com/baely/officetracker/pkg/model"
 )
 
 type formPage struct {
@@ -46,8 +47,9 @@ func serveLogin(w http.ResponseWriter, r *http.Request, page loginPage) {
 }
 
 type settingsPage struct {
-	GithubAccounts []string
-	GithubAuthURL  string
+	GithubAccounts   []string
+	GithubAuthURL    string
+	ThemePreferences model.ThemePreferences
 }
 
 func serveSettings(w http.ResponseWriter, r *http.Request, page settingsPage) {
@@ -82,6 +84,16 @@ type privacyPage struct {
 func servePrivacy(w http.ResponseWriter, r *http.Request, page privacyPage) {
 	if err := embed.Privacy.Execute(w, page); err != nil {
 		err = fmt.Errorf("failed to execute privacy template: %w", err)
+		errorPage(w, err, internalErrorMsg, http.StatusInternalServerError)
+	}
+}
+
+type suspendedPage struct {
+}
+
+func serveSuspended(w http.ResponseWriter, r *http.Request, page suspendedPage) {
+	if err := embed.Suspended.Execute(w, page); err != nil {
+		err = fmt.Errorf("failed to execute suspended template: %w", err)
 		errorPage(w, err, internalErrorMsg, http.StatusInternalServerError)
 	}
 }

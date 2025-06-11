@@ -56,6 +56,7 @@ func settingsRouter(service *v1.Service) func(router chi.Router) {
 	middlewares := []func(handler http.Handler) http.Handler{AllowedAuthMethods(auth.MethodSSO)}
 	return func(r chi.Router) {
 		r.With(middlewares...).Method(http.MethodGet, "/", wrap(service.GetSettings))
+		r.With(middlewares...).Method(http.MethodPut, "/theme", wrap(service.UpdateThemePreferences))
 	}
 }
 
