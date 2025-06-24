@@ -17,6 +17,8 @@ jobs:
         uses: actions/checkout@v4
       - name: Run Smoke Test
         run: |
+          cp ./config/sample.env ./config/local.env
+
           docker compose up --build -d
 
           echo "Waiting for health checks..."
