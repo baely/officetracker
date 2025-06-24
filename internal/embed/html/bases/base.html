@@ -25,33 +25,6 @@
             background-color: #fc0;
             margin: 0px -48px 0;
             padding: 32px 48px 32px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        .notification-content {
-            flex: 1;
-        }
-        
-        .dismiss-btn {
-            background: none;
-            border: none;
-            cursor: pointer;
-            font-size: 24px;
-            font-weight: bold;
-            color: #333;
-            padding: 0;
-            margin-left: 16px;
-            opacity: 0.7;
-        }
-        
-        .dismiss-btn:hover {
-            opacity: 1;
-        }
-        
-        .notification.hidden {
-            display: none;
         }
 
         .github-btn {
@@ -226,12 +199,6 @@
         {{block "nav" .}}{{end}}
     </nav>
     {{ block "postheader" .}}{{end}}
-    <section class="notification" id="website-banner">
-        <div class="notification-content">
-            We have updated our Terms of Service to clarify service access policies. By continuing to use the Service, you agree to these updated terms. You can review the terms at <a href="/tos">https://iwasintheoffice.com/tos</a>
-        </div>
-        <button class="dismiss-btn" onclick="dismissBanner()" aria-label="Dismiss notification">&times;</button>
-    </section>
     <h2>{{block "title" .}}{{end}}</h2>
     <section>{{block "content" .}}{{end}}<section>
 </main>
@@ -390,35 +357,7 @@ function fetchMelbourneWeather(timeBasedEnabled) {
         });
 }
 
-// Banner management
-function dismissBanner() {
-    const banner = document.getElementById('website-banner');
-    banner.classList.add('hidden');
-    
-    // Set cookie to remember dismissal for 30 days
-    const expiryDate = new Date();
-    expiryDate.setTime(expiryDate.getTime() + (30 * 24 * 60 * 60 * 1000));
-    document.cookie = "banner_dismissed=true; expires=" + expiryDate.toUTCString() + "; path=/; SameSite=Lax";
-}
-
-function checkBannerDismissal() {
-    const cookies = document.cookie.split(';');
-    const bannerDismissed = cookies.some(cookie => 
-        cookie.trim().startsWith('banner_dismissed=true')
-    );
-    
-    if (bannerDismissed) {
-        const banner = document.getElementById('website-banner');
-        if (banner) {
-            banner.classList.add('hidden');
-        }
-    }
-}
-
 // Initialize theme when page loads
-document.addEventListener('DOMContentLoaded', function() {
-    initializeTheme();
-    checkBannerDismissal();
-});
+document.addEventListener('DOMContentLoaded', initializeTheme);
 </script>
 </html>
