@@ -98,4 +98,4 @@ For bugs, questions, and discussions please use the GitHub Issues.
 
 ## Live Demo
 
-Try it out at [https://iwasintheoffice.com](https://iwasintheoffice.com)
+Try it out at [https://officetracker.com.au](https://officetracker.com.au)

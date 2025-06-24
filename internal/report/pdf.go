@@ -96,7 +96,7 @@ func (p *PDF) addCoverPage() {
 
 	p.SetY(-45)
 	p.SetFont("Arial", "I", 8)
-	p.Cell(0, 10, "Disclaimer: This report is based on self-reported data submitted through https://iwasintheoffice.com and has been automatically generated.")
+	p.Cell(0, 10, "Disclaimer: This report is based on self-reported data submitted through https://officetracker.com.au and has been automatically generated.")
 
 	for month := range getMonths(p.start, p.end) {
 		p.addMonthPage(month)
