@@ -1,0 +1,34 @@
+name: Smokescreen
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  smoke:
+    name: "Smoke Test"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Run Smoke Test
+        run: |
+          docker compose up --build -d
+
+          echo "Waiting for health checks..."
+          while docker compose ps | grep -q "starting"; do
+            sleep 5
+          done
+
+          if curl -f http://localhost:8080/api/v1/health/check; then
+            echo "API service is healthy!"
+          else
+            echo "API service is not healthy!"
+            exit 1
+          fi
+          
+          docker compose down
