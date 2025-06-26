@@ -40,7 +40,7 @@ func NewServer(cfg config.AppConfigurer, db database.Databaser, redis *database.
 		v1:    v1.New(db, reporter),
 	}
 
-	r := chi.NewMux().With(Otel, injectAuth(db, cfg), s.logRequest)
+	r := chi.NewMux().With(Otel, securityHeaders, injectAuth(db, cfg), s.logRequest)
 
 	// Suspension page (must be accessible to suspended users)
 	r.Get("/suspended", s.handleSuspended)

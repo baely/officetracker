@@ -101,7 +101,8 @@ func issueToken(cfg config.IntegratedApp, w http.ResponseWriter, userID int) err
 		Expires:  time.Now().Add(loginExpiration),
 		Domain:   util.QualifiedDomain(cfg.Domain),
 		HttpOnly: true,
-		Secure:   false,
+		Secure:   domain != "localhost" && domain != "", // Secure on non-localhost
+		SameSite: http.SameSiteLaxMode, // CSRF protection
 	}
 	//slog.Info(fmt.Sprintf("Issuing cookie for user %d", userID))
 	slog.Info("minted new jwt", "userID", userID)

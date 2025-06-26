@@ -70,14 +70,20 @@ func SSOUri(cfg config.IntegratedApp, redis *database.Redis) (string, error) {
 }
 
 func ClearCookie(cfg config.IntegratedApp, w http.ResponseWriter) {
+	domain := util.QualifiedDomain(cfg.Domain)
+	if domain == "localhost" {
+		domain = ""
+	}
+	
 	http.SetCookie(w, &http.Cookie{
 		Name:     userCookie,
 		Value:    "",
 		Path:     util.BasePath(cfg.Domain),
 		Expires:  time.Unix(0, 0),
-		Domain:   util.QualifiedDomain(cfg.Domain),
+		Domain:   domain,
 		HttpOnly: true,
-		Secure:   false,
+		Secure:   domain != "localhost" && domain != "", // Secure on non-localhost
+		SameSite: http.SameSiteLaxMode, // CSRF protection
 	})
 }
 
