@@ -206,7 +206,12 @@ func (s *Server) handleHero(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	cfg := s.cfg.(config.IntegratedApp)
-	ssoUri := auth.SSOUri(cfg)
+	ssoUri, err := auth.SSOUri(cfg, s.redis)
+	if err != nil {
+		slog.Error(fmt.Sprintf("failed to generate SSO URI: %v", err))
+		errorPage(w, err, internalErrorMsg, http.StatusInternalServerError)
+		return
+	}
 	serveLogin(w, r, loginPage{
 		SSOLink: ssoUri,
 	})

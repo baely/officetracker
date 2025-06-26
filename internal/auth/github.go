@@ -47,13 +47,26 @@ func ghOauthCfg(cfg config.IntegratedApp) *oauth2.Config {
 	}
 }
 
-func SSOUri(cfg config.IntegratedApp) string {
+func SSOUri(cfg config.IntegratedApp, redis *database.Redis) (string, error) {
 	if cfg.App.Demo {
-		return "/auth/demo"
+		return "/auth/demo", nil
 	}
 
-	state := "state"
-	return ghOauthCfg(cfg).AuthCodeURL(state)
+	// Generate a secure random state using crypto/rand
+	stateBytes := make([]byte, 32)
+	if _, err := rand.Read(stateBytes); err != nil {
+		return "", fmt.Errorf("failed to generate state: %v", err)
+	}
+	state := base64.URLEncoding.EncodeToString(stateBytes)
+
+	// Store the state in Redis with 0 as userID (new user), expiring in 10 minutes
+	key := fmt.Sprintf("github:state:%s", state)
+	err := redis.SetState(context.Background(), key, 0, 10*time.Minute)
+	if err != nil {
+		return "", fmt.Errorf("failed to store state: %v", err)
+	}
+
+	return ghOauthCfg(cfg).AuthCodeURL(state), nil
 }
 
 func ClearCookie(cfg config.IntegratedApp, w http.ResponseWriter) {
@@ -122,21 +135,22 @@ func handleGithubCallback(cfg config.IntegratedApp, db database.Databaser, redis
 		}
 
 		state := r.URL.Query().Get("state")
-		var existingUserID int
-		var err error
-
-		// If state exists, validate it's a linking flow
-		if state != "state" {
-			key := fmt.Sprintf("github:state:%s", state)
-			existingUserID, err = redis.GetStateInt(r.Context(), key)
-			if err != nil {
-				slog.Error(fmt.Sprintf("invalid or expired state: %v", err))
-				http.Redirect(w, r, "/login", http.StatusTemporaryRedirect)
-				return
-			}
-			// Delete the state key since it's been used
-			_ = redis.DeleteState(r.Context(), key)
+		if state == "" {
+			slog.Error("no state provided")
+			http.Redirect(w, r, "/login", http.StatusTemporaryRedirect)
+			return
 		}
+
+		// Validate state for all flows
+		key := fmt.Sprintf("github:state:%s", state)
+		existingUserID, err := redis.GetStateInt(r.Context(), key)
+		if err != nil {
+			slog.Error(fmt.Sprintf("invalid or expired state: %v", err))
+			http.Redirect(w, r, "/login", http.StatusTemporaryRedirect)
+			return
+		}
+		// Delete the state key since it's been used
+		_ = redis.DeleteState(r.Context(), key)
 
 		token, err := ghOauthCfg(cfg).Exchange(r.Context(), code)
 		if err != nil {
