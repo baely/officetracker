@@ -1,0 +1,19 @@
+name: Auto-approve PRs when baely-bot approves
+on:
+  pull_request_review:
+    types: [submitted]
+
+permissions:
+  pull-requests: write
+  contents: read
+
+jobs:
+  auto-approve:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.review.user.login == 'baely-bot[bot]' && github.event.review.state == 'approved' }}
+    steps:
+      - name: Auto-approve PR
+        uses: hmarr/auto-approve-action@v4
+        with:
+          github-token: ${{ secrets.APPROVER_PAT }}
+
