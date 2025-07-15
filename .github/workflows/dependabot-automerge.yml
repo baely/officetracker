@@ -19,7 +19,7 @@ jobs:
       - uses: actions/create-github-app-token@v2
         id: app-token
         with:
-          app-id: ${{ vars.APP_ID }}
+          app-id: '1609696'
           private-key: ${{ secrets.APP_KEY }}
           
       - name: Auto-approve PRs
