@@ -36,11 +36,13 @@ func (i *Service) McpGetMonth(ctx context.Context, cc *mcp.ServerSession, params
 
 	res := &mcp.CallToolResultFor[model.McpGetMonthResponse]{
 		Content: []mcp.Content{
-			&mcp.TextContent{Text: ""},
+			&mcp.TextContent{Text: "Officetracker state successfully fetched"},
 		},
+		StructuredContent: mapGetResp(data),
 	}
 
-	res.StructuredContent = mapGetResp(data)
+	fmt.Println(data.Data.Days)
+	fmt.Println(res.StructuredContent.Dates)
 
 	return res, nil
 }
@@ -74,10 +76,10 @@ func (i *Service) McpSetDay(ctx context.Context, cc *mcp.ServerSession, params *
 
 func mapGetResp(data model.GetMonthResponse) model.McpGetMonthResponse {
 	resp := model.McpGetMonthResponse{
-		Dates: make([]struct {
+		Dates: []struct {
 			Date  int
 			State string
-		}, len(data.Data.Days)),
+		}{},
 	}
 
 	for date, state := range data.Data.Days {
