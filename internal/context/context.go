@@ -1,6 +1,7 @@
 package context
 
 import (
+	"context"
 	"net/http"
 )
 
@@ -12,12 +13,15 @@ const (
 	CtxAuthMethodKey = "auth"
 )
 
-func GetCtxValue(r *http.Request) CtxValue {
-	ctx := r.Context()
+func MapCtx(ctx context.Context) CtxValue {
 	if v, ok := ctx.Value(CtxKey).(CtxValue); ok {
 		return v
 	}
 	return CtxValue{}
+}
+
+func GetCtxValue(r *http.Request) CtxValue {
+	return MapCtx(r.Context())
 }
 
 func (c CtxValue) Set(key string, val interface{}) CtxValue {

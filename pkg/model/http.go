@@ -76,6 +76,27 @@ type PutDayRequestMeta struct {
 type PutDayResponse struct {
 }
 
+type McpGetMonthRequest struct {
+	Year  int
+	Month int
+}
+
+type McpGetMonthResponse struct {
+	Dates []struct {
+		Date  int
+		State string
+	}
+}
+
+type McpPutDayRequest struct {
+	Year  int
+	Month int
+	Date  int
+	State string
+}
+
+type McpPutDayResponse struct{}
+
 type GetNoteRequest struct {
 	Meta GetNoteRequestMeta `meta:"meta" json:"-"`
 }
@@ -133,7 +154,7 @@ type ThemePreferences struct {
 }
 
 type GetSettingsResponse struct {
-	GithubAccounts   []string        `json:"github_accounts"`
+	GithubAccounts   []string         `json:"github_accounts"`
 	ThemePreferences ThemePreferences `json:"theme_preferences"`
 }
 
@@ -146,7 +167,7 @@ type UpdateThemePreferencesRequestMeta struct {
 	UserID int `meta:"user_id"`
 }
 
-type UpdateThemePreferencesResponse struct {}
+type UpdateThemePreferencesResponse struct{}
 
 type GetSecretRequest struct {
 	Meta GetSecretRequestMeta `meta:"meta" json:"-"`

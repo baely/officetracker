@@ -55,6 +55,11 @@ func NewServer(cfg config.AppConfigurer, db database.Databaser, redis *database.
 		apiRouter(s.v1)(r)
 	})
 
+	r.Route("/mcp/v1", func(r chi.Router) {
+		r.Use(checkSuspension(db))
+		mcpRouter(s.v1)(r)
+	})
+
 	// Integrated app routes
 	switch integratedCfg := cfg.(type) {
 	case config.IntegratedApp:
