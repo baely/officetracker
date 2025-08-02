@@ -12,6 +12,7 @@ A web application designed to track compliance with Return-to-Office (RTO) manda
 - 🔐 GitHub OAuth authentication (in integrated mode)
 - 🚀 Multiple deployment options (standalone or integrated)
 - 🐳 Docker support for easy deployment
+- 🤖 Model Context Protocol (MCP) support for AI assistant integration
 
 ## Deployment Options
 
@@ -76,6 +77,27 @@ Example:
 ```shell
 ./officetracker -port 1234 -database mydb.db
 ```
+
+## Model Context Protocol (MCP) Integration
+
+Office Tracker includes built-in MCP server support, allowing AI assistants like Claude to interact with your office tracking data. The MCP endpoint is available at `/mcp/v1/`.
+
+### Available MCP Tools
+
+- **get_month**: Retrieve office attendance data for a specific month
+- **set_day**: Update office attendance for a specific date
+
+### Supported States
+
+The following attendance states are supported:
+- `Untracked`: No attendance data recorded
+- `WorkFromHome`: Working from home
+- `WorkFromOffice`: Working from office
+- `Other`: Other work arrangement
+
+### Authentication
+
+MCP endpoints require API token authentication for secure access.
 
 ## Development
 
