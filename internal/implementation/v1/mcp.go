@@ -2,6 +2,7 @@ package v1
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 
@@ -41,8 +42,15 @@ func (i *Service) McpGetMonth(ctx context.Context, cc *mcp.ServerSession, params
 		StructuredContent: mapGetResp(data),
 	}
 
-	fmt.Println(data.Data.Days)
-	fmt.Println(res.StructuredContent.Dates)
+	// sometimes LLM isn't aware of the structured content.
+	// temp fix to dump structured content as a text content too.
+	b, err := json.Marshal(res.StructuredContent)
+	if err != nil {
+		return nil, err
+	}
+	res.Content = append(res.Content, &mcp.TextContent{
+		Text: string(b),
+	})
 
 	return res, nil
 }
