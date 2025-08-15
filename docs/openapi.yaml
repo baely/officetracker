@@ -1,0 +1,802 @@
+openapi: 3.0.3
+info:
+  title: OfficeTracker API
+  description: API for tracking office attendance and managing user settings
+  version: 1.0.0
+  contact:
+    name: OfficeTracker
+    url: https://github.com/baely/officetracker
+
+servers:
+  - url: /api/v1
+    description: API v1
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: auth_token
+
+  schemas:
+    State:
+      type: integer
+      enum: [0, 1, 2, 3]
+      description: |
+        Attendance state:
+        - 0: Untracked
+        - 1: WorkFromHome  
+        - 2: WorkFromOffice
+        - 3: Other
+
+    DayState:
+      type: object
+      properties:
+        state:
+          $ref: '#/components/schemas/State'
+      required:
+        - state
+
+    MonthState:
+      type: object
+      properties:
+        days:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/DayState'
+          description: Map of day numbers to day states
+      required:
+        - days
+
+    YearState:
+      type: object
+      properties:
+        months:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/MonthState'
+          description: Map of month numbers to month states
+      required:
+        - months
+
+    Note:
+      type: object
+      properties:
+        note:
+          type: string
+          description: Text note for the month
+      required:
+        - note
+
+    ThemePreferences:
+      type: object
+      properties:
+        theme:
+          type: string
+          description: Theme name
+        weather_enabled:
+          type: boolean
+          description: Whether weather-based theme is enabled
+        time_based_enabled:
+          type: boolean
+          description: Whether time-based theme is enabled
+        location:
+          type: string
+          description: Location for weather (optional)
+      required:
+        - theme
+        - weather_enabled
+        - time_based_enabled
+
+    Error:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: HTTP status code
+        message:
+          type: string
+          description: Error message
+      required:
+        - code
+        - message
+
+security:
+  - bearerAuth: []
+  - cookieAuth: []
+
+paths:
+  /state/{year}:
+    get:
+      summary: Get year state
+      description: Retrieve attendance state for an entire year
+      parameters:
+        - name: year
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1900
+            maximum: 2100
+          description: Year (e.g., 2024)
+      responses:
+        '200':
+          description: Year state retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/YearState'
+                required:
+                  - data
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /state/{year}/{month}:
+    get:
+      summary: Get month state
+      description: Retrieve attendance state for a specific month
+      parameters:
+        - name: year
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1900
+            maximum: 2100
+          description: Year (e.g., 2024)
+        - name: month
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 12
+          description: Month (1-12)
+      responses:
+        '200':
+          description: Month state retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/MonthState'
+                required:
+                  - data
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      summary: Update month state
+      description: Update attendance state for an entire month
+      parameters:
+        - name: year
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1900
+            maximum: 2100
+          description: Year (e.g., 2024)
+        - name: month
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 12
+          description: Month (1-12)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                data:
+                  $ref: '#/components/schemas/MonthState'
+              required:
+                - data
+      responses:
+        '200':
+          description: Month state updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /state/{year}/{month}/{day}:
+    get:
+      summary: Get day state
+      description: Retrieve attendance state for a specific day
+      parameters:
+        - name: year
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1900
+            maximum: 2100
+          description: Year (e.g., 2024)
+        - name: month
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 12
+          description: Month (1-12)
+        - name: day
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 31
+          description: Day (1-31)
+      responses:
+        '200':
+          description: Day state retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/DayState'
+                required:
+                  - data
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      summary: Update day state
+      description: Update attendance state for a specific day
+      parameters:
+        - name: year
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1900
+            maximum: 2100
+          description: Year (e.g., 2024)
+        - name: month
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 12
+          description: Month (1-12)
+        - name: day
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 31
+          description: Day (1-31)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                data:
+                  $ref: '#/components/schemas/DayState'
+              required:
+                - data
+      responses:
+        '200':
+          description: Day state updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /note/{year}:
+    get:
+      summary: Get all notes for a year
+      description: Retrieve all monthly notes for a specific year
+      parameters:
+        - name: year
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1900
+            maximum: 2100
+          description: Year (e.g., 2024)
+      responses:
+        '200':
+          description: Notes retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    additionalProperties:
+                      $ref: '#/components/schemas/Note'
+                    description: Map of month numbers to notes
+                required:
+                  - data
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /note/{year}/{month}:
+    get:
+      summary: Get note for a month
+      description: Retrieve note for a specific month
+      parameters:
+        - name: year
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1900
+            maximum: 2100
+          description: Year (e.g., 2024)
+        - name: month
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 12
+          description: Month (1-12)
+      responses:
+        '200':
+          description: Note retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Note'
+                required:
+                  - data
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      summary: Update note for a month
+      description: Update or create a note for a specific month
+      parameters:
+        - name: year
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1900
+            maximum: 2100
+          description: Year (e.g., 2024)
+        - name: month
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 12
+          description: Month (1-12)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                data:
+                  $ref: '#/components/schemas/Note'
+              required:
+                - data
+      responses:
+        '200':
+          description: Note updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /settings:
+    get:
+      summary: Get user settings
+      description: Retrieve current user settings including GitHub accounts and theme preferences
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Settings retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  github_accounts:
+                    type: array
+                    items:
+                      type: string
+                    description: List of connected GitHub accounts
+                  theme_preferences:
+                    $ref: '#/components/schemas/ThemePreferences'
+                required:
+                  - github_accounts
+                  - theme_preferences
+        '401':
+          description: Unauthorized - SSO authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /settings/theme:
+    put:
+      summary: Update theme preferences
+      description: Update user's theme preferences
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                data:
+                  $ref: '#/components/schemas/ThemePreferences'
+              required:
+                - data
+      responses:
+        '200':
+          description: Theme preferences updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized - SSO authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /developer/secret:
+    get:
+      summary: Get API secret
+      description: Retrieve API secret for authenticated developers
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Secret retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  secret:
+                    type: string
+                    description: API secret for authentication
+                required:
+                  - secret
+        '401':
+          description: Unauthorized - SSO authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /report/pdf/{year}-attendance:
+    get:
+      summary: Download PDF attendance report
+      description: Generate and download a PDF report of attendance for the specified year
+      parameters:
+        - name: year
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1900
+            maximum: 2100
+          description: Year for the report (e.g., 2024)
+        - name: name
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Custom name for the report
+      responses:
+        '200':
+          description: PDF report generated successfully
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /report/csv/{year}-attendance:
+    get:
+      summary: Download CSV attendance report
+      description: Generate and download a CSV report of attendance for the specified year
+      parameters:
+        - name: year
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1900
+            maximum: 2100
+          description: Year for the report (e.g., 2024)
+      responses:
+        '200':
+          description: CSV report generated successfully
+          content:
+            text/csv:
+              schema:
+                type: string
+                format: binary
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /health/check:
+    get:
+      summary: Health check
+      description: Check if the API is healthy and responsive
+      security: []
+      responses:
+        '200':
+          description: API is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [healthy]
+                    description: Health status
+                required:
+                  - status
+        '500':
+          description: API is unhealthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /health/auth:
+    get:
+      summary: Validate authentication
+      description: Validate that the provided authentication credentials are valid
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Authentication is valid
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [valid]
+                    description: Authentication status
+                required:
+                  - status
+        '401':
+          description: Invalid authentication
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
