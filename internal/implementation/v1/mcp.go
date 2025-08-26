@@ -17,7 +17,7 @@ func (i *Service) McpHandler() http.Handler {
 	}, nil)
 }
 
-func (i *Service) McpGetMonth(ctx context.Context, cc *mcp.ServerSession, req *mcp.CallToolRequest, in *model.McpGetMonthRequest) (*mcp.CallToolResult, *model.McpGetMonthResponse, error) {
+func (i *Service) McpGetMonth(ctx context.Context, req *mcp.CallToolRequest, in *model.McpGetMonthRequest) (*mcp.CallToolResult, *model.McpGetMonthResponse, error) {
 	userID, ok := otctx.MapCtx(ctx).Get(otctx.CtxUserIDKey).(int)
 	if !ok {
 		return &mcp.CallToolResult{IsError: true}, nil, fmt.Errorf("failed to extract user ID from ctx")
@@ -44,7 +44,7 @@ func (i *Service) McpGetMonth(ctx context.Context, cc *mcp.ServerSession, req *m
 	}, &resp, nil
 }
 
-func (i *Service) McpSetDay(ctx context.Context, cc *mcp.ServerSession, req *mcp.CallToolRequest, in *model.McpPutDayRequest) (*mcp.CallToolResult, *model.McpPutDayResponse, error) {
+func (i *Service) McpSetDay(ctx context.Context, req *mcp.CallToolRequest, in *model.McpPutDayRequest) (*mcp.CallToolResult, *model.McpPutDayResponse, error) {
 	userID, ok := otctx.MapCtx(ctx).Get(otctx.CtxUserIDKey).(int)
 	if !ok {
 		return &mcp.CallToolResult{IsError: true}, nil, fmt.Errorf("failed to extract user ID from ctx")
