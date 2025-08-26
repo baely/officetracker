@@ -2,7 +2,6 @@ package v1
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 
@@ -18,68 +17,60 @@ func (i *Service) McpHandler() http.Handler {
 	}, nil)
 }
 
-func (i *Service) McpGetMonth(ctx context.Context, cc *mcp.ServerSession, params *mcp.CallToolParamsFor[model.McpGetMonthRequest]) (*mcp.CallToolResultFor[model.McpGetMonthResponse], error) {
+func (i *Service) McpGetMonth(ctx context.Context, req *mcp.CallToolRequest, in *model.McpGetMonthRequest) (*mcp.CallToolResult, *model.McpGetMonthResponse, error) {
 	userID, ok := otctx.MapCtx(ctx).Get(otctx.CtxUserIDKey).(int)
 	if !ok {
-		return nil, fmt.Errorf("failed to extract user ID from ctx")
+		return &mcp.CallToolResult{IsError: true}, nil, fmt.Errorf("failed to extract user ID from ctx")
 	}
 
 	data, err := i.GetMonth(model.GetMonthRequest{
 		Meta: model.GetMonthRequestMeta{
 			UserID: userID,
-			Year:   params.Arguments.Year,
-			Month:  params.Arguments.Month,
+			Year:   in.Year,
+			Month:  in.Month,
 		},
 	})
 	if err != nil {
-		return nil, err
+		return &mcp.CallToolResult{IsError: true}, nil, err
 	}
 
-	res := &mcp.CallToolResultFor[model.McpGetMonthResponse]{
+	resp := mapGetResp(data)
+
+	return &mcp.CallToolResult{
 		Content: []mcp.Content{
 			&mcp.TextContent{Text: "Officetracker state successfully fetched"},
 		},
-		StructuredContent: mapGetResp(data),
-	}
-
-	// sometimes LLM isn't aware of the structured content.
-	// temp fix to dump structured content as a text content too.
-	b, err := json.Marshal(res.StructuredContent)
-	if err != nil {
-		return nil, err
-	}
-	res.Content = append(res.Content, &mcp.TextContent{
-		Text: string(b),
-	})
-
-	return res, nil
+		IsError: false,
+	}, &resp, nil
 }
 
-func (i *Service) McpSetDay(ctx context.Context, cc *mcp.ServerSession, params *mcp.CallToolParamsFor[model.McpPutDayRequest]) (*mcp.CallToolResultFor[model.McpPutDayResponse], error) {
+func (i *Service) McpSetDay(ctx context.Context, req *mcp.CallToolRequest, in *model.McpPutDayRequest) (*mcp.CallToolResult, *model.McpPutDayResponse, error) {
 	userID, ok := otctx.MapCtx(ctx).Get(otctx.CtxUserIDKey).(int)
 	if !ok {
-		return nil, fmt.Errorf("failed to extract user ID from ctx")
+		return &mcp.CallToolResult{IsError: true}, nil, fmt.Errorf("failed to extract user ID from ctx")
 	}
 
-	req, err := mapPutReq(params.Arguments)
+	if in == nil {
+		return &mcp.CallToolResult{IsError: true}, nil, fmt.Errorf("input is nil")
+	}
+
+	putReq, err := mapPutReq(*in)
 	if err != nil {
-		return nil, err
+		return &mcp.CallToolResult{IsError: true}, nil, err
 	}
 
-	req.Meta.UserID = userID
+	putReq.Meta.UserID = userID
 
-	_, err = i.PutDay(req)
+	_, err = i.PutDay(putReq)
 	if err != nil {
-		return nil, err
+		return &mcp.CallToolResult{IsError: true}, nil, err
 	}
 
-	res := &mcp.CallToolResultFor[model.McpPutDayResponse]{
+	return &mcp.CallToolResult{
 		Content: []mcp.Content{
 			&mcp.TextContent{Text: "Officetracker state successfully updated"},
 		},
-	}
-
-	return res, nil
+	}, &model.McpPutDayResponse{}, nil
 }
 
 func mapGetResp(data model.GetMonthResponse) model.McpGetMonthResponse {
