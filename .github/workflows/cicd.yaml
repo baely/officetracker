@@ -12,9 +12,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Authenticate Google Cloud Platform
-        uses: google-github-actions/auth@v2
+        uses: google-github-actions/auth@v3
         with:
           credentials_json: "${{ secrets.SERVICE_TOKEN }}"
       - name: Build docker image
@@ -40,9 +40,9 @@ jobs:
       - build
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Authenticate Google Cloud Platform
-        uses: google-github-actions/auth@v2
+        uses: google-github-actions/auth@v3
         with:
           credentials_json: "${{ secrets.SERVICE_TOKEN }}"
       - name: Deply Cloud Run
