@@ -252,11 +252,26 @@
 <main>
     <nav>
         <h1><a href="/"><img src="/static/office-building.png" alt="Office building"/>Officetracker</a></h1>
-        {{block "nav" .}}{{end}}
+        <div class="nav-links">
+            {{if .IsLoggedIn}}
+                {{if not .IsStandalone}}<a href="/logout">/logout</a>{{end}}
+                <a href="/settings">/settings</a>
+                {{if not .IsStandalone}}<a href="/developer">/developer</a>{{end}}
+            {{else}}
+                <a href="/login">/login</a>
+            {{end}}
+        </div>
     </nav>
     {{ block "postheader" .}}{{end}}
     <h2>{{block "title" .}}{{end}}</h2>
-    <section>{{block "content" .}}{{end}}<section>
+    <section>{{block "content" .}}{{end}}</section>
+    
+    <footer style="margin-top: 48px; padding: 24px 0; border-top: 1px solid #dee; text-align: center; color: #666;">
+        <p>
+            <a href="/tos" style="margin: 0 8px; color: #666;">Terms of Service</a>
+            <a href="/privacy" style="margin: 0 8px; color: #666;">Privacy Policy</a>
+        </p>
+    </footer>
 </main>
 
 <script>
