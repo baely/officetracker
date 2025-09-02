@@ -7,6 +7,10 @@ const (
 	StateWorkFromHome
 	StateWorkFromOffice
 	StateOther
+	// Scheduled/planned states (lighter versions)
+	StateScheduledWorkFromHome
+	StateScheduledWorkFromOffice
+	StateScheduledOther
 )
 
 type DayState struct {

@@ -60,6 +60,9 @@ func NewServer(cfg config.AppConfigurer, db database.Databaser, redis *database.
 		mcpRouter(s.v1)(r)
 	})
 
+	// Settings available in both standalone and integrated modes
+	r.With(checkSuspension(db)).Get("/settings", s.handleSettings)
+
 	// Integrated app routes
 	switch integratedCfg := cfg.(type) {
 	case config.IntegratedApp:
@@ -68,7 +71,6 @@ func NewServer(cfg config.AppConfigurer, db database.Databaser, redis *database.
 		r.Get("/login", s.handleLogin)
 		r.Get("/logout", s.handleLogout)
 		// Cool stuff (protected by suspension check)
-		r.With(checkSuspension(db)).Get("/settings", s.handleSettings)
 		r.With(checkSuspension(db)).Get("/developer", s.handleDeveloper)
 		// Boring stuff (not protected by suspension check)
 		r.Get("/tos", s.handleTos)
@@ -246,17 +248,28 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cfg := s.cfg.(config.IntegratedApp)
-	authURL, err := auth.GenerateGitHubAuthLink(r.Context(), cfg, s.redis, userID)
-	if err != nil {
-		errorPage(w, fmt.Errorf("failed to generate github auth link: %v", err), internalErrorMsg, http.StatusInternalServerError)
-		return
+	// Handle GitHub auth only for integrated mode
+	var authURL string
+	var githubAccounts []string
+	switch cfg := s.cfg.(type) {
+	case config.IntegratedApp:
+		authURL, err = auth.GenerateGitHubAuthLink(r.Context(), cfg, s.redis, userID)
+		if err != nil {
+			errorPage(w, fmt.Errorf("failed to generate github auth link: %v", err), internalErrorMsg, http.StatusInternalServerError)
+			return
+		}
+		githubAccounts = settings.GithubAccounts
+	default:
+		// Standalone mode - no GitHub integration
+		authURL = ""
+		githubAccounts = []string{}
 	}
 
 	serveSettings(w, r, settingsPage{
-		GithubAccounts:   settings.GithubAccounts,
-		GithubAuthURL:    authURL,
-		ThemePreferences: settings.ThemePreferences,
+		GithubAccounts:      githubAccounts,
+		GithubAuthURL:       authURL,
+		ThemePreferences:    settings.ThemePreferences,
+		SchedulePreferences: settings.SchedulePreferences,
 	})
 }
 

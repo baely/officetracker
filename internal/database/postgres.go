@@ -426,6 +426,50 @@ func (p *postgres) SaveThemePreferences(userID int, prefs model.ThemePreferences
 	})
 }
 
+func (p *postgres) GetSchedulePreferences(userID int) (model.SchedulePreferences, error) {
+	q := `SELECT schedule_monday_state, schedule_tuesday_state, schedule_wednesday_state, schedule_thursday_state, 
+		         schedule_friday_state, schedule_saturday_state, schedule_sunday_state 
+		  FROM user_preferences WHERE user_id = $1;`
+	
+	var prefs model.SchedulePreferences
+	err := p.readOnlyTransaction(func(tx *sql.Tx) error {
+		row := tx.QueryRow(q, userID)
+		err := row.Scan(&prefs.Monday, &prefs.Tuesday, &prefs.Wednesday, &prefs.Thursday,
+			&prefs.Friday, &prefs.Saturday, &prefs.Sunday)
+		if errors.Is(err, sql.ErrNoRows) {
+			// Return default values if no preferences exist
+			prefs = model.SchedulePreferences{
+				Monday:    model.StateUntracked,
+				Tuesday:   model.StateUntracked,
+				Wednesday: model.StateUntracked,
+				Thursday:  model.StateUntracked,
+				Friday:    model.StateUntracked,
+				Saturday:  model.StateUntracked,
+				Sunday:    model.StateUntracked,
+			}
+			return nil
+		}
+		return err
+	})
+	
+	return prefs, err
+}
+
+func (p *postgres) SaveSchedulePreferences(userID int, prefs model.SchedulePreferences) error {
+	q := `INSERT INTO user_preferences (user_id, schedule_monday_state, schedule_tuesday_state, schedule_wednesday_state, 
+		         schedule_thursday_state, schedule_friday_state, schedule_saturday_state, schedule_sunday_state)
+		  VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		  ON CONFLICT (user_id)
+		  DO UPDATE SET schedule_monday_state = $2, schedule_tuesday_state = $3, schedule_wednesday_state = $4,
+		                schedule_thursday_state = $5, schedule_friday_state = $6, schedule_saturday_state = $7, schedule_sunday_state = $8;`
+	
+	return p.readWriteTransaction(func(tx *sql.Tx) error {
+		_, err := tx.Exec(q, userID, int(prefs.Monday), int(prefs.Tuesday), int(prefs.Wednesday),
+			int(prefs.Thursday), int(prefs.Friday), int(prefs.Saturday), int(prefs.Sunday))
+		return err
+	})
+}
+
 func (p *postgres) IsUserSuspended(userID int) (bool, error) {
 	q := `SELECT suspended FROM users WHERE user_id = $1;`
 	var suspended bool

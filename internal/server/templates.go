@@ -47,9 +47,10 @@ func serveLogin(w http.ResponseWriter, r *http.Request, page loginPage) {
 }
 
 type settingsPage struct {
-	GithubAccounts   []string
-	GithubAuthURL    string
-	ThemePreferences model.ThemePreferences
+	GithubAccounts      []string
+	GithubAuthURL       string
+	ThemePreferences    model.ThemePreferences
+	SchedulePreferences model.SchedulePreferences
 }
 
 func serveSettings(w http.ResponseWriter, r *http.Request, page settingsPage) {

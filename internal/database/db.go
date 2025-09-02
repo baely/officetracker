@@ -30,6 +30,8 @@ type Databaser interface {
 
 	GetThemePreferences(userID int) (model.ThemePreferences, error)
 	SaveThemePreferences(userID int, prefs model.ThemePreferences) error
+	GetSchedulePreferences(userID int) (model.SchedulePreferences, error)
+	SaveSchedulePreferences(userID int, prefs model.SchedulePreferences) error
 
 	SaveSecret(userID int, secret string) error
 

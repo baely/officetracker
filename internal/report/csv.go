@@ -20,18 +20,59 @@ func (r *fileReporter) GenerateCSV(userID int, start, end time.Time) ([]byte, er
 		return nil, err
 	}
 
+	// Fetch schedule preferences
+	schedulePrefs, err := r.db.GetSchedulePreferences(userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get schedule preferences: %w", err)
+	}
+
 	var lines []csvLine
 
 	for day := range getDays(start, end) {
 		monthData := report.Get(day.Month(), day.Year())
-		state := monthData.Days[day.Day()].State
+		dayState, exists := monthData.Days[day.Day()]
+		
+		var state model.State
+		if exists {
+			state = dayState.State
+		} else {
+			state = model.StateUntracked
+		}
+
+		// Check if this is a scheduled day that's untracked
+		stateString := getState(state)
+		if state == model.StateUntracked && isScheduledDay(day, schedulePrefs) {
+			stateString = "Scheduled"
+		}
+
 		lines = append(lines, csvLine{
 			Date:  day.Format("2006-01-02"),
-			State: getState(state),
+			State: stateString,
 		})
 	}
 
 	return buildCsv(lines), nil
+}
+
+func isScheduledDay(day time.Time, schedulePrefs model.SchedulePreferences) bool {
+	switch day.Weekday() {
+	case time.Sunday:
+		return schedulePrefs.Sunday != model.StateUntracked
+	case time.Monday:
+		return schedulePrefs.Monday != model.StateUntracked
+	case time.Tuesday:
+		return schedulePrefs.Tuesday != model.StateUntracked
+	case time.Wednesday:
+		return schedulePrefs.Wednesday != model.StateUntracked
+	case time.Thursday:
+		return schedulePrefs.Thursday != model.StateUntracked
+	case time.Friday:
+		return schedulePrefs.Friday != model.StateUntracked
+	case time.Saturday:
+		return schedulePrefs.Saturday != model.StateUntracked
+	default:
+		return false
+	}
 }
 
 func getState(state model.State) string {

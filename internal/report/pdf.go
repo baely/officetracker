@@ -22,10 +22,11 @@ type MonthlySummary struct {
 // PDF represents a PDF document with report data
 type PDF struct {
 	*gofpdf.Fpdf
-	report           Report
-	monthlySummaries map[time.Time]MonthlySummary
-	name             string
-	start, end       time.Time
+	report             Report
+	monthlySummaries   map[time.Time]MonthlySummary
+	schedulePreferences model.SchedulePreferences
+	name               string
+	start, end         time.Time
 }
 
 // GeneratePDF creates a PDF report for the given user and time range
@@ -35,7 +36,13 @@ func (r *fileReporter) GeneratePDF(userID int, name string, start, end time.Time
 		return nil, fmt.Errorf("failed to generate report: %w", err)
 	}
 
-	p := newPDF(report, name, start, end)
+	// Fetch schedule preferences
+	schedulePrefs, err := r.db.GetSchedulePreferences(userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get schedule preferences: %w", err)
+	}
+
+	p := newPDF(report, schedulePrefs, name, start, end)
 	p.addCoverPage()
 
 	var buf bytes.Buffer
@@ -51,7 +58,7 @@ func (r *fileReporter) GeneratePDF(userID int, name string, start, end time.Time
 	return buf.Bytes(), nil
 }
 
-func newPDF(report Report, name string, start, end time.Time) *PDF {
+func newPDF(report Report, schedulePrefs model.SchedulePreferences, name string, start, end time.Time) *PDF {
 	f := gofpdf.New("P", "mm", "A4", "")
 	f.SetMargins(15, 30, 15)
 	f.AliasNbPages("{pages}")
@@ -66,11 +73,12 @@ func newPDF(report Report, name string, start, end time.Time) *PDF {
 	})
 
 	p := &PDF{
-		Fpdf:   f,
-		report: report,
-		name:   name,
-		start:  start,
-		end:    end,
+		Fpdf:               f,
+		report:             report,
+		schedulePreferences: schedulePrefs,
+		name:               name,
+		start:              start,
+		end:                end,
 	}
 	p.generateSummaries()
 	return p
@@ -209,12 +217,56 @@ func (p *PDF) generateSummaries() {
 			}
 		}
 
+		// Count scheduled days that are untracked as expected office days
+		scheduledDays := p.countScheduledDays(month.Year(), month.Month())
+		summary.Total += scheduledDays
+
 		if summary.Total > 0 {
 			summary.Percent = float64(summary.Present) / float64(summary.Total) * 100
 		}
 
 		p.monthlySummaries[month] = summary
 	}
+}
+
+func (p *PDF) countScheduledDays(year int, month time.Month) int {
+	scheduledCount := 0
+	daysInMonth := time.Date(year, month+1, 0, 0, 0, 0, 0, time.UTC).Day()
+	monthState := p.report.Get(month, year)
+
+	for day := 1; day <= daysInMonth; day++ {
+		date := time.Date(year, month, day, 0, 0, 0, 0, time.UTC)
+		dayOfWeek := date.Weekday()
+		
+		// Check if this day is scheduled
+		var isScheduled bool
+		switch dayOfWeek {
+		case time.Sunday:
+			isScheduled = p.schedulePreferences.Sunday != model.StateUntracked
+		case time.Monday:
+			isScheduled = p.schedulePreferences.Monday != model.StateUntracked
+		case time.Tuesday:
+			isScheduled = p.schedulePreferences.Tuesday != model.StateUntracked
+		case time.Wednesday:
+			isScheduled = p.schedulePreferences.Wednesday != model.StateUntracked
+		case time.Thursday:
+			isScheduled = p.schedulePreferences.Thursday != model.StateUntracked
+		case time.Friday:
+			isScheduled = p.schedulePreferences.Friday != model.StateUntracked
+		case time.Saturday:
+			isScheduled = p.schedulePreferences.Saturday != model.StateUntracked
+		}
+
+		// Check if this day is untracked and scheduled
+		if isScheduled {
+			dayState, exists := monthState.Days[day]
+			if !exists || dayState.State == model.StateUntracked {
+				scheduledCount++
+			}
+		}
+	}
+
+	return scheduledCount
 }
 
 func getStatusString(status model.State) string {
