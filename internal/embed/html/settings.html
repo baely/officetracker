@@ -195,9 +195,9 @@
         }
         
         // Cycle through states: Untracked -> Work from Home -> In office -> Other -> Untracked
-        function cycleScheduleState(dayElement) {
+        function cycleScheduleState(dayElement, direction = 1) {
             const currentState = parseInt(dayElement.dataset.state);
-            const nextState = (currentState + 1) % 4;
+            const nextState = (currentState + direction + 4) % 4;
             
             dayElement.dataset.state = nextState;
         }
@@ -213,9 +213,15 @@
                 // Set initial state
                 dayElement.dataset.state = state;
                 
-                // Add click event listener
+                // Add click event listeners
                 dayElement.addEventListener('click', function() {
-                    cycleScheduleState(this);
+                    cycleScheduleState(this, 1);
+                    saveScheduleSettings();
+                });
+                
+                dayElement.addEventListener('contextmenu', function(event) {
+                    event.preventDefault();
+                    cycleScheduleState(this, -1);
                     saveScheduleSettings();
                 });
             });
