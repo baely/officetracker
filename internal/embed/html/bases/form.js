@@ -77,8 +77,6 @@ class Summary {
             stats[state[month + 1][day]] += 1;
         }
         
-        // Scheduled days are now handled by the backend
-        
         this.data[key] = stats;
         this.refreshDOM();
     }
@@ -93,8 +91,6 @@ class Summary {
             for (const [day, state] of Object.entries(vals)) {
                 stats[state] += 1;
             }
-            
-            // Scheduled days are now handled by the backend
             
             this.data[key] = stats;
         }
