@@ -153,9 +153,20 @@ type ThemePreferences struct {
 	Location         string `json:"location,omitempty"`
 }
 
+type SchedulePreferences struct {
+	Monday    State `json:"monday"`
+	Tuesday   State `json:"tuesday"`
+	Wednesday State `json:"wednesday"`
+	Thursday  State `json:"thursday"`
+	Friday    State `json:"friday"`
+	Saturday  State `json:"saturday"`
+	Sunday    State `json:"sunday"`
+}
+
 type GetSettingsResponse struct {
-	GithubAccounts   []string         `json:"github_accounts"`
-	ThemePreferences ThemePreferences `json:"theme_preferences"`
+	GithubAccounts      []string            `json:"github_accounts"`
+	ThemePreferences    ThemePreferences    `json:"theme_preferences"`
+	SchedulePreferences SchedulePreferences `json:"schedule_preferences"`
 }
 
 type UpdateThemePreferencesRequest struct {
@@ -168,6 +179,17 @@ type UpdateThemePreferencesRequestMeta struct {
 }
 
 type UpdateThemePreferencesResponse struct{}
+
+type UpdateSchedulePreferencesRequest struct {
+	Meta UpdateSchedulePreferencesRequestMeta `meta:"meta" json:"-"`
+	Data SchedulePreferences                  `json:"data"`
+}
+
+type UpdateSchedulePreferencesRequestMeta struct {
+	UserID int `meta:"user_id"`
+}
+
+type UpdateSchedulePreferencesResponse struct{}
 
 type GetSecretRequest struct {
 	Meta GetSecretRequestMeta `meta:"meta" json:"-"`

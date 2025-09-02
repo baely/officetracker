@@ -13,13 +13,24 @@ func (i *Service) GetSettings(req model.GetSettingsRequest) (model.GetSettingsRe
 		return model.GetSettingsResponse{}, err
 	}
 	
+	schedulePrefs, err := i.db.GetSchedulePreferences(req.Meta.UserID)
+	if err != nil {
+		return model.GetSettingsResponse{}, err
+	}
+	
 	return model.GetSettingsResponse{
-		GithubAccounts:   accounts,
-		ThemePreferences: themePrefs,
+		GithubAccounts:      accounts,
+		ThemePreferences:    themePrefs,
+		SchedulePreferences: schedulePrefs,
 	}, nil
 }
 
 func (i *Service) UpdateThemePreferences(req model.UpdateThemePreferencesRequest) (model.UpdateThemePreferencesResponse, error) {
 	err := i.db.SaveThemePreferences(req.Meta.UserID, req.Data)
 	return model.UpdateThemePreferencesResponse{}, err
+}
+
+func (i *Service) UpdateSchedulePreferences(req model.UpdateSchedulePreferencesRequest) (model.UpdateSchedulePreferencesResponse, error) {
+	err := i.db.SaveSchedulePreferences(req.Meta.UserID, req.Data)
+	return model.UpdateSchedulePreferencesResponse{}, err
 }

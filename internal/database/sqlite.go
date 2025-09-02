@@ -289,6 +289,112 @@ func (s *sqliteClient) SaveThemePreferences(_ int, prefs model.ThemePreferences)
 	return err
 }
 
+func (s *sqliteClient) GetSchedulePreferences(_ int) (model.SchedulePreferences, error) {
+	// First make sure schedule columns exist
+	q := `ALTER TABLE user_preferences ADD COLUMN schedule_monday_state INTEGER DEFAULT 0;`
+	s.db.Exec(q) // Ignore error in case column already exists
+	q = `ALTER TABLE user_preferences ADD COLUMN schedule_tuesday_state INTEGER DEFAULT 0;`
+	s.db.Exec(q)
+	q = `ALTER TABLE user_preferences ADD COLUMN schedule_wednesday_state INTEGER DEFAULT 0;`
+	s.db.Exec(q)
+	q = `ALTER TABLE user_preferences ADD COLUMN schedule_thursday_state INTEGER DEFAULT 0;`
+	s.db.Exec(q)
+	q = `ALTER TABLE user_preferences ADD COLUMN schedule_friday_state INTEGER DEFAULT 0;`
+	s.db.Exec(q)
+	q = `ALTER TABLE user_preferences ADD COLUMN schedule_saturday_state INTEGER DEFAULT 0;`
+	s.db.Exec(q)
+	q = `ALTER TABLE user_preferences ADD COLUMN schedule_sunday_state INTEGER DEFAULT 0;`
+	s.db.Exec(q)
+	
+	q = `SELECT 
+		COALESCE(schedule_monday_state, 0),
+		COALESCE(schedule_tuesday_state, 0),
+		COALESCE(schedule_wednesday_state, 0),
+		COALESCE(schedule_thursday_state, 0),
+		COALESCE(schedule_friday_state, 0),
+		COALESCE(schedule_saturday_state, 0),
+		COALESCE(schedule_sunday_state, 0)
+		FROM user_preferences LIMIT 1;`
+	
+	row := s.db.QueryRow(q)
+	var prefs model.SchedulePreferences
+	var monday, tuesday, wednesday, thursday, friday, saturday, sunday int
+	
+	err := row.Scan(&monday, &tuesday, &wednesday, &thursday, &friday, &saturday, &sunday)
+	if err != nil {
+		// Return default values if no preferences exist
+		return model.SchedulePreferences{
+			Monday:    model.StateUntracked,
+			Tuesday:   model.StateUntracked,
+			Wednesday: model.StateUntracked,
+			Thursday:  model.StateUntracked,
+			Friday:    model.StateUntracked,
+			Saturday:  model.StateUntracked,
+			Sunday:    model.StateUntracked,
+		}, nil
+	}
+	
+	prefs.Monday = model.State(monday)
+	prefs.Tuesday = model.State(tuesday)
+	prefs.Wednesday = model.State(wednesday)
+	prefs.Thursday = model.State(thursday)
+	prefs.Friday = model.State(friday)
+	prefs.Saturday = model.State(saturday)
+	prefs.Sunday = model.State(sunday)
+	
+	return prefs, nil
+}
+
+func (s *sqliteClient) SaveSchedulePreferences(_ int, prefs model.SchedulePreferences) error {
+	// First make sure schedule columns exist
+	q := `ALTER TABLE user_preferences ADD COLUMN schedule_monday_state INTEGER DEFAULT 0;`
+	s.db.Exec(q) // Ignore error in case column already exists
+	q = `ALTER TABLE user_preferences ADD COLUMN schedule_tuesday_state INTEGER DEFAULT 0;`
+	s.db.Exec(q)
+	q = `ALTER TABLE user_preferences ADD COLUMN schedule_wednesday_state INTEGER DEFAULT 0;`
+	s.db.Exec(q)
+	q = `ALTER TABLE user_preferences ADD COLUMN schedule_thursday_state INTEGER DEFAULT 0;`
+	s.db.Exec(q)
+	q = `ALTER TABLE user_preferences ADD COLUMN schedule_friday_state INTEGER DEFAULT 0;`
+	s.db.Exec(q)
+	q = `ALTER TABLE user_preferences ADD COLUMN schedule_saturday_state INTEGER DEFAULT 0;`
+	s.db.Exec(q)
+	q = `ALTER TABLE user_preferences ADD COLUMN schedule_sunday_state INTEGER DEFAULT 0;`
+	s.db.Exec(q)
+	
+	// Check if any preferences exist
+	q = `SELECT COUNT(*) FROM user_preferences;`
+	row := s.db.QueryRow(q)
+	var count int
+	err := row.Scan(&count)
+	if err != nil {
+		return err
+	}
+	
+	monday := int(prefs.Monday)
+	tuesday := int(prefs.Tuesday)
+	wednesday := int(prefs.Wednesday)
+	thursday := int(prefs.Thursday)
+	friday := int(prefs.Friday)
+	saturday := int(prefs.Saturday)
+	sunday := int(prefs.Sunday)
+	
+	if count == 0 {
+		// Insert new preferences
+		q = `INSERT INTO user_preferences (schedule_monday_state, schedule_tuesday_state, schedule_wednesday_state, 
+		     schedule_thursday_state, schedule_friday_state, schedule_saturday_state, schedule_sunday_state) 
+             VALUES (?, ?, ?, ?, ?, ?, ?);`
+		_, err = s.db.Exec(q, monday, tuesday, wednesday, thursday, friday, saturday, sunday)
+	} else {
+		// Update existing preferences
+		q = `UPDATE user_preferences SET schedule_monday_state = ?, schedule_tuesday_state = ?, schedule_wednesday_state = ?,
+		     schedule_thursday_state = ?, schedule_friday_state = ?, schedule_saturday_state = ?, schedule_sunday_state = ?;`
+		_, err = s.db.Exec(q, monday, tuesday, wednesday, thursday, friday, saturday, sunday)
+	}
+	
+	return err
+}
+
 func (s *sqliteClient) IsUserSuspended(_ int) (bool, error) {
 	// Standalone mode doesn't support suspension
 	return false, nil

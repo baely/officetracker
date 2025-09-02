@@ -111,6 +111,11 @@
         .present { background-color: #4CAF50; }
         .not-present { background-color: #F44336; }
         .other { background-color: #2196F3; }
+        
+        /* Lighter scheduled state styles */
+        .scheduled-home { background-color: #C8E6C9; } /* Light green for scheduled work from home */
+        .scheduled-office { background-color: #FFCDD2; } /* Light red for scheduled in office */
+        .scheduled-other { background-color: #BBDEFB; } /* Light blue for scheduled other */
 
         .today {
             border: 5px solid #FFC107;
@@ -186,6 +191,57 @@
         .checkbox-wrapper input[type="checkbox"] {
             margin: 0;
             margin-right: 0.5rem;
+        }
+        
+        /* Schedule calendar styles */
+        .schedule-container {
+            margin: 1rem 0;
+        }
+        
+        .schedule-container table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .schedule-day {
+            border: 1px solid #dee2e6;
+            padding: 1rem;
+            text-align: center;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            width: calc(100% / 7);
+        }
+        
+        .schedule-day:hover {
+            background-color: #e9ecef;
+        }
+        
+        .schedule-day[data-state="0"] {
+            background-color: #f8f9fa; /* Untracked */
+        }
+        
+        .schedule-day[data-state="1"] {
+            background-color: #4CAF50; /* Work from Home */
+            color: white;
+        }
+        
+        .schedule-day[data-state="2"] {
+            background-color: #F44336; /* In office */
+            color: white;
+        }
+        
+        .schedule-day[data-state="3"] {
+            background-color: #2196F3; /* Other */
+            color: white;
+        }
+        
+        .schedule-day .day-header {
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+        
+        .schedule-day .schedule-state {
+            font-size: 0.85em;
         }
     </style>
 </head>

@@ -1,4 +1,4 @@
-const states = ["untracked", "present", "not present", "other"];
+const states = ["untracked", "present", "not present", "other", "scheduled-present", "scheduled-not-present", "scheduled-other"];
 const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September",
     "October", "November", "December"];
 
@@ -19,7 +19,7 @@ class Summary {
         });
         elem.appendChild(header);
 
-        let allTime = { 0: 0, 1: 0, 2: 0, 3: 0 };
+        let allTime = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
 
         if (this.data == null) { return; }
         let keys = Object.keys(this.data);
@@ -27,8 +27,8 @@ class Summary {
         for (let i = 0; i < keys.length; i++) {
             let key = keys[i];
             let stats = this.data[key];
-            for (let j = 0; j < 4; j++) {
-                allTime[j] += stats[j];
+            for (let j = 0; j < 7; j++) {
+                allTime[j] += (stats[j] || 0);
             }
             let monthYear = key.split("-");
             let month = parseInt(monthYear[1]) - 1;
@@ -40,34 +40,45 @@ class Summary {
             row.appendChild(monthCell);
 
             let presentCell = document.createElement("td");
-            presentCell.textContent = stats[2];
+            // Count actual office days + scheduled office days
+            let actualPresent = stats[2] || 0;
+            let scheduledPresent = stats[5] || 0; // StateScheduledWorkFromOffice
+            presentCell.textContent = actualPresent + scheduledPresent;
             row.appendChild(presentCell);
 
             let totalCell = document.createElement("td");
-            totalCell.textContent = stats[1] + stats[2];
+            // Count all work days (WFH + Office, both actual and scheduled)
+            let totalExpected = (stats[1] || 0) + (stats[2] || 0) + (stats[4] || 0) + (stats[5] || 0);
+            totalCell.textContent = totalExpected;
             row.appendChild(totalCell);
 
             let percentCell = document.createElement("td");
-            percentCell.textContent = (stats[2] / (stats[1] + stats[2]) * 100).toFixed(2) + "%";
+            let percentage = totalExpected > 0 ? ((actualPresent + scheduledPresent) / totalExpected * 100).toFixed(2) : "0.00";
+            percentCell.textContent = percentage + "%";
             row.appendChild(percentCell);
 
-            if (stats[1] + stats[2] <= 0) { continue; }
+            if (totalExpected <= 0) { continue; }
 
             elem.appendChild(row);
         }
         let headline = Data.summaryHeadlineDOM;
-        let present = allTime[2];
-        let total = allTime[1] + allTime[2];
-        let percent = ((present / total * 100) || 0).toFixed(2);
-        headline.textContent = `Present in office for ${present} out of ${total} days. (${percent}%)`;
+        let actualPresent = allTime[2] || 0;
+        let scheduledPresent = allTime[5] || 0;
+        let totalPresent = actualPresent + scheduledPresent;
+        let total = (allTime[1] || 0) + (allTime[2] || 0) + (allTime[4] || 0) + (allTime[5] || 0);
+        let percent = total > 0 ? ((totalPresent / total * 100) || 0).toFixed(2) : "0.00";
+        headline.textContent = `Present in office for ${totalPresent} out of ${total} days. (${percent}%)`;
     }
 
     updateMonth(year, month, state) {
         let key = formatDate(year, month);
-        let stats = { 0: 0, 1: 0, 2: 0, 3: 0 };
+        let stats = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
         for (let day in state[month + 1]) {
             stats[state[month + 1][day]] += 1;
         }
+        
+        // Scheduled days are now handled by the backend
+        
         this.data[key] = stats;
         this.refreshDOM();
     }
@@ -78,14 +89,18 @@ class Summary {
         for (const [month, vals] of Object.entries(state)) {
             let monthYear = month <= 9 ? year : year - 1;
             let key = formatDate(monthYear, parseInt(month) - 1);
-            let stats = { 0: 0, 1: 0, 2: 0, 3: 0 };
+            let stats = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
             for (const [day, state] of Object.entries(vals)) {
                 stats[state] += 1;
             }
+            
+            // Scheduled days are now handled by the backend
+            
             this.data[key] = stats;
         }
         this.refreshDOM();
     }
+    
 }
 
 class Data {
@@ -109,10 +124,21 @@ class Data {
     }
 
     cycleState(dayDOM, direction) {
-        let previousState = parseInt(dayDOM.dataset.state);
-        let currentState = (previousState + direction + states.length) % states.length;
+        let originalState = parseInt(dayDOM.dataset.state);
+        let previousState = originalState;
+        
+        // If this is a scheduled state, convert it to untracked first
+        if (previousState >= 4) { // Scheduled states are 4, 5, 6
+            previousState = 0; // Convert to untracked
+        }
+        
+        // Only cycle through the first 4 states (0-3), not scheduled states
+        let currentState = (previousState + direction + 4) % 4;
         let date = dayDOM.textContent;
-        dayDOM.classList.remove(getClassForState(states[previousState]));
+        
+        // Remove all state classes (use original state for correct class removal)
+        dayDOM.classList.remove(getClassForState(states[originalState]));
+        
         dayDOM.classList.add(getClassForState(states[currentState]));
         dayDOM.dataset.state = currentState;
         this.updateState(date, currentState);
@@ -247,7 +273,15 @@ class Data {
         }
         this.state[this.currentMonth+1][date] = state;
         this.updateBackend(date);
-        this.summary.updateMonth(this.currentYear, this.currentMonth, this.state);
+        
+        // If setting to untracked, fetch fresh data to get the fallthrough scheduled state
+        if (state === 0) {
+            setTimeout(() => {
+                this.fetchData();
+            }, 100); // Small delay to ensure backend update completes
+        } else {
+            this.summary.updateMonth(this.currentYear, this.currentMonth, this.state);
+        }
     }
 
     updateTitle() { Data.titleDOM.textContent = monthNames[this.currentMonth] + " " + this.currentYear; }
@@ -313,6 +347,7 @@ function generateCalendar(month, year, currState, callback) {
                 }
                 td.dataset.state = cellState; // Initial state
                 td.classList.add(getClassForState(states[td.dataset.state]));
+                
                 if (currentDate.getTime() === today.getTime()) { td.classList.add('today'); }
                 td.addEventListener('click', function () { callback(this, 1); });
                 td.addEventListener('contextmenu', function (event) {
@@ -340,6 +375,12 @@ function getClassForState(state) {
             return "not-present";
         case "other":
             return "other";
+        case "scheduled-present":
+            return "scheduled-home";
+        case "scheduled-not-present":
+            return "scheduled-office";
+        case "scheduled-other":
+            return "scheduled-other";
         default:
             return "untracked";
     }

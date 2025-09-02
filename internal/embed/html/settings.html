@@ -2,6 +2,7 @@
 {{ define "nav" }}{{ template "loggedin.html" }}{{ end }}
 {{ define "title" }}Settings{{ end }}
 {{ define "content" }}
+{{if .GithubAuthURL}}
 <h3>Auth</h3>
 <p>
     Click the button below to connect another GitHub account. This link will expire after 10 minutes.
@@ -20,6 +21,7 @@
         {{end}}
     </ul>
 </p>
+{{end}}
 
 <h3>Themes</h3>
 <p>
@@ -51,12 +53,64 @@
     </div>
 </div>
 
+<h3>Schedule</h3>
+<p>
+    Select the days of the week you plan to attend the office on a recurring cycle.
+</p>
+
+<div id="schedule-calendar" class="schedule-container">
+    <table>
+        <tr>
+            <td class="schedule-day" data-day="monday" data-state="0">
+                <div class="day-header">Mon</div>
+            </td>
+            <td class="schedule-day" data-day="tuesday" data-state="0">
+                <div class="day-header">Tue</div>
+            </td>
+            <td class="schedule-day" data-day="wednesday" data-state="0">
+                <div class="day-header">Wed</div>
+            </td>
+            <td class="schedule-day" data-day="thursday" data-state="0">
+                <div class="day-header">Thu</div>
+            </td>
+            <td class="schedule-day" data-day="friday" data-state="0">
+                <div class="day-header">Fri</div>
+            </td>
+            <td class="schedule-day" data-day="saturday" data-state="0">
+                <div class="day-header">Sat</div>
+            </td>
+            <td class="schedule-day" data-day="sunday" data-state="0">
+                <div class="day-header">Sun</div>
+            </td>
+        </tr>
+    </table>
+</div>
+
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         // Server-provided theme preferences, if available
         const serverTheme = "{{.ThemePreferences.Theme}}";
         const serverWeatherEnabled = {{.ThemePreferences.WeatherEnabled}};
         const serverTimeBasedEnabled = {{.ThemePreferences.TimeBasedEnabled}};
+        
+        // Server-provided schedule preferences
+        const serverSchedule = {
+            monday: {{.SchedulePreferences.Monday}},
+            tuesday: {{.SchedulePreferences.Tuesday}},
+            wednesday: {{.SchedulePreferences.Wednesday}},
+            thursday: {{.SchedulePreferences.Thursday}},
+            friday: {{.SchedulePreferences.Friday}},
+            saturday: {{.SchedulePreferences.Saturday}},
+            sunday: {{.SchedulePreferences.Sunday}}
+        };
+        
+        // State names mapping
+        const stateNames = {
+            0: "Untracked",
+            1: "Work from Home", 
+            2: "In office",
+            3: "Other"
+        };
         
         // Load current theme preferences, prioritizing server values if available
         const currentTheme = serverTheme || localStorage.getItem('officetracker-theme') || 'default';
@@ -70,6 +124,9 @@
         
         // Show/hide options based on selected theme
         toggleOptions(currentTheme);
+        
+        // Initialize schedule calendar
+        initializeScheduleCalendar();
         
         // Save settings function
         function saveSettings() {
@@ -105,6 +162,65 @@
             });
         }
         
+        // Save schedule preferences function
+        function saveScheduleSettings() {
+            const schedule = getCurrentSchedule();
+            
+            fetch('/api/v1/settings/schedule', {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    data: schedule
+                }),
+                credentials: "include"
+            })
+            .catch(error => {
+                console.error('Error saving schedule settings:', error);
+            });
+        }
+        
+        // Get current schedule state from DOM
+        function getCurrentSchedule() {
+            const schedule = {};
+            const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+            
+            days.forEach(day => {
+                const dayElement = document.querySelector(`[data-day="${day}"]`);
+                schedule[day] = parseInt(dayElement.dataset.state);
+            });
+            
+            return schedule;
+        }
+        
+        // Cycle through states: Untracked -> Work from Home -> In office -> Other -> Untracked
+        function cycleScheduleState(dayElement) {
+            const currentState = parseInt(dayElement.dataset.state);
+            const nextState = (currentState + 1) % 4;
+            
+            dayElement.dataset.state = nextState;
+        }
+        
+        // Initialize schedule calendar with server data
+        function initializeScheduleCalendar() {
+            const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+            
+            days.forEach(day => {
+                const dayElement = document.querySelector(`[data-day="${day}"]`);
+                const state = serverSchedule[day] || 0;
+                
+                // Set initial state
+                dayElement.dataset.state = state;
+                
+                // Add click event listener
+                dayElement.addEventListener('click', function() {
+                    cycleScheduleState(this);
+                    saveScheduleSettings();
+                });
+            });
+        }
+        
         // Event listener for theme change
         document.getElementById('theme-select').addEventListener('change', function() {
             toggleOptions(this.value);
@@ -129,4 +245,28 @@
         }
     }
 </script>
+
+<style>
+/* Fix schedule calendar vertical alignment by removing bottom margin from day headers */
+.schedule-day .day-header {
+    margin-bottom: 0;
+}
+</style>
+
+<div class="legend">
+    <div class="legend-item">
+        <div class="legend-color present"></div>
+        <span>Work from Home</span>
+    </div>
+    <div class="legend-item">
+        <div class="legend-color not-present"></div>
+        <span>In office</span>
+    </div>
+    <div class="legend-item">
+        <div class="legend-color other"></div>
+        <span>Other (Untracked)</span>
+    </div>
+</div>
+
+
 {{ end }}
