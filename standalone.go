@@ -4,8 +4,6 @@ package main
 
 import (
 	"flag"
-	"os/exec"
-	"time"
 
 	"github.com/baely/officetracker/internal/config"
 	"github.com/baely/officetracker/internal/database"
@@ -39,10 +37,6 @@ func main() {
 		panic(err)
 	}
 
-	go func() {
-		time.Sleep(1 * time.Second)
-		_ = exec.Command("open", "http://localhost:"+cfg.App.Port).Start()
-	}()
 
 	if err := s.Run(); err != nil {
 		panic(err)

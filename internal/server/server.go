@@ -136,7 +136,7 @@ func (s *Server) handleForm(w http.ResponseWriter, r *http.Request) {
 	}
 	if err != nil {
 		err = fmt.Errorf("failed to get user id: %w", err)
-		errorPage(w, err, internalErrorMsg, http.StatusInternalServerError)
+		errorPage(w, r, err, internalErrorMsg, http.StatusInternalServerError)
 		return
 	}
 
@@ -149,13 +149,13 @@ func (s *Server) handleForm(w http.ResponseWriter, r *http.Request) {
 	year, err := strconv.Atoi(yearStr)
 	if err != nil {
 		err = fmt.Errorf("failed to convert year to int: %w", err)
-		errorPage(w, err, "Invalid date", http.StatusBadRequest)
+		errorPage(w, r, err, "Invalid date", http.StatusBadRequest)
 		return
 	}
 	month, err := strconv.Atoi(monthStr)
 	if err != nil {
 		err = fmt.Errorf("failed to convert month to int: %w", err)
-		errorPage(w, err, "Invalid date", http.StatusBadRequest)
+		errorPage(w, r, err, "Invalid date", http.StatusBadRequest)
 		return
 	}
 
@@ -171,7 +171,7 @@ func (s *Server) handleForm(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		err = fmt.Errorf("failed to get year data: %w", err)
-		errorPage(w, err, internalErrorMsg, http.StatusInternalServerError)
+		errorPage(w, r, err, internalErrorMsg, http.StatusInternalServerError)
 		return
 	}
 	yearlyNotes, err := s.v1.GetNotes(model.GetNotesRequest{
@@ -182,20 +182,20 @@ func (s *Server) handleForm(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		err = fmt.Errorf("failed to get year note: %w", err)
-		errorPage(w, err, internalErrorMsg, http.StatusInternalServerError)
+		errorPage(w, r, err, internalErrorMsg, http.StatusInternalServerError)
 		return
 	}
 
 	yearlyDataByte, err := json.Marshal(yearlyData)
 	if err != nil {
 		err = fmt.Errorf("failed to marshal yearly data: %w", err)
-		errorPage(w, err, internalErrorMsg, http.StatusInternalServerError)
+		errorPage(w, r, err, internalErrorMsg, http.StatusInternalServerError)
 		return
 	}
 	yearlyNotesByte, err := json.Marshal(yearlyNotes)
 	if err != nil {
 		err = fmt.Errorf("failed to marshal yearly notes: %w", err)
-		errorPage(w, err, internalErrorMsg, http.StatusInternalServerError)
+		errorPage(w, r, err, internalErrorMsg, http.StatusInternalServerError)
 		return
 	}
 	yearlyDataStr := string(yearlyDataByte)
@@ -216,7 +216,7 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	ssoUri, err := auth.SSOUri(cfg, s.redis)
 	if err != nil {
 		slog.Error(fmt.Sprintf("failed to generate SSO URI: %v", err))
-		errorPage(w, err, internalErrorMsg, http.StatusInternalServerError)
+		errorPage(w, r, err, internalErrorMsg, http.StatusInternalServerError)
 		return
 	}
 	serveLogin(w, r, loginPage{
@@ -234,7 +234,7 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 	userID, err := getUserID(r)
 	if err != nil {
 		err = fmt.Errorf("failed to get user id: %w", err)
-		errorPage(w, err, internalErrorMsg, http.StatusInternalServerError)
+		errorPage(w, r, err, internalErrorMsg, http.StatusInternalServerError)
 		return
 	}
 	settings, err := s.v1.GetSettings(model.GetSettingsRequest{
@@ -244,7 +244,7 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		err = fmt.Errorf("failed to get settings: %w", err)
-		errorPage(w, err, internalErrorMsg, http.StatusInternalServerError)
+		errorPage(w, r, err, internalErrorMsg, http.StatusInternalServerError)
 		return
 	}
 
@@ -255,7 +255,7 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 	case config.IntegratedApp:
 		authURL, err = auth.GenerateGitHubAuthLink(r.Context(), cfg, s.redis, userID)
 		if err != nil {
-			errorPage(w, fmt.Errorf("failed to generate github auth link: %v", err), internalErrorMsg, http.StatusInternalServerError)
+			errorPage(w, r, fmt.Errorf("failed to generate github auth link: %v", err), internalErrorMsg, http.StatusInternalServerError)
 			return
 		}
 		githubAccounts = settings.GithubAccounts
@@ -277,7 +277,7 @@ func (s *Server) handleDeveloper(w http.ResponseWriter, r *http.Request) {
 	authMethod, err := getAuthMethod(r)
 	if err != nil {
 		err = fmt.Errorf("failed to get auth method: %w", err)
-		errorPage(w, err, internalErrorMsg, http.StatusInternalServerError)
+		errorPage(w, r, err, internalErrorMsg, http.StatusInternalServerError)
 		return
 	}
 	if authMethod != auth.MethodSSO {
@@ -300,7 +300,7 @@ func (s *Server) handleSuspended(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleNotFound(w http.ResponseWriter, r *http.Request) {
-	errorPage(w, nil, "Not found", http.StatusNotFound)
+	errorPage(w, r, nil, "Not found", http.StatusNotFound)
 }
 
 func staticHandler(r chi.Router) {
