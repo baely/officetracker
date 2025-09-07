@@ -271,6 +271,22 @@ body.theme-city-skyline .other {
     background-color: var(--other-color); 
 }
 
+/* Scheduled state styles for themed versions */
+body.theme-dark .scheduled-home,
+body.theme-city-skyline .scheduled-home {
+    background-color: rgba(76, 175, 80, 0.4); /* Semi-transparent green */
+}
+
+body.theme-dark .scheduled-office,
+body.theme-city-skyline .scheduled-office {
+    background-color: rgba(244, 67, 54, 0.4); /* Semi-transparent red */
+}
+
+body.theme-dark .scheduled-other,
+body.theme-city-skyline .scheduled-other {
+    background-color: rgba(33, 150, 243, 0.4); /* Semi-transparent blue */
+}
+
 body.theme-dark .today,
 body.theme-city-skyline .today {
     border-color: var(--highlight-color);
