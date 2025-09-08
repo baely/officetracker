@@ -1,8 +1,6 @@
 module github.com/baely/officetracker
 
-go 1.23.0
-
-toolchain go1.24.1
+go 1.25
 
 require (
 	github.com/go-chi/chi/v5 v5.2.3
