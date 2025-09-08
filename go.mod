@@ -15,7 +15,7 @@ require (
 	github.com/lib/pq v1.10.9
 	github.com/mattn/go-sqlite3 v1.14.32
 	github.com/modelcontextprotocol/go-sdk v0.4.0
-	github.com/redis/go-redis/v9 v9.12.1
+	github.com/redis/go-redis/v9 v9.13.0
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.63.0
 	golang.org/x/oauth2 v0.30.0
 )
