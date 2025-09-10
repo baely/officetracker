@@ -15,8 +15,9 @@ import (
 )
 
 const (
-	userCookie = "user"
-	demoUserId = "42069"
+	userCookie  = "user"
+	debugCookie = "debug"
+	demoUserId  = "42069"
 )
 
 type Method int
