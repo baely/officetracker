@@ -205,6 +205,14 @@ func getAuthMethod(r *http.Request) (auth.Method, error) {
 	return authMethod, nil
 }
 
+func getDebug(r *http.Request) bool {
+	debug, ok := context.GetCtxValue(r).Get(context.CtxDebugKey).(bool)
+	if !ok {
+		return false
+	}
+	return debug
+}
+
 func populateUserID[T any](req *T, r *http.Request) error {
 	v := reflect.ValueOf(req).Elem()
 	t := v.Type()
