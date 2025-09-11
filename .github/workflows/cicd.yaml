@@ -58,6 +58,7 @@ jobs:
           secrets: |
             SIGNING_KEY=${{ secrets.SIGNING_KEY }}:latest
             GITHUB_SECRET=${{ secrets.GH_SECRET }}:latest
+            AUTH0_CLIENT_SECRET=${{ secrets.AUTH0_SECRET }}:latest
             POSTGRES_PASSWORD=${{ secrets.PQ_SECRET }}:latest
             REDIS_PASSWORD=${{ secrets.RD_SECRET }}:latest
           flags: "--allow-unauthenticated"
