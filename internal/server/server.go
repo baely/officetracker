@@ -74,7 +74,7 @@ func NewServer(cfg config.AppConfigurer, db database.Databaser, redis *database.
 	switch integratedCfg := cfg.(type) {
 	case config.IntegratedApp:
 		// Auth routes (not protected by suspension check to allow login/logout)
-		r.Route("/auth", auth.Router(integratedCfg, s.db, s.redis))
+		r.Route("/auth", auth.Router(integratedCfg, s.db, s.redis, s.auth))
 		r.Get("/login", s.handleLogin)
 		r.Get("/logout", s.handleLogout)
 		// Cool stuff (protected by suspension check)
