@@ -14,6 +14,7 @@ type IntegratedApp struct {
 	Postgres   Postgres `envconfig:"POSTGRES"`
 	Redis      Redis    `envconfig:"REDIS"`
 	Github     Github   `envconfig:"GITHUB"`
+	Auth0      Auth0    `envconfig:"AUTH0"`
 	SigningKey string   `envconfig:"SIGNING_KEY"`
 }
 
@@ -65,6 +66,12 @@ type Redis struct {
 type Github struct {
 	ClientID string `envconfig:"CLIENT_ID"`
 	Secret   string `envconfig:"SECRET"`
+}
+
+type Auth0 struct {
+	Domain       string `envconfig:"DOMAIN"`
+	ClientID     string `envconfig:"CLIENT_ID"`
+	ClientSecret string `envconfig:"CLIENT_SECRET"`
 }
 
 func LoadIntegratedApp() (IntegratedApp, error) {
