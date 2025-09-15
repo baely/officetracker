@@ -12,7 +12,7 @@ require (
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/lib/pq v1.10.9
 	github.com/mattn/go-sqlite3 v1.14.32
-	github.com/modelcontextprotocol/go-sdk v0.4.0
+	github.com/modelcontextprotocol/go-sdk v0.5.0
 	github.com/redis/go-redis/v9 v9.14.0
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.63.0
 	golang.org/x/oauth2 v0.31.0
@@ -26,7 +26,7 @@ require (
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect
-	github.com/google/jsonschema-go v0.2.1-0.20250825175020-748c325cec76 // indirect
+	github.com/google/jsonschema-go v0.2.3 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.20.0 // indirect
 	github.com/lufia/plan9stats v0.0.0-20240513124658-fba389f38bae // indirect
