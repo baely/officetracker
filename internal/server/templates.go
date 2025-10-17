@@ -14,6 +14,7 @@ import (
 type basePage struct {
 	IsLoggedIn    bool
 	IsStandalone  bool
+	WideLayout    bool
 }
 
 type formPage struct {
@@ -79,6 +80,7 @@ type developerPage struct{
 
 func serveDeveloper(w http.ResponseWriter, r *http.Request, page developerPage) {
 	page.basePage = getBasePageData(r)
+	page.WideLayout = true // Enable wide layout for API documentation
 	if err := embed.Developer.Execute(w, page); err != nil {
 		err = fmt.Errorf("failed to execute developer template: %w", err)
 		errorPage(w, r, err, internalErrorMsg, http.StatusInternalServerError)

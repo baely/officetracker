@@ -1,0 +1,35 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "API for tracking Return-to-Office (RTO) compliance and managing attendance records",
+        "title": "OfficeTracker API",
+        "termsOfService": "https://officetracker.app/tos",
+        "contact": {
+            "name": "OfficeTracker Support",
+            "url": "https://github.com/baely/officetracker",
+            "email": "support@officetracker.app"
+        },
+        "license": {
+            "name": "MIT",
+            "url": "https://github.com/baely/officetracker/blob/main/LICENSE"
+        },
+        "version": "1.0"
+    },
+    "host": "localhost:8080",
+    "basePath": "/api/v1",
+    "paths": {},
+    "securityDefinitions": {
+        "BearerAuth": {
+            "description": "JWT Bearer token for API authentication. Format: Bearer {token}",
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
+        },
+        "CookieAuth": {
+            "description": "Session cookie for web authentication",
+            "type": "apiKey",
+            "name": "auth-token",
+            "in": "cookie"
+        }
+    }
+}

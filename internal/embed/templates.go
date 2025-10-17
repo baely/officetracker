@@ -32,6 +32,9 @@ var (
 	//go:embed static/themes.css
 	ThemesCSS []byte
 
+	//go:embed static/openapi.json
+	OpenAPISpec []byte
+
 	//go:embed html/setup_old.html
 	Setup []byte
 )

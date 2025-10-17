@@ -63,6 +63,9 @@ func NewServer(cfg config.AppConfigurer, db database.Databaser, redis *database.
 	// Settings available in both standalone and integrated modes
 	r.With(checkSuspension(db)).Get("/settings", s.handleSettings)
 
+	// Developer page available in both modes (TODO: temporary for testing, should be integrated-only)
+	r.With(checkSuspension(db)).Get("/developer", s.handleDeveloper)
+
 	// Integrated app routes
 	switch integratedCfg := cfg.(type) {
 	case config.IntegratedApp:
@@ -70,8 +73,6 @@ func NewServer(cfg config.AppConfigurer, db database.Databaser, redis *database.
 		r.Route("/auth", auth.Router(integratedCfg, s.db, s.redis))
 		r.Get("/login", s.handleLogin)
 		r.Get("/logout", s.handleLogout)
-		// Cool stuff (protected by suspension check)
-		r.With(checkSuspension(db)).Get("/developer", s.handleDeveloper)
 		// Boring stuff (not protected by suspension check)
 		r.Get("/tos", s.handleTos)
 		r.Get("/privacy", s.handlePrivacy)
@@ -274,14 +275,20 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleDeveloper(w http.ResponseWriter, r *http.Request) {
-	authMethod, err := getAuthMethod(r)
-	if err != nil {
-		err = fmt.Errorf("failed to get auth method: %w", err)
-		errorPage(w, r, err, internalErrorMsg, http.StatusInternalServerError)
-		return
-	}
-	if authMethod != auth.MethodSSO {
-		http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
+	// TODO: temporary - in standalone mode, allow access without SSO check
+	// In production, this should only be accessible with SSO in integrated mode
+	switch s.cfg.(type) {
+	case config.IntegratedApp:
+		authMethod, err := getAuthMethod(r)
+		if err != nil {
+			err = fmt.Errorf("failed to get auth method: %w", err)
+			errorPage(w, r, err, internalErrorMsg, http.StatusInternalServerError)
+			return
+		}
+		if authMethod != auth.MethodSSO {
+			http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
+			return
+		}
 	}
 
 	serveDeveloper(w, r, developerPage{})
@@ -318,5 +325,10 @@ func staticHandler(r chi.Router) {
 		w.Header().Set("Content-Type", "text/css")
 		w.Header().Set("Cache-Control", "public, max-age=604800, immutable")
 		w.Write(embed.ThemesCSS)
+	})
+	r.Get("/openapi.json", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Cache-Control", "public, max-age=3600")
+		w.Write(embed.OpenAPISpec)
 	})
 }

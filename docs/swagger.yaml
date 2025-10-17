@@ -1,0 +1,28 @@
+basePath: /api/v1
+host: localhost:8080
+info:
+  contact:
+    email: support@officetracker.app
+    name: OfficeTracker Support
+    url: https://github.com/baely/officetracker
+  description: API for tracking Return-to-Office (RTO) compliance and managing attendance
+    records
+  license:
+    name: MIT
+    url: https://github.com/baely/officetracker/blob/main/LICENSE
+  termsOfService: https://officetracker.app/tos
+  title: OfficeTracker API
+  version: "1.0"
+paths: {}
+securityDefinitions:
+  BearerAuth:
+    description: 'JWT Bearer token for API authentication. Format: Bearer {token}'
+    in: header
+    name: Authorization
+    type: apiKey
+  CookieAuth:
+    description: Session cookie for web authentication
+    in: cookie
+    name: auth-token
+    type: apiKey
+swagger: "2.0"

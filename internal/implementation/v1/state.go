@@ -7,6 +7,22 @@ import (
 	"github.com/baely/officetracker/pkg/model"
 )
 
+// GetDay godoc
+//
+//	@Summary		Get day attendance state
+//	@Description	Retrieve attendance state for a specific day
+//	@Tags			state
+//	@Accept			json
+//	@Produce		json
+//	@Param			year	path		int	true	"Year"
+//	@Param			month	path		int	true	"Month (1-12)"
+//	@Param			day		path		int	true	"Day (1-31)"
+//	@Success		200		{object}	model.GetDayResponse
+//	@Failure		400		{object}	model.Error
+//	@Failure		500		{object}	model.Error
+//	@Security		BearerAuth
+//	@Security		CookieAuth
+//	@Router			/state/{year}/{month}/{day} [get]
 func (i *Service) GetDay(req model.GetDayRequest) (model.GetDayResponse, error) {
 	state, err := i.db.GetDay(req.Meta.UserID, req.Meta.Day, req.Meta.Month, req.Meta.Year)
 	if err != nil {
@@ -19,6 +35,23 @@ func (i *Service) GetDay(req model.GetDayRequest) (model.GetDayResponse, error) 
 	}, nil
 }
 
+// PutDay godoc
+//
+//	@Summary		Update day attendance state
+//	@Description	Update or set attendance state for a specific day
+//	@Tags			state
+//	@Accept			json
+//	@Produce		json
+//	@Param			year	path		int					true	"Year"
+//	@Param			month	path		int					true	"Month (1-12)"
+//	@Param			day		path		int					true	"Day (1-31)"
+//	@Param			data	body		model.DayState	true	"Day state data"
+//	@Success		200		{object}	model.PutDayResponse
+//	@Failure		400		{object}	model.Error
+//	@Failure		500		{object}	model.Error
+//	@Security		BearerAuth
+//	@Security		CookieAuth
+//	@Router			/state/{year}/{month}/{day} [put]
 func (i *Service) PutDay(req model.PutDayRequest) (model.PutDayResponse, error) {
 	err := i.db.SaveDay(req.Meta.UserID, req.Meta.Day, req.Meta.Month, req.Meta.Year, req.Data)
 	if err != nil {
@@ -29,6 +62,21 @@ func (i *Service) PutDay(req model.PutDayRequest) (model.PutDayResponse, error) 
 	return model.PutDayResponse{}, nil
 }
 
+// GetMonth godoc
+//
+//	@Summary		Get month attendance state
+//	@Description	Retrieve attendance state for all days in a specific month
+//	@Tags			state
+//	@Accept			json
+//	@Produce		json
+//	@Param			year	path		int	true	"Year"
+//	@Param			month	path		int	true	"Month (1-12)"
+//	@Success		200		{object}	model.GetMonthResponse
+//	@Failure		400		{object}	model.Error
+//	@Failure		500		{object}	model.Error
+//	@Security		BearerAuth
+//	@Security		CookieAuth
+//	@Router			/state/{year}/{month} [get]
 func (i *Service) GetMonth(req model.GetMonthRequest) (model.GetMonthResponse, error) {
 	state, err := i.db.GetMonth(req.Meta.UserID, req.Meta.Month, req.Meta.Year)
 	if err != nil {
@@ -41,6 +89,22 @@ func (i *Service) GetMonth(req model.GetMonthRequest) (model.GetMonthResponse, e
 	}, nil
 }
 
+// PutMonth godoc
+//
+//	@Summary		Update month attendance state
+//	@Description	Update or set attendance state for all days in a specific month
+//	@Tags			state
+//	@Accept			json
+//	@Produce		json
+//	@Param			year	path		int					true	"Year"
+//	@Param			month	path		int					true	"Month (1-12)"
+//	@Param			data	body		model.MonthState	true	"Month state data"
+//	@Success		200		{object}	model.PutMonthResponse
+//	@Failure		400		{object}	model.Error
+//	@Failure		500		{object}	model.Error
+//	@Security		BearerAuth
+//	@Security		CookieAuth
+//	@Router			/state/{year}/{month} [put]
 func (i *Service) PutMonth(req model.PutMonthRequest) (model.PutMonthResponse, error) {
 	err := i.db.SaveMonth(req.Meta.UserID, req.Meta.Month, req.Meta.Year, req.Data)
 	if err != nil {
@@ -51,6 +115,20 @@ func (i *Service) PutMonth(req model.PutMonthRequest) (model.PutMonthResponse, e
 	return model.PutMonthResponse{}, nil
 }
 
+// GetYear godoc
+//
+//	@Summary		Get year attendance state
+//	@Description	Retrieve attendance state for all months in a specific year (academic year Oct-Sep)
+//	@Tags			state
+//	@Accept			json
+//	@Produce		json
+//	@Param			year	path		int	true	"Academic year (e.g., 2024 for Oct 2023 - Sep 2024)"
+//	@Success		200		{object}	model.GetYearResponse
+//	@Failure		400		{object}	model.Error
+//	@Failure		500		{object}	model.Error
+//	@Security		BearerAuth
+//	@Security		CookieAuth
+//	@Router			/state/{year} [get]
 func (i *Service) GetYear(req model.GetYearRequest) (model.GetYearResponse, error) {
 	state, err := i.db.GetYear(req.Meta.UserID, req.Meta.Year)
 	if err != nil {
@@ -73,6 +151,21 @@ func (i *Service) GetYear(req model.GetYearRequest) (model.GetYearResponse, erro
 	}, nil
 }
 
+// GetNote godoc
+//
+//	@Summary		Get monthly note
+//	@Description	Retrieve note for a specific month
+//	@Tags			note
+//	@Accept			json
+//	@Produce		json
+//	@Param			year	path		int	true	"Year"
+//	@Param			month	path		int	true	"Month (1-12)"
+//	@Success		200		{object}	model.GetNoteResponse
+//	@Failure		400		{object}	model.Error
+//	@Failure		500		{object}	model.Error
+//	@Security		BearerAuth
+//	@Security		CookieAuth
+//	@Router			/note/{year}/{month} [get]
 func (i *Service) GetNote(req model.GetNoteRequest) (model.GetNoteResponse, error) {
 	note, err := i.db.GetNote(req.Meta.UserID, req.Meta.Month, req.Meta.Year)
 	if err != nil {
@@ -85,6 +178,22 @@ func (i *Service) GetNote(req model.GetNoteRequest) (model.GetNoteResponse, erro
 	}, nil
 }
 
+// PutNote godoc
+//
+//	@Summary		Update monthly note
+//	@Description	Update or set note for a specific month
+//	@Tags			note
+//	@Accept			json
+//	@Produce		json
+//	@Param			year	path		int			true	"Year"
+//	@Param			month	path		int			true	"Month (1-12)"
+//	@Param			data	body		model.Note	true	"Note data"
+//	@Success		200		{object}	model.PutNoteResponse
+//	@Failure		400		{object}	model.Error
+//	@Failure		500		{object}	model.Error
+//	@Security		BearerAuth
+//	@Security		CookieAuth
+//	@Router			/note/{year}/{month} [put]
 func (i *Service) PutNote(req model.PutNoteRequest) (model.PutNoteResponse, error) {
 	err := i.db.SaveNote(req.Meta.UserID, req.Meta.Month, req.Meta.Year, req.Data.Note)
 	if err != nil {
@@ -95,6 +204,20 @@ func (i *Service) PutNote(req model.PutNoteRequest) (model.PutNoteResponse, erro
 	return model.PutNoteResponse{}, nil
 }
 
+// GetNotes godoc
+//
+//	@Summary		Get all yearly notes
+//	@Description	Retrieve notes for all months in a specific year
+//	@Tags			note
+//	@Accept			json
+//	@Produce		json
+//	@Param			year	path		int	true	"Year"
+//	@Success		200		{object}	model.GetNotesResponse
+//	@Failure		400		{object}	model.Error
+//	@Failure		500		{object}	model.Error
+//	@Security		BearerAuth
+//	@Security		CookieAuth
+//	@Router			/note/{year} [get]
 func (i *Service) GetNotes(req model.GetNotesRequest) (model.GetNotesResponse, error) {
 	notes, err := i.db.GetNotes(req.Meta.UserID, req.Meta.Year)
 	if err != nil {

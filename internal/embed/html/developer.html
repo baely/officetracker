@@ -1,6 +1,7 @@
 {{ template "base.html" . }}
 {{ define "title" }}Developer{{ end }}
 {{ define "content" }}
+<h2>API Keys</h2>
 <p>
     Generate an API key below.
     By generating a new key, you will revoke all previously generated keys.
@@ -11,5 +12,27 @@
     <button id="generate-api-key">Generate</button>
     <button id="copy-api-key">Copy</button>
 </p>
+
+<h2>API Documentation</h2>
+<div id="redoc-container"></div>
+
+<script src="https://cdn.redoc.ly/redoc/latest/bundles/redoc.standalone.js"></script>
+<script>
+    Redoc.init('/static/openapi.json', {
+        scrollYOffset: 50,
+        hideDownloadButton: false,
+        theme: {
+            colors: {
+                primary: {
+                    main: '#4a90e2'
+                }
+            },
+            typography: {
+                fontSize: '14px',
+                fontFamily: 'system-ui, -apple-system, sans-serif'
+            }
+        }
+    }, document.getElementById('redoc-container'));
+</script>
 <script>{{ template "developer.js" . }}</script>
 {{ end }}
