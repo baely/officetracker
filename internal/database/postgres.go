@@ -252,7 +252,7 @@ func (p *postgres) GetUserBySecret(secret string) (int, error) {
 		row := tx.QueryRow(q, secret)
 		err := row.Scan(&id)
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil
+			return ErrNoUser
 		}
 		return err
 	})
