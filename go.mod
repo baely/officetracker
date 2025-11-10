@@ -15,7 +15,7 @@ require (
 	github.com/modelcontextprotocol/go-sdk v1.1.0
 	github.com/redis/go-redis/v9 v9.16.0
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.63.0
-	golang.org/x/oauth2 v0.32.0
+	golang.org/x/oauth2 v0.33.0
 )
 
 require (
