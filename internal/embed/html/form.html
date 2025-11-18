@@ -1,32 +1,4 @@
 {{ template "base.html" . }}
-{{ define "postheader" }}
-<section class="notification" id="feedback-banner" style="display: none;">
-    <div style="display: flex; justify-content: space-between; align-items: center;">
-        <div>
-            <strong>📊 Help us improve Officetracker!</strong><br>
-            Please take a moment to fill out our <a href="https://forms.office.com/r/aqcpVBUWFH" target="_blank" style="color: #000; text-decoration: underline;">user feedback survey</a>.
-        </div>
-        <button id="dismiss-banner" style="background: none; border: none; font-size: 1.2em; cursor: pointer; padding: 0 0 0 10px;" aria-label="Dismiss banner">✕</button>
-    </div>
-</section>
-<script>
-// Check if banner was previously dismissed
-if (!document.cookie.split('; ').find(row => row.startsWith('feedback-banner-dismissed='))) {
-    document.getElementById('feedback-banner').style.display = 'block';
-}
-
-// Add dismiss functionality
-document.getElementById('dismiss-banner').addEventListener('click', function() {
-    // Set cookie to remember dismissal (expires in 1 year)
-    const expires = new Date();
-    expires.setFullYear(expires.getFullYear() + 1);
-    document.cookie = 'feedback-banner-dismissed=true; expires=' + expires.toUTCString() + '; path=/';
-    
-    // Hide the banner
-    document.getElementById('feedback-banner').style.display = 'none';
-});
-</script>
-{{ end }}
 {{ define "content" }}
 <div id="calendar-nav">
     <button id="prev-month">Previous</button>
