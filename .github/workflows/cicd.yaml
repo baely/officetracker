@@ -7,57 +7,10 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
-    name: "Build"
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-      - name: Authenticate Google Cloud Platform
-        uses: google-github-actions/auth@v3
-        with:
-          credentials_json: "${{ secrets.SERVICE_TOKEN }}"
-      - name: Build docker image
-        run: docker build -t officetracker .
-      - name: Tag docker image
-        run: |
-          docker tag officetracker asia-southeast1-docker.pkg.dev/baileybutler-syd/officetracker/officetracker:${{ github.sha }}
-          docker tag officetracker asia-southeast1-docker.pkg.dev/baileybutler-syd/officetracker/officetracker:latest
-      - name: Authorise docker
-        run: |
-          gcloud auth configure-docker -q
-          gcloud auth configure-docker asia-southeast1-docker.pkg.dev
-      - name: Publish image
-        run: |
-          docker push asia-southeast1-docker.pkg.dev/baileybutler-syd/officetracker/officetracker:${{ github.sha }}
-          docker push asia-southeast1-docker.pkg.dev/baileybutler-syd/officetracker/officetracker:latest
-
   deploy:
-    name: "Deploy"
-    runs-on: ubuntu-latest
-    environment: cloud
-    needs:
-      - build
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-      - name: Authenticate Google Cloud Platform
-        uses: google-github-actions/auth@v3
-        with:
-          credentials_json: "${{ secrets.SERVICE_TOKEN }}"
-      - name: Deply Cloud Run
-        uses: google-github-actions/deploy-cloudrun@v3
-        with:
-          project_id: baileybutler-syd
-          service: officetracker
-          image: asia-southeast1-docker.pkg.dev/baileybutler-syd/officetracker/officetracker:${{ github.sha }}
-          region: asia-southeast1
-          labels: |
-            sha=${{ github.sha }}
-          env_vars_file: config/cloud.env
-          secrets: |
-            SIGNING_KEY=${{ secrets.SIGNING_KEY }}:latest
-            GITHUB_SECRET=${{ secrets.GH_SECRET }}:latest
-            POSTGRES_PASSWORD=${{ secrets.PQ_SECRET }}:latest
-            REDIS_PASSWORD=${{ secrets.RD_SECRET }}:latest
-          flags: "--allow-unauthenticated"
+    uses: ./.github/workflows/build-deploy.yaml
+    with:
+      environment: cloud
+      service_name: officetracker
+      env_file: config/cloud.env
+    secrets: inherit
