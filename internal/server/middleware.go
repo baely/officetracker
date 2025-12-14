@@ -84,8 +84,10 @@ func injectAuth(db database.Databaser, cfger config.AppConfigurer) func(http.Han
 				userID, err := auth.GetUserID(cfg, db, token, authMethod)
 				if err != nil {
 					auth.ClearCookie(cfg, w)
+					// Don't set userID in context when auth fails
+				} else {
+					val.Set(context2.CtxUserIDKey, userID)
 				}
-				val.Set(context2.CtxUserIDKey, userID)
 			}
 			ctx = context.WithValue(ctx, context2.CtxKey, val)
 			next.ServeHTTP(w, r.WithContext(ctx))

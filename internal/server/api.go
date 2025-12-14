@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -87,9 +88,14 @@ func wrapRaw[T any](fn func(T) (model.Response, error)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		req, err := mapRequest[T](r)
 		if err != nil {
-			err = fmt.Errorf("failed to map request: %w", err)
-			slog.Error(err.Error())
-			writeError(w, err.Error(), http.StatusBadRequest)
+			logErr := fmt.Errorf("failed to map request: %w", err)
+			slog.Error(logErr.Error())
+			// Check if this is an authentication error
+			if errors.Is(err, ErrNoUserInCtx) {
+				writeError(w, "Unauthorized", http.StatusUnauthorized)
+			} else {
+				writeError(w, "Bad request", http.StatusBadRequest)
+			}
 			return
 		}
 
