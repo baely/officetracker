@@ -1,0 +1,13 @@
+name: Deploy Beta
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    uses: ./.github/workflows/build-deploy.yaml
+    with:
+      environment: beta
+      service_name: officetracker-beta
+      env_file: config/beta.env
+    secrets: inherit
