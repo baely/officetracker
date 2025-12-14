@@ -55,6 +55,14 @@ jobs:
         uses: google-github-actions/auth@v3
         with:
           credentials_json: "${{ secrets.SERVICE_TOKEN }}"
+      - name: Load environment variables
+        id: env
+        run: |
+          {
+            echo 'ENV_VARS<<EOF'
+            cat ${{ inputs.env_file }}
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
       - name: Deploy Cloud Run
         uses: google-github-actions/deploy-cloudrun@v3
         with:
@@ -64,7 +72,7 @@ jobs:
           region: asia-southeast1
           labels: |
             sha=${{ github.sha }}
-          env_vars_file: ${{ inputs.env_file }}
+          env_vars: ${{ steps.env.outputs.ENV_VARS }}
           secrets: |
             SIGNING_KEY=${{ secrets.SIGNING_KEY }}:latest
             GITHUB_SECRET=${{ secrets.GH_SECRET }}:latest
