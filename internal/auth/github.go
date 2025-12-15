@@ -71,7 +71,7 @@ func SSOUri(cfg config.IntegratedApp, redis *database.Redis) (string, error) {
 
 func ClearCookie(cfg config.IntegratedApp, w http.ResponseWriter) {
 	http.SetCookie(w, &http.Cookie{
-		Name:     userCookie,
+		Name:     cookieName(cfg),
 		Value:    "",
 		Path:     util.BasePath(cfg.Domain),
 		Expires:  time.Unix(0, 0),

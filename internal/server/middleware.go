@@ -79,7 +79,7 @@ func injectAuth(db database.Databaser, cfger config.AppConfigurer) func(http.Han
 				val.Set(context2.CtxAuthMethodKey, auth.MethodExcluded)
 				val.Set(context2.CtxUserIDKey, 1)
 			case config.IntegratedApp:
-				token, authMethod := auth.GetAuth(r)
+				token, authMethod := auth.GetAuth(cfg, r)
 				val.Set(context2.CtxAuthMethodKey, authMethod)
 				userID, err := auth.GetUserID(cfg, db, token, authMethod)
 				if err != nil {

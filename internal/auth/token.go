@@ -15,10 +15,17 @@ import (
 )
 
 const (
-	userCookie  = "user"
-	debugCookie = "debug"
-	demoUserId  = "42069"
+	userCookieBase = "user"
+	debugCookie    = "debug"
+	demoUserId     = "42069"
 )
+
+func cookieName(cfg config.IntegratedApp) string {
+	if cfg.App.Env == "" || cfg.App.Env == "cloud" {
+		return userCookieBase
+	}
+	return userCookieBase + "_" + cfg.App.Env
+}
 
 type Method int
 
@@ -96,7 +103,7 @@ func issueToken(cfg config.IntegratedApp, w http.ResponseWriter, userID int) err
 	}
 
 	cookie := http.Cookie{
-		Name:     userCookie,
+		Name:     cookieName(cfg),
 		Value:    token,
 		Path:     util.BasePath(cfg.Domain),
 		Expires:  time.Now().Add(loginExpiration),
@@ -136,9 +143,9 @@ func validateDevSecret(secret string) string {
 	return secret
 }
 
-func GetAuth(r *http.Request) (string, Method) {
+func GetAuth(cfg config.IntegratedApp, r *http.Request) (string, Method) {
 	// try to get from cookie
-	cookie, err := r.Cookie(userCookie)
+	cookie, err := r.Cookie(cookieName(cfg))
 	if err == nil && cookie != nil {
 		return cookie.Value, MethodSSO
 	}
