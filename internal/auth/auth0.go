@@ -97,8 +97,18 @@ func (a *Auth) handleAuth0Callback(cfg config.IntegratedApp, db database.Databas
 			return
 		}
 
-		// print the user id for now and claims
-		slog.Info("Auth0 login successful", "userID", existingUserID, "claims", profile)
+		subject, ok := profile["sub"]
+		if !ok {
+			slog.Error("failed to retrieve subject")
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+		subjectString, ok := subject.(string)
+		if !ok {
+			slog.Error("subject not in string format. format: %T", subject)
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
 
 		var userID int
 		if existingUserID != 0 {
@@ -106,25 +116,12 @@ func (a *Auth) handleAuth0Callback(cfg config.IntegratedApp, db database.Databas
 			http.Error(w, "Internal server error", http.StatusInternalServerError)
 			return
 		} else {
-			subject, ok := profile["sub"]
-			if !ok {
-				slog.Error("failed to retrieve subject")
-				http.Error(w, "Internal server error", http.StatusInternalServerError)
-				return
-			}
-			subjectString, ok := subject.(string)
-			if !ok {
-				slog.Error("subject not in string format. format: %T", subject)
-				http.Error(w, "Internal server error", http.StatusInternalServerError)
-				return
-			}
 			userID, err = subjectToUserID(db, subjectString)
 			if err != nil {
 				slog.Error(fmt.Sprintf("failed to get/create user: %v", err))
 				http.Error(w, "Internal server error", http.StatusInternalServerError)
 				return
 			}
-
 			slog.Info(fmt.Sprintf("logged in user: %d", userID))
 		}
 
