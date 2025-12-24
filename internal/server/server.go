@@ -219,9 +219,9 @@ func (s *Server) handleHero(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
-	cfg := s.cfg.(config.IntegratedApp)
+	//cfg := s.cfg.(config.IntegratedApp)
 
-	ssoUri, err := auth.SSOUri(cfg, s.redis)
+	ssoUri, err := s.auth.Auth0SSOUri()
 
 	if err != nil {
 		slog.Error(fmt.Sprintf("failed to generate SSO URI: %v", err))
