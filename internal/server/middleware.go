@@ -54,10 +54,9 @@ func (s *Server) logRequest(next http.Handler) http.Handler {
 		sw := &statusWriter{ResponseWriter: w}
 		method, _ := getAuthMethod(r)
 		userID, _ := getUserID(r)
-		debug := getDebug(r)
-		slog.Info("request received", "method", r.Method, "path", r.URL.Path, "authMethod", method, "userID", userID, "debug", debug)
+		slog.Info("request received", "method", r.Method, "path", r.URL.Path, "authMethod", method, "userID", userID)
 		next.ServeHTTP(sw, r)
-		slog.Info("request processed", "method", r.Method, "path", r.URL.Path, "status", sw.status, "duration", time.Since(start), "authMethod", method, "userID", userID, "debug", debug)
+		slog.Info("request processed", "method", r.Method, "path", r.URL.Path, "status", sw.status, "duration", time.Since(start), "authMethod", method, "userID", userID)
 	})
 }
 
@@ -66,13 +65,6 @@ func injectAuth(db database.Databaser, cfger config.AppConfigurer) func(http.Han
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ctx := r.Context()
 			val := make(context2.CtxValue)
-
-			// Set debug value
-			debugEnabled := false
-			if cookie, err := r.Cookie("debug"); err == nil {
-				debugEnabled = cookie.Value == "true"
-			}
-			val.Set(context2.CtxDebugKey, debugEnabled)
 
 			switch cfg := cfger.(type) {
 			case config.StandaloneApp:

@@ -11,7 +11,6 @@ const (
 	CtxKey           = "ctx"
 	CtxUserIDKey     = "userID"
 	CtxAuthMethodKey = "auth"
-	CtxDebugKey      = "debug"
 )
 
 func MapCtx(ctx context.Context) CtxValue {
