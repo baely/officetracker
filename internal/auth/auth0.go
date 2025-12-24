@@ -12,6 +12,8 @@ import (
 
 	"github.com/coreos/go-oidc/v3/oidc"
 	"golang.org/x/oauth2"
+
+	"github.com/baely/officetracker/internal/database"
 )
 
 func (a *Auth) Auth0OauthCfg() *oauth2.Config {
@@ -42,7 +44,7 @@ func (a *Auth) Auth0SSOUri() (string, error) {
 	return a.Auth0OauthCfg().AuthCodeURL(state), nil
 }
 
-func (a *Auth) handleAuth0Callback() http.HandlerFunc {
+func (a *Auth) handleAuth0Callback(db database.Databaser) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 
@@ -94,6 +96,31 @@ func (a *Auth) handleAuth0Callback() http.HandlerFunc {
 
 		// print the user id for now and claims
 		slog.Info("Auth0 login successful", "userID", existingUserID, "claims", profile)
+
+		if existingUserID != 0 {
+
+		} else {
+			subject, ok := profile["sub"]
+			if !ok {
+				slog.Error("failed to retrieve subject")
+				http.Error(w, "Internal server error", http.StatusInternalServerError)
+				return
+			}
+			subjectString, ok := subject.(string)
+			if !ok {
+				slog.Error("subject not in string format. format: %T", subject)
+				http.Error(w, "Internal server error", http.StatusInternalServerError)
+				return
+			}
+			userID, err := subjectToUserID(db, subjectString)
+			if err != nil {
+				slog.Error(fmt.Sprintf("failed to get/create user: %v", err))
+				http.Error(w, "Internal server error", http.StatusInternalServerError)
+				return
+			}
+
+			slog.Info(fmt.Sprintf("logged in user: %d", userID))
+		}
 
 		// Redirect to home page for now
 		http.Redirect(w, r, "/", http.StatusSeeOther)
