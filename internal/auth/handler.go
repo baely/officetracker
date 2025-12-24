@@ -20,7 +20,7 @@ func Router(cfg config.IntegratedApp, db database.Databaser, redis *database.Red
 	return func(r chi.Router) {
 		r.Get("/logout", handleLogout(cfg))
 		r.Get("/generate-gh", handleGenerateGithub(cfg, redis))
-		r.Get("/callback/auth0", author.handleAuth0Callback(db))
+		r.Get("/callback/auth0", author.handleAuth0Callback(cfg, db))
 		r.Get("/callback/github", handleGithubCallback(cfg, db, redis))
 		r.Get("/demo", handleDemoAuth(cfg, db))
 	}

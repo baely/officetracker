@@ -13,6 +13,7 @@ import (
 	"github.com/coreos/go-oidc/v3/oidc"
 	"golang.org/x/oauth2"
 
+	"github.com/baely/officetracker/internal/config"
 	"github.com/baely/officetracker/internal/database"
 )
 
@@ -44,7 +45,7 @@ func (a *Auth) Auth0SSOUri() (string, error) {
 	return a.Auth0OauthCfg().AuthCodeURL(state), nil
 }
 
-func (a *Auth) handleAuth0Callback(db database.Databaser) http.HandlerFunc {
+func (a *Auth) handleAuth0Callback(cfg config.IntegratedApp, db database.Databaser) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 
@@ -97,8 +98,11 @@ func (a *Auth) handleAuth0Callback(db database.Databaser) http.HandlerFunc {
 		// print the user id for now and claims
 		slog.Info("Auth0 login successful", "userID", existingUserID, "claims", profile)
 
+		var userID int
 		if existingUserID != 0 {
-
+			slog.Error("non 0 userId retrived from redis for auth0 login")
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
 		} else {
 			subject, ok := profile["sub"]
 			if !ok {
@@ -112,7 +116,7 @@ func (a *Auth) handleAuth0Callback(db database.Databaser) http.HandlerFunc {
 				http.Error(w, "Internal server error", http.StatusInternalServerError)
 				return
 			}
-			userID, err := subjectToUserID(db, subjectString)
+			userID, err = subjectToUserID(db, subjectString)
 			if err != nil {
 				slog.Error(fmt.Sprintf("failed to get/create user: %v", err))
 				http.Error(w, "Internal server error", http.StatusInternalServerError)
@@ -120,6 +124,13 @@ func (a *Auth) handleAuth0Callback(db database.Databaser) http.HandlerFunc {
 			}
 
 			slog.Info(fmt.Sprintf("logged in user: %d", userID))
+		}
+
+		err = issueToken(cfg, w, userID)
+		if err != nil {
+			slog.Error(fmt.Sprintf("failed to issue token: %v", err))
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
 		}
 
 		// Redirect to home page for now
