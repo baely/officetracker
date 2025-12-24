@@ -260,9 +260,9 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 	// Handle GitHub auth only for integrated mode
 	var authURL string
 	var githubAccounts []string
-	switch cfg := s.cfg.(type) {
+	switch s.cfg.(type) {
 	case config.IntegratedApp:
-		authURL, err = s.auth.GenerateAuth0AuthLink(r.Context(), cfg, s.redis, userID)
+		authURL, err = s.auth.GenerateAuth0AuthLink(userID)
 		if err != nil {
 			errorPage(w, r, fmt.Errorf("failed to generate github auth link: %v", err), internalErrorMsg, http.StatusInternalServerError)
 			return
