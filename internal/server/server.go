@@ -41,7 +41,7 @@ func NewServer(cfg config.AppConfigurer, db database.Databaser, redis *database.
 		v1:    v1.New(db, reporter),
 	}
 
-	author, err := auth.NewAuth(cfg, redis)
+	author, err := auth.NewAuth(cfg, db, redis)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize auth: %w", err)
 	}
@@ -262,7 +262,7 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 	var githubAccounts []string
 	switch cfg := s.cfg.(type) {
 	case config.IntegratedApp:
-		authURL, err = auth.GenerateGitHubAuthLink(r.Context(), cfg, s.redis, userID)
+		authURL, err = s.auth.GenerateAuth0AuthLink(r.Context(), cfg, s.redis, userID)
 		if err != nil {
 			errorPage(w, r, fmt.Errorf("failed to generate github auth link: %v", err), internalErrorMsg, http.StatusInternalServerError)
 			return
@@ -276,7 +276,7 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 
 	serveSettings(w, r, settingsPage{
 		GithubAccounts:      githubAccounts,
-		GithubAuthURL:       authURL,
+		Auth0AuthURL:        authURL,
 		ThemePreferences:    settings.ThemePreferences,
 		SchedulePreferences: settings.SchedulePreferences,
 	})

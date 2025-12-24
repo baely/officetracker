@@ -3,10 +3,11 @@ package auth
 import (
 	"context"
 
+	"github.com/coreos/go-oidc/v3/oidc"
+
 	"github.com/baely/officetracker/internal/config"
 	"github.com/baely/officetracker/internal/database"
 	"github.com/baely/officetracker/internal/util"
-	"github.com/coreos/go-oidc/v3/oidc"
 )
 
 type Auth struct {
@@ -15,11 +16,12 @@ type Auth struct {
 	auth0Cfg *config.Auth0
 	ghCfg    *config.Github
 
+	db       database.Databaser
 	redis    *database.Redis
 	provider *oidc.Provider
 }
 
-func NewAuth(cfg config.AppConfigurer, redis *database.Redis) (*Auth, error) {
+func NewAuth(cfg config.AppConfigurer, db database.Databaser, redis *database.Redis) (*Auth, error) {
 	appCfg, ok := cfg.(config.IntegratedApp)
 	if !ok {
 		return nil, nil
@@ -44,6 +46,7 @@ func NewAuth(cfg config.AppConfigurer, redis *database.Redis) (*Auth, error) {
 		auth0Cfg: &appCfg.Auth0,
 		ghCfg:    &appCfg.Github,
 
+		db:       db,
 		redis:    redis,
 		provider: provider,
 	}, nil

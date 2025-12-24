@@ -28,6 +28,10 @@ func (a *Auth) Auth0OauthCfg() *oauth2.Config {
 }
 
 func (a *Auth) Auth0SSOUri() (string, error) {
+	return a.GenerateAuth0AuthLink(0)
+}
+
+func (a *Auth) GenerateAuth0AuthLink(userId int) (string, error) {
 	// Generate a secure random state using crypto/rand
 	stateBytes := make([]byte, 32)
 	if _, err := rand.Read(stateBytes); err != nil {
@@ -37,7 +41,7 @@ func (a *Auth) Auth0SSOUri() (string, error) {
 
 	// Store the state in Redis with 0 as userID (new user), expiring in 10 minutes
 	key := fmt.Sprintf("auth0:state:%s", state)
-	err := a.redis.SetState(context.Background(), key, 0, 10*time.Minute)
+	err := a.redis.SetState(context.Background(), key, userId, 10*time.Minute)
 	if err != nil {
 		return "", fmt.Errorf("failed to store state: %v", err)
 	}
@@ -105,16 +109,40 @@ func (a *Auth) handleAuth0Callback(cfg config.IntegratedApp, db database.Databas
 		}
 		subjectString, ok := subject.(string)
 		if !ok {
-			slog.Error("subject not in string format. format: %T", subject)
+			slog.Error(fmt.Sprintf("subject not in string format. format: %T", subject))
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+
+		display, ok := profile["nickname"]
+		if !ok {
+			slog.Error("failed to retrieve nickname")
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+		displayString, ok := display.(string)
+		if !ok {
+			slog.Error(fmt.Sprintf("display not in string format. format: %T", subject))
 			http.Error(w, "Internal server error", http.StatusInternalServerError)
 			return
 		}
 
 		var userID int
 		if existingUserID != 0 {
-			slog.Error("non 0 userId retrived from redis for auth0 login")
-			http.Error(w, "Internal server error", http.StatusInternalServerError)
-			return
+			// Account linking flow - update existing user's social info
+			err = a.addLoginToUser(existingUserID, subjectString, displayString)
+			if err != nil {
+				if err.Error() == "github account already associated with another user" {
+					slog.Error(fmt.Sprintf("github account already linked: %v", err))
+					http.Error(w, "This GitHub account is already linked to another Officetracker account", http.StatusConflict)
+					return
+				}
+				slog.Error(fmt.Sprintf("failed to update user social: %v", err))
+				http.Error(w, "Internal server error", http.StatusInternalServerError)
+				return
+			}
+			userID = existingUserID
+			slog.Info(fmt.Sprintf("linked social account for user: %d", userID))
 		} else {
 			userID, err = subjectToUserID(db, subjectString)
 			if err != nil {
@@ -122,6 +150,14 @@ func (a *Auth) handleAuth0Callback(cfg config.IntegratedApp, db database.Databas
 				http.Error(w, "Internal server error", http.StatusInternalServerError)
 				return
 			}
+
+			// Update username in case it changed
+			err = a.updateLoginForUser(userID, subjectString, displayString)
+			if err != nil {
+				slog.Error(fmt.Sprintf("failed to update username: %v", err))
+				// Non-critical error, continue
+			}
+
 			slog.Info(fmt.Sprintf("logged in user: %d", userID))
 		}
 
@@ -149,4 +185,22 @@ func (a *Auth) verifyIDToken(ctx context.Context, token *oauth2.Token) (*oidc.ID
 	}
 
 	return a.provider.Verifier(oidcConfig).Verify(ctx, rawIDToken)
+}
+
+func (a *Auth) addLoginToUser(existingUserID int, subject string, display string) error {
+	userId, err := validateAuth0Subject(subject)
+	if err != nil {
+		return err
+	}
+
+	return a.db.UpdateUserGithub(existingUserID, userId, display)
+}
+
+func (a *Auth) updateLoginForUser(userID int, subject string, display string) error {
+	social, err := validateAuth0Subject(subject)
+	if err != nil {
+		return err
+	}
+
+	return a.db.UpdateUser(userID, social, display)
 }

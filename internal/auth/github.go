@@ -258,6 +258,7 @@ func subjectToUserID(db database.Databaser, sub string) (int, error) {
 	return toUserID(db, userId)
 }
 
+// TODO: gracefully handle arbitrary social login providers
 var validProviders = []string{
 	"github",
 }
