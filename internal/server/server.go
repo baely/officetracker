@@ -27,6 +27,7 @@ type Server struct {
 	cfg   config.AppConfigurer
 	db    database.Databaser
 	redis *database.Redis
+	auth  *auth.Auth
 
 	// v1 implementation
 	v1 *v1.Service
@@ -39,6 +40,12 @@ func NewServer(cfg config.AppConfigurer, db database.Databaser, redis *database.
 		cfg:   cfg,
 		v1:    v1.New(db, reporter),
 	}
+
+	author, err := auth.NewAuth(cfg, db, redis)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize auth: %w", err)
+	}
+	s.auth = author
 
 	r := chi.NewMux().With(Otel, injectAuth(db, cfg), s.logRequest)
 
@@ -67,7 +74,7 @@ func NewServer(cfg config.AppConfigurer, db database.Databaser, redis *database.
 	switch integratedCfg := cfg.(type) {
 	case config.IntegratedApp:
 		// Auth routes (not protected by suspension check to allow login/logout)
-		r.Route("/auth", auth.Router(integratedCfg, s.db, s.redis))
+		r.Route("/auth", auth.Router(integratedCfg, s.db, s.redis, s.auth))
 		r.Get("/login", s.handleLogin)
 		r.Get("/logout", s.handleLogout)
 		// Cool stuff (protected by suspension check)
@@ -212,8 +219,8 @@ func (s *Server) handleHero(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
-	cfg := s.cfg.(config.IntegratedApp)
-	ssoUri, err := auth.SSOUri(cfg, s.redis)
+	ssoUri, err := s.auth.Auth0SSOUri()
+
 	if err != nil {
 		slog.Error(fmt.Sprintf("failed to generate SSO URI: %v", err))
 		errorPage(w, r, err, internalErrorMsg, http.StatusInternalServerError)
@@ -251,9 +258,9 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 	// Handle GitHub auth only for integrated mode
 	var authURL string
 	var githubAccounts []string
-	switch cfg := s.cfg.(type) {
+	switch s.cfg.(type) {
 	case config.IntegratedApp:
-		authURL, err = auth.GenerateGitHubAuthLink(r.Context(), cfg, s.redis, userID)
+		authURL, err = s.auth.GenerateAuth0AuthLink(userID)
 		if err != nil {
 			errorPage(w, r, fmt.Errorf("failed to generate github auth link: %v", err), internalErrorMsg, http.StatusInternalServerError)
 			return
@@ -267,7 +274,7 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 
 	serveSettings(w, r, settingsPage{
 		GithubAccounts:      githubAccounts,
-		GithubAuthURL:       authURL,
+		Auth0AuthURL:        authURL,
 		ThemePreferences:    settings.ThemePreferences,
 		SchedulePreferences: settings.SchedulePreferences,
 	})

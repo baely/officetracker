@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"slices"
+	"strings"
 	"time"
 
 	"golang.org/x/oauth2"
@@ -245,6 +247,37 @@ func toUserID(db database.Databaser, ghID string) (int, error) {
 		return 0, err
 	}
 	return userID, nil
+}
+
+func subjectToUserID(db database.Databaser, sub string) (int, error) {
+	userId, err := validateAuth0Subject(sub)
+	if err != nil {
+		return 0, fmt.Errorf("invalid subject: %v", err)
+	}
+
+	return toUserID(db, userId)
+}
+
+// TODO: gracefully handle arbitrary social login providers
+var validProviders = []string{
+	"github",
+}
+
+func validateAuth0Subject(sub string) (string, error) {
+	parts := strings.Split(sub, "|")
+
+	if len(parts) != 2 {
+		return "", fmt.Errorf("invalid number of sub parts")
+	}
+
+	provider := parts[0]
+	identifier := parts[1]
+
+	if !slices.Contains(validProviders, provider) {
+		return "", fmt.Errorf("invalid social login: %s", provider)
+	}
+
+	return identifier, nil
 }
 
 func handleDemoAuth(cfg config.IntegratedApp, db database.Databaser) http.HandlerFunc {

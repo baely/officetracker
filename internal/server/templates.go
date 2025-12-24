@@ -12,8 +12,8 @@ import (
 )
 
 type basePage struct {
-	IsLoggedIn    bool
-	IsStandalone  bool
+	IsLoggedIn   bool
+	IsStandalone bool
 }
 
 type formPage struct {
@@ -60,7 +60,7 @@ func serveLogin(w http.ResponseWriter, r *http.Request, page loginPage) {
 type settingsPage struct {
 	basePage
 	GithubAccounts      []string
-	GithubAuthURL       string
+	Auth0AuthURL        string
 	ThemePreferences    model.ThemePreferences
 	SchedulePreferences model.SchedulePreferences
 }
@@ -73,7 +73,7 @@ func serveSettings(w http.ResponseWriter, r *http.Request, page settingsPage) {
 	}
 }
 
-type developerPage struct{
+type developerPage struct {
 	basePage
 }
 

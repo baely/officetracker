@@ -1,19 +1,18 @@
 {{ template "base.html" . }}
 {{ define "title" }}Settings{{ end }}
 {{ define "content" }}
-{{if .GithubAuthURL}}
+{{if .Auth0AuthURL}}
 <h3>Auth</h3>
 <p>
-    Click the button below to connect another GitHub account. This link will expire after 10 minutes.
+    Click the button below to connect another social account. This link will expire after 10 minutes.
 </p>
 <p>
-    <a href="{{.GithubAuthURL}}" class="github-btn" id="assoc-uri">
-        <img src="../static/github-mark-white.png" alt="GitHub" class="github-logo">
-        Connect GitHub Account
+    <a href="{{.Auth0AuthURL}}" class="github-btn" id="assoc-uri">
+        Connect additional social login with Auth0
     </a>
 </p>
 <p>
-    The following GitHub accounts are currently associated with your Officetracker account:
+    The following social accounts are currently associated with your Officetracker account:
     <ul>
         {{range .GithubAccounts}}
         <li>{{.}}</li>
