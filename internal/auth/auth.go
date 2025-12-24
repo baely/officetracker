@@ -25,12 +25,18 @@ func NewAuth(cfg config.AppConfigurer, redis *database.Redis) (*Auth, error) {
 		return nil, nil
 	}
 
-	provider, err := oidc.NewProvider(
-		context.Background(),
-		"https://"+appCfg.Auth0.Domain+"/",
-	)
-	if err != nil {
-		return nil, err
+	var provider *oidc.Provider
+	var err error
+
+	// Skip Auth0 initialization for dummy/test credentials
+	if appCfg.Auth0.ClientID != "" && appCfg.Auth0.ClientID != "auth0_client_id" && appCfg.Auth0.ClientID != "dummy_client_id" {
+		provider, err = oidc.NewProvider(
+			context.Background(),
+			"https://"+appCfg.Auth0.Domain+"/",
+		)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return &Auth{
