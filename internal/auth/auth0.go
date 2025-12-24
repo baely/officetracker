@@ -42,7 +42,9 @@ func (a *Auth) Auth0SSOUri() (string, error) {
 		return "", fmt.Errorf("failed to store state: %v", err)
 	}
 
-	return a.Auth0OauthCfg().AuthCodeURL(state), nil
+	return a.Auth0OauthCfg().AuthCodeURL(state,
+		oauth2.SetAuthURLParam("prompt", "login"),
+	), nil
 }
 
 func (a *Auth) handleAuth0Callback(cfg config.IntegratedApp, db database.Databaser) http.HandlerFunc {
