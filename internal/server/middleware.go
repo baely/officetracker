@@ -116,28 +116,3 @@ func findMatchedRoute(r *http.Request) string {
 	return matchedPattern
 }
 
-func checkSuspension(db database.Databaser) func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			userID, err := getUserID(r)
-			if err != nil {
-				next.ServeHTTP(w, r)
-				return
-			}
-
-			suspended, err := db.IsUserSuspended(userID)
-			if err != nil {
-				slog.Error("failed to check user suspension status", "userID", userID, "error", err)
-				writeError(w, internalErrorMsg, http.StatusInternalServerError)
-				return
-			}
-
-			if suspended {
-				http.Redirect(w, r, "/suspended", http.StatusSeeOther)
-				return
-			}
-
-			next.ServeHTTP(w, r)
-		})
-	}
-}

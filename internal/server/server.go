@@ -52,34 +52,32 @@ func NewServer(cfg config.AppConfigurer, db database.Databaser, redis *database.
 	// Suspension page (must be accessible to suspended users)
 	r.Get("/suspended", s.handleSuspended)
 
-	// Form routes (protected by suspension check)
-	r.With(checkSuspension(db)).Get("/", s.handleIndex)
-	r.With(checkSuspension(db)).Get("/{year:[0-9]{4}}-{month:[0-9]{1,2}}", s.handleForm)
+	// Form routes
+	r.Get("/", s.handleIndex)
+	r.Get("/{year:[0-9]{4}}-{month:[0-9]{1,2}}", s.handleForm)
 
-	// API routes (protected by suspension check)
+	// API routes
 	r.Route("/api/v1", func(r chi.Router) {
-		r.Use(checkSuspension(db))
 		apiRouter(s.v1)(r)
 	})
 
 	r.Route("/mcp/v1", func(r chi.Router) {
-		r.Use(checkSuspension(db))
 		mcpRouter(s.v1)(r)
 	})
 
 	// Settings available in both standalone and integrated modes
-	r.With(checkSuspension(db)).Get("/settings", s.handleSettings)
+	r.Get("/settings", s.handleSettings)
 
 	// Integrated app routes
 	switch integratedCfg := cfg.(type) {
 	case config.IntegratedApp:
-		// Auth routes (not protected by suspension check to allow login/logout)
-		r.Route("/auth", auth.Router(integratedCfg, s.db, s.redis, s.auth))
+		// Auth routes
+		r.Route("/auth", auth.Router(integratedCfg, s.db, s.auth))
 		r.Get("/login", s.handleLogin)
 		r.Get("/logout", s.handleLogout)
-		// Cool stuff (protected by suspension check)
-		r.With(checkSuspension(db)).Get("/developer", s.handleDeveloper)
-		// Boring stuff (not protected by suspension check)
+		// Developer page
+		r.Get("/developer", s.handleDeveloper)
+		// Legal pages
 		r.Get("/tos", s.handleTos)
 		r.Get("/privacy", s.handlePrivacy)
 	}

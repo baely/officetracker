@@ -171,23 +171,9 @@ func (s *sqliteClient) GetNotes(_ int, year int) (map[int]model.Note, error) {
 	return notes, nil
 }
 
-func (s *sqliteClient) GetUser(userID int) (int, string, error) {
-	return userID, "", nil
-}
-
-func (s *sqliteClient) GetUserGithubAccounts(userID int) ([]string, error) {
-	// Standalone mode doesn't use GitHub accounts
-	return []string{}, nil
-}
-
 func (s *sqliteClient) GetUserLinkedAccounts(userID int) ([]model.LinkedAccount, error) {
 	// Standalone mode doesn't use linked accounts
 	return []model.LinkedAccount{}, nil
-}
-
-func (s *sqliteClient) SaveUserByGHID(ghID string) (int, error) {
-	// All users in standalone mode have ID 1
-	return 1, nil
 }
 
 func (s *sqliteClient) SaveSecret(userID int, secret string) error {
@@ -203,16 +189,6 @@ func (s *sqliteClient) GetUserByGHID(_ string) (int, error) {
 func (s *sqliteClient) GetUserBySecret(_ string) (int, error) {
 	// All users in standalone mode have ID 1
 	return 1, nil
-}
-
-func (s *sqliteClient) UpdateUser(_ int, _ string, _ string) error {
-	// Standalone mode doesn't use GitHub usernames
-	return nil
-}
-
-func (s *sqliteClient) UpdateUserGithub(_ int, _ string, _ string) error {
-	// Standalone mode doesn't support multiple GitHub accounts
-	return nil
 }
 
 func (s *sqliteClient) GetUserByAuth0Sub(_ string) (int, error) {
@@ -249,13 +225,13 @@ func (s *sqliteClient) GetThemePreferences(_ int) (model.ThemePreferences, error
 			TimeBasedEnabled: false,
 		}, nil
 	}
-	
+
 	// Table exists, get preferences
 	q = `SELECT theme, weather_enabled, time_based_enabled, location FROM user_preferences LIMIT 1;`
 	row = s.db.QueryRow(q)
 	var prefs model.ThemePreferences
 	var location sql.NullString
-	
+
 	err = row.Scan(&prefs.Theme, &prefs.WeatherEnabled, &prefs.TimeBasedEnabled, &location)
 	if errors.Is(err, sql.ErrNoRows) {
 		// No preferences yet, return defaults
@@ -265,15 +241,15 @@ func (s *sqliteClient) GetThemePreferences(_ int) (model.ThemePreferences, error
 			TimeBasedEnabled: false,
 		}, nil
 	}
-	
+
 	if err != nil {
 		return model.ThemePreferences{}, err
 	}
-	
+
 	if location.Valid {
 		prefs.Location = location.String
 	}
-	
+
 	return prefs, nil
 }
 
@@ -285,12 +261,12 @@ func (s *sqliteClient) SaveThemePreferences(_ int, prefs model.ThemePreferences)
         time_based_enabled INTEGER DEFAULT 0,
         location TEXT DEFAULT NULL
     );`
-	
+
 	_, err := s.db.Exec(q)
 	if err != nil {
 		return err
 	}
-	
+
 	// Check if any preferences exist
 	q = `SELECT COUNT(*) FROM user_preferences;`
 	row := s.db.QueryRow(q)
@@ -299,7 +275,7 @@ func (s *sqliteClient) SaveThemePreferences(_ int, prefs model.ThemePreferences)
 	if err != nil {
 		return err
 	}
-	
+
 	if count == 0 {
 		// Insert new preferences
 		q = `INSERT INTO user_preferences (theme, weather_enabled, time_based_enabled, location) 
@@ -310,7 +286,7 @@ func (s *sqliteClient) SaveThemePreferences(_ int, prefs model.ThemePreferences)
 		q = `UPDATE user_preferences SET theme = ?, weather_enabled = ?, time_based_enabled = ?, location = ?;`
 		_, err = s.db.Exec(q, prefs.Theme, prefs.WeatherEnabled, prefs.TimeBasedEnabled, prefs.Location)
 	}
-	
+
 	return err
 }
 
@@ -330,7 +306,7 @@ func (s *sqliteClient) GetSchedulePreferences(_ int) (model.SchedulePreferences,
 	s.db.Exec(q)
 	q = `ALTER TABLE user_preferences ADD COLUMN schedule_sunday_state INTEGER DEFAULT 0;`
 	s.db.Exec(q)
-	
+
 	q = `SELECT 
 		COALESCE(schedule_monday_state, 0),
 		COALESCE(schedule_tuesday_state, 0),
@@ -340,11 +316,11 @@ func (s *sqliteClient) GetSchedulePreferences(_ int) (model.SchedulePreferences,
 		COALESCE(schedule_saturday_state, 0),
 		COALESCE(schedule_sunday_state, 0)
 		FROM user_preferences LIMIT 1;`
-	
+
 	row := s.db.QueryRow(q)
 	var prefs model.SchedulePreferences
 	var monday, tuesday, wednesday, thursday, friday, saturday, sunday int
-	
+
 	err := row.Scan(&monday, &tuesday, &wednesday, &thursday, &friday, &saturday, &sunday)
 	if err != nil {
 		// Return default values if no preferences exist
@@ -358,7 +334,7 @@ func (s *sqliteClient) GetSchedulePreferences(_ int) (model.SchedulePreferences,
 			Sunday:    model.StateUntracked,
 		}, nil
 	}
-	
+
 	prefs.Monday = model.State(monday)
 	prefs.Tuesday = model.State(tuesday)
 	prefs.Wednesday = model.State(wednesday)
@@ -366,7 +342,7 @@ func (s *sqliteClient) GetSchedulePreferences(_ int) (model.SchedulePreferences,
 	prefs.Friday = model.State(friday)
 	prefs.Saturday = model.State(saturday)
 	prefs.Sunday = model.State(sunday)
-	
+
 	return prefs, nil
 }
 
@@ -386,7 +362,7 @@ func (s *sqliteClient) SaveSchedulePreferences(_ int, prefs model.SchedulePrefer
 	s.db.Exec(q)
 	q = `ALTER TABLE user_preferences ADD COLUMN schedule_sunday_state INTEGER DEFAULT 0;`
 	s.db.Exec(q)
-	
+
 	// Check if any preferences exist
 	q = `SELECT COUNT(*) FROM user_preferences;`
 	row := s.db.QueryRow(q)
@@ -395,7 +371,7 @@ func (s *sqliteClient) SaveSchedulePreferences(_ int, prefs model.SchedulePrefer
 	if err != nil {
 		return err
 	}
-	
+
 	monday := int(prefs.Monday)
 	tuesday := int(prefs.Tuesday)
 	wednesday := int(prefs.Wednesday)
@@ -403,7 +379,7 @@ func (s *sqliteClient) SaveSchedulePreferences(_ int, prefs model.SchedulePrefer
 	friday := int(prefs.Friday)
 	saturday := int(prefs.Saturday)
 	sunday := int(prefs.Sunday)
-	
+
 	if count == 0 {
 		// Insert new preferences
 		q = `INSERT INTO user_preferences (schedule_monday_state, schedule_tuesday_state, schedule_wednesday_state, 
@@ -416,7 +392,7 @@ func (s *sqliteClient) SaveSchedulePreferences(_ int, prefs model.SchedulePrefer
 		     schedule_thursday_state = ?, schedule_friday_state = ?, schedule_saturday_state = ?, schedule_sunday_state = ?;`
 		_, err = s.db.Exec(q, monday, tuesday, wednesday, thursday, friday, saturday, sunday)
 	}
-	
+
 	return err
 }
 
