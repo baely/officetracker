@@ -180,41 +180,6 @@ func (p *postgres) GetNotes(userID int, year int) (map[int]model.Note, error) {
 
 }
 
-func (p *postgres) GetUser(userID int) (int, string, error) {
-	q := `SELECT u.user_id, COALESCE(u.gh_user, '') as gh_user 
-	      FROM users u 
-	      WHERE u.user_id = $1;`
-	var id int
-	var user string
-	err := p.readOnlyTransaction(func(tx *sql.Tx) error {
-		row := tx.QueryRow(q, userID)
-		err := row.Scan(&id, &user)
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil
-		}
-		return err
-	})
-	return id, user, err
-}
-
-func (p *postgres) SaveUserByGHID(ghID string) (int, error) {
-	var id int
-	err := p.readWriteTransaction(func(tx *sql.Tx) error {
-		// First create the user entry with initial GitHub details
-		q1 := `INSERT INTO users (gh_id, gh_user) VALUES ($1, '') RETURNING user_id;`
-		row := tx.QueryRow(q1, ghID)
-		if err := row.Scan(&id); err != nil {
-			return err
-		}
-
-		// Then add to gh_users table
-		q2 := `INSERT INTO gh_users (gh_id, user_id, gh_user) VALUES ($1, $2, '');`
-		_, err := tx.Exec(q2, ghID, id)
-		return err
-	})
-	return id, err
-}
-
 func (p *postgres) SaveSecret(userID int, secret string) error {
 	q := `UPDATE secrets SET active = false WHERE user_id = $1 AND active;`
 	err := p.readWriteTransaction(func(tx *sql.Tx) error {
@@ -258,87 +223,6 @@ func (p *postgres) GetUserBySecret(secret string) (int, error) {
 		return err
 	})
 	return id, err
-}
-
-func (p *postgres) UpdateUser(userID int, ghID string, username string) error {
-	return p.readWriteTransaction(func(tx *sql.Tx) error {
-			// First update the gh_users table with the new username for the specific ghID
-			ghUsersQ := `UPDATE gh_users SET gh_user = $1 WHERE gh_id = $2;`
-			_, err := tx.Exec(ghUsersQ, username, ghID)
-			if err != nil {
-				return err
-			}
-
-			// Check if this ghID is the primary one in the users table
-			var primaryGhID string
-			primaryQ := `SELECT gh_id FROM users WHERE user_id = $1;`
-			err = tx.QueryRow(primaryQ, userID).Scan(&primaryGhID)
-			if err != nil && !errors.Is(err, sql.ErrNoRows) {
-				return err
-			}
-
-			// If this is the primary GitHub ID, update the users table as well
-			if primaryGhID == ghID {
-				usersQ := `UPDATE users SET gh_user = $1 WHERE user_id = $2;`
-				_, err = tx.Exec(usersQ, username, userID)
-				if err != nil {
-					return err
-				}
-			}
-
-			return nil
-		})
-}
-
-func (p *postgres) UpdateUserGithub(userID int, ghID string, username string) error {
-	return p.readWriteTransaction(func(tx *sql.Tx) error {
-		// Check if this GitHub ID already exists
-		var existingUserID int
-		checkQ := `SELECT user_id FROM gh_users WHERE gh_id = $1;`
-		err := tx.QueryRow(checkQ, ghID).Scan(&existingUserID)
-
-		if err == nil {
-			// GitHub ID exists - check if it belongs to another user
-			if existingUserID != userID {
-				return fmt.Errorf("github account already associated with another user")
-			}
-
-			// GitHub ID exists and belongs to this user - update username only if it was previously empty
-			updateQ := `UPDATE gh_users SET gh_user = $1 WHERE gh_id = $2 AND gh_user = '';`
-			_, err = tx.Exec(updateQ, username, ghID)
-			return err
-		}
-
-		if !errors.Is(err, sql.ErrNoRows) {
-			return err
-		}
-
-		// GitHub ID doesn't exist - insert new association
-		insertQ := `INSERT INTO gh_users (gh_id, user_id, gh_user) VALUES ($1, $2, $3);`
-		_, err = tx.Exec(insertQ, ghID, userID, username)
-		return err
-	})
-}
-
-func (p *postgres) GetUserGithubAccounts(userID int) ([]string, error) {
-	q := `SELECT gh_user FROM gh_users WHERE user_id = $1 ORDER BY gh_user;`
-	var accounts []string
-	err := p.readOnlyTransaction(func(tx *sql.Tx) error {
-		rows, err := tx.Query(q, userID)
-		if err != nil {
-			return err
-		}
-		defer rows.Close()
-		for rows.Next() {
-			var username string
-			if err := rows.Scan(&username); err != nil {
-				return err
-			}
-			accounts = append(accounts, username)
-		}
-		return rows.Err()
-	})
-	return accounts, err
 }
 
 func (p *postgres) GetUserLinkedAccounts(userID int) ([]model.LinkedAccount, error) {
@@ -465,7 +349,7 @@ func (p *postgres) rcvTx(fn func(*sql.Tx) error, opts *sql.TxOptions) error {
 	ctx := context.Background()
 	start := time.Now()
 	defer func() {
-		slog.Info(fmt.Sprintf("transaction took: %s", time.Since(start)))
+		slog.Debug(fmt.Sprintf("transaction took: %s", time.Since(start)))
 	}()
 	conn, err := p.db.Conn(ctx)
 	if err != nil {
@@ -503,7 +387,7 @@ func (p *postgres) readWriteTransaction(fn func(*sql.Tx) error) error {
 func (p *postgres) GetThemePreferences(userID int) (model.ThemePreferences, error) {
 	q := `SELECT theme, weather_enabled, time_based_enabled, location FROM user_preferences WHERE user_id = $1;`
 	var prefs model.ThemePreferences
-	
+
 	err := p.readOnlyTransaction(func(tx *sql.Tx) error {
 		row := tx.QueryRow(q, userID)
 		var location sql.NullString
@@ -522,7 +406,7 @@ func (p *postgres) GetThemePreferences(userID int) (model.ThemePreferences, erro
 		}
 		return err
 	})
-	
+
 	return prefs, err
 }
 
@@ -531,7 +415,7 @@ func (p *postgres) SaveThemePreferences(userID int, prefs model.ThemePreferences
 		  VALUES ($1, $2, $3, $4, $5)
 		  ON CONFLICT (user_id)
 		  DO UPDATE SET theme = $2, weather_enabled = $3, time_based_enabled = $4, location = $5;`
-	
+
 	return p.readWriteTransaction(func(tx *sql.Tx) error {
 		_, err := tx.Exec(q, userID, prefs.Theme, prefs.WeatherEnabled, prefs.TimeBasedEnabled, prefs.Location)
 		return err
@@ -542,7 +426,7 @@ func (p *postgres) GetSchedulePreferences(userID int) (model.SchedulePreferences
 	q := `SELECT schedule_monday_state, schedule_tuesday_state, schedule_wednesday_state, schedule_thursday_state, 
 		         schedule_friday_state, schedule_saturday_state, schedule_sunday_state 
 		  FROM user_preferences WHERE user_id = $1;`
-	
+
 	var prefs model.SchedulePreferences
 	err := p.readOnlyTransaction(func(tx *sql.Tx) error {
 		row := tx.QueryRow(q, userID)
@@ -563,7 +447,7 @@ func (p *postgres) GetSchedulePreferences(userID int) (model.SchedulePreferences
 		}
 		return err
 	})
-	
+
 	return prefs, err
 }
 
@@ -574,7 +458,7 @@ func (p *postgres) SaveSchedulePreferences(userID int, prefs model.SchedulePrefe
 		  ON CONFLICT (user_id)
 		  DO UPDATE SET schedule_monday_state = $2, schedule_tuesday_state = $3, schedule_wednesday_state = $4,
 		                schedule_thursday_state = $5, schedule_friday_state = $6, schedule_saturday_state = $7, schedule_sunday_state = $8;`
-	
+
 	return p.readWriteTransaction(func(tx *sql.Tx) error {
 		_, err := tx.Exec(q, userID, int(prefs.Monday), int(prefs.Tuesday), int(prefs.Wednesday),
 			int(prefs.Thursday), int(prefs.Friday), int(prefs.Saturday), int(prefs.Sunday))

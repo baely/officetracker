@@ -150,6 +150,19 @@ func (a *Auth) handleAuth0Callback(cfg config.IntegratedApp, db database.Databas
 			slog.Info(fmt.Sprintf("logged in user: %d", userID))
 		}
 
+		// Check if user is suspended (while we're already making DB calls)
+		suspended, err := db.IsUserSuspended(userID)
+		if err != nil {
+			slog.Error(fmt.Sprintf("failed to check suspension: %v", err))
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+		if suspended {
+			slog.Info(fmt.Sprintf("suspended user attempted login: %d", userID))
+			http.Redirect(w, r, "/suspended", http.StatusSeeOther)
+			return
+		}
+
 		err = issueToken(cfg, w, userID)
 		if err != nil {
 			slog.Error(fmt.Sprintf("failed to issue token: %v", err))

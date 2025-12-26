@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -50,6 +51,10 @@ func signingKey(cfg config.IntegratedApp) []byte {
 	return []byte(cfg.SigningKey)
 }
 
+func getValidationOptions() jwt.ParserOption {
+	return jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Name})
+}
+
 func GetUserID(cfg config.AppConfigurer, db database.Databaser, token string, authMethod Method) (int, error) {
 	switch cfg := cfg.(type) {
 	case config.IntegratedApp:
@@ -79,10 +84,18 @@ func getUserIDFromSecret(db database.Databaser, token string) (int, error) {
 }
 
 func generateToken(cfg config.IntegratedApp, userID int) (string, error) {
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"user": userID,
-	})
+	now := time.Now()
+	claims := tokenClaims{
+		RegisteredClaims: jwt.RegisteredClaims{
+			Subject:   fmt.Sprintf("%d", userID),
+			Issuer:    util.QualifiedDomain(cfg.Domain),
+			IssuedAt:  jwt.NewNumericDate(now),
+			ExpiresAt: jwt.NewNumericDate(now.Add(loginExpiration)),
+		},
+		User: userID,
+	}
 
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	tokenString, err := token.SignedString(signingKey(cfg))
 	if err != nil {
 		return "", err
@@ -112,7 +125,9 @@ func issueToken(cfg config.IntegratedApp, w http.ResponseWriter, userID int) err
 		Secure:   false,
 	}
 	//slog.Info(fmt.Sprintf("Issuing cookie for user %d", userID))
-	slog.Info("minted new jwt", "userID", userID)
+	slog.Info("minted new jwt",
+		"userID", userID,
+		"expiresAt", time.Now().Add(loginExpiration).Format(time.RFC3339))
 	http.SetCookie(w, &cookie)
 
 	return nil
@@ -123,18 +138,64 @@ func getUserIDFromToken(cfg config.IntegratedApp, token string) (int, error) {
 
 	t, err := jwt.ParseWithClaims(token, claims, func(t *jwt.Token) (interface{}, error) {
 		return signingKey(cfg), nil
-	})
+	}, getValidationOptions())
+
 	if err != nil {
+		if errors.Is(err, jwt.ErrTokenExpired) {
+			slog.Info("token validation failed: token expired", "userID", claims.User)
+			return 0, fmt.Errorf("token expired")
+		}
+
+		// For other parsing errors, log and return
+		slog.Warn("token validation failed", "error", err.Error())
 		return 0, err
 	}
+
 	if !t.Valid {
 		return 0, fmt.Errorf("invalid token")
+	}
+
+	if claims.IssuedAt == nil {
+		slog.Warn("token validation failed: missing iat claim")
+		return 0, fmt.Errorf("token missing required iat claim")
+	}
+
+	if claims.ExpiresAt == nil {
+		slog.Warn("token validation failed: missing exp claim")
+		return 0, fmt.Errorf("token missing required exp claim")
+	}
+
+	expectedIssuer := util.QualifiedDomain(cfg.Domain)
+	if claims.Issuer == "" {
+		slog.Warn("token validation failed: missing iss claim")
+		return 0, fmt.Errorf("token missing required iss claim")
+	}
+	if claims.Issuer != expectedIssuer {
+		slog.Warn("token validation failed: invalid issuer",
+			"expected", expectedIssuer,
+			"actual", claims.Issuer)
+		return 0, fmt.Errorf("invalid token issuer")
+	}
+
+	expectedSubject := fmt.Sprintf("%d", claims.User)
+	if claims.Subject == "" {
+		slog.Warn("token validation failed: missing sub claim")
+		return 0, fmt.Errorf("token missing required sub claim")
+	}
+	if claims.Subject != expectedSubject {
+		slog.Warn("token validation failed: subject/user mismatch",
+			"subject", claims.Subject,
+			"user", claims.User)
+		return 0, fmt.Errorf("token subject mismatch")
 	}
 
 	return claims.User, nil
 }
 
 func validateDevSecret(secret string) string {
+	if secret == "" {
+		return ""
+	}
 	if !strings.HasPrefix(strings.ToLower(secret), "bearer ") {
 		slog.Warn("invalid secret format")
 		return ""
