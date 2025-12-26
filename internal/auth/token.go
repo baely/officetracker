@@ -156,24 +156,41 @@ func getUserIDFromToken(cfg config.IntegratedApp, token string) (int, error) {
 		return 0, fmt.Errorf("invalid token")
 	}
 
-	// Validate issuer if present (graceful - only validates if set)
+	// Validate required claims - all must be present (no backward compatibility)
+	if claims.IssuedAt == nil {
+		slog.Warn("token validation failed: missing iat claim")
+		return 0, fmt.Errorf("token missing required iat claim")
+	}
+
+	if claims.ExpiresAt == nil {
+		slog.Warn("token validation failed: missing exp claim")
+		return 0, fmt.Errorf("token missing required exp claim")
+	}
+
+	// Validate issuer (required)
 	expectedIssuer := util.QualifiedDomain(cfg.Domain)
-	if claims.Issuer != "" && claims.Issuer != expectedIssuer {
+	if claims.Issuer == "" {
+		slog.Warn("token validation failed: missing iss claim")
+		return 0, fmt.Errorf("token missing required iss claim")
+	}
+	if claims.Issuer != expectedIssuer {
 		slog.Warn("token validation failed: invalid issuer",
 			"expected", expectedIssuer,
 			"actual", claims.Issuer)
 		return 0, fmt.Errorf("invalid token issuer")
 	}
 
-	// Validate subject matches user ID if present (graceful - only validates if set)
-	if claims.Subject != "" {
-		expectedSubject := fmt.Sprintf("%d", claims.User)
-		if claims.Subject != expectedSubject {
-			slog.Warn("token validation failed: subject/user mismatch",
-				"subject", claims.Subject,
-				"user", claims.User)
-			return 0, fmt.Errorf("token subject mismatch")
-		}
+	// Validate subject (required) and ensure it matches user ID
+	expectedSubject := fmt.Sprintf("%d", claims.User)
+	if claims.Subject == "" {
+		slog.Warn("token validation failed: missing sub claim")
+		return 0, fmt.Errorf("token missing required sub claim")
+	}
+	if claims.Subject != expectedSubject {
+		slog.Warn("token validation failed: subject/user mismatch",
+			"subject", claims.Subject,
+			"user", claims.User)
+		return 0, fmt.Errorf("token subject mismatch")
 	}
 
 	return claims.User, nil
