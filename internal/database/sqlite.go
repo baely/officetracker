@@ -180,6 +180,11 @@ func (s *sqliteClient) GetUserGithubAccounts(userID int) ([]string, error) {
 	return []string{}, nil
 }
 
+func (s *sqliteClient) GetUserLinkedAccounts(userID int) ([]model.LinkedAccount, error) {
+	// Standalone mode doesn't use linked accounts
+	return []model.LinkedAccount{}, nil
+}
+
 func (s *sqliteClient) SaveUserByGHID(ghID string) (int, error) {
 	// All users in standalone mode have ID 1
 	return 1, nil

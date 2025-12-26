@@ -255,25 +255,25 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Handle GitHub auth only for integrated mode
+	// Handle Auth0 auth only for integrated mode
 	var authURL string
-	var githubAccounts []string
+	var linkedAccounts []model.LinkedAccount
 	switch s.cfg.(type) {
 	case config.IntegratedApp:
 		authURL, err = s.auth.GenerateAuth0AuthLink(userID)
 		if err != nil {
-			errorPage(w, r, fmt.Errorf("failed to generate github auth link: %v", err), internalErrorMsg, http.StatusInternalServerError)
+			errorPage(w, r, fmt.Errorf("failed to generate auth0 auth link: %v", err), internalErrorMsg, http.StatusInternalServerError)
 			return
 		}
-		githubAccounts = settings.GithubAccounts
+		linkedAccounts = settings.LinkedAccounts
 	default:
-		// Standalone mode - no GitHub integration
+		// Standalone mode - no Auth0 integration
 		authURL = ""
-		githubAccounts = []string{}
+		linkedAccounts = []model.LinkedAccount{}
 	}
 
 	serveSettings(w, r, settingsPage{
-		GithubAccounts:      githubAccounts,
+		LinkedAccounts:      linkedAccounts,
 		Auth0AuthURL:        authURL,
 		ThemePreferences:    settings.ThemePreferences,
 		SchedulePreferences: settings.SchedulePreferences,

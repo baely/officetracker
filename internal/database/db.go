@@ -24,6 +24,7 @@ type Databaser interface {
 	GetUserBySecret(secret string) (int, error)
 	GetUser(userID int) (int, string, error)
 	GetUserGithubAccounts(userID int) ([]string, error)
+	GetUserLinkedAccounts(userID int) ([]model.LinkedAccount, error)
 	SaveUserByGHID(ghID string) (int, error)
 	UpdateUser(userID int, ghID string, username string) error
 	UpdateUserGithub(userID int, ghID string, username string) error

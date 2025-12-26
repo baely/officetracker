@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -334,6 +335,47 @@ func (p *postgres) GetUserGithubAccounts(userID int) ([]string, error) {
 				return err
 			}
 			accounts = append(accounts, username)
+		}
+		return rows.Err()
+	})
+	return accounts, err
+}
+
+func (p *postgres) GetUserLinkedAccounts(userID int) ([]model.LinkedAccount, error) {
+	q := `SELECT sub, profile FROM auth0_users WHERE user_id = $1 ORDER BY sub;`
+	var accounts []model.LinkedAccount
+	err := p.readOnlyTransaction(func(tx *sql.Tx) error {
+		rows, err := tx.Query(q, userID)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var sub, profileJSON string
+			if err := rows.Scan(&sub, &profileJSON); err != nil {
+				return err
+			}
+
+			// Parse provider from subject (format: "provider|identifier")
+			parts := strings.Split(sub, "|")
+			provider := "unknown"
+			if len(parts) == 2 {
+				provider = parts[0]
+			}
+
+			// Parse nickname from profile JSON
+			var profile map[string]interface{}
+			nickname := ""
+			if err := json.Unmarshal([]byte(profileJSON), &profile); err == nil {
+				if nick, ok := profile["nickname"].(string); ok {
+					nickname = nick
+				}
+			}
+
+			accounts = append(accounts, model.LinkedAccount{
+				Provider: provider,
+				Nickname: nickname,
+			})
 		}
 		return rows.Err()
 	})

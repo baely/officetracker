@@ -59,7 +59,7 @@ func serveLogin(w http.ResponseWriter, r *http.Request, page loginPage) {
 
 type settingsPage struct {
 	basePage
-	GithubAccounts      []string
+	LinkedAccounts      []model.LinkedAccount
 	Auth0AuthURL        string
 	ThemePreferences    model.ThemePreferences
 	SchedulePreferences model.SchedulePreferences
