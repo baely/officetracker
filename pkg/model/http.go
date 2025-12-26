@@ -164,9 +164,9 @@ type SchedulePreferences struct {
 }
 
 type LinkedAccount struct {
-	Provider        string `json:"provider"`          // e.g., "github", "google-oauth2"
-	ProviderDisplay string `json:"provider_display"`  // e.g., "GitHub", "Google"
-	Nickname        string `json:"nickname"`          // e.g., "baely", "bailey.butler.234"
+	Provider        string `json:"provider"`
+	ProviderDisplay string `json:"provider_display"`
+	Nickname        string `json:"nickname"`
 }
 
 type GetSettingsResponse struct {
