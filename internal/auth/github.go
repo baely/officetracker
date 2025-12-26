@@ -1,11 +1,11 @@
 package auth
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
-	"slices"
 	"strings"
 	"time"
 
@@ -42,35 +42,54 @@ func toUserID(db database.Databaser, ghID string) (int, error) {
 	return userID, nil
 }
 
-func subjectToUserID(db database.Databaser, sub string) (int, error) {
-	userId, err := validateAuth0Subject(sub)
+func subjectToUserID(db database.Databaser, profile Auth0Profile) (int, error) {
+	profileJSON, err := json.Marshal(profile)
 	if err != nil {
-		return 0, fmt.Errorf("invalid subject: %v", err)
+		return 0, fmt.Errorf("failed to marshal profile: %w", err)
+	}
+	profileStr := string(profileJSON)
+
+	// Tier 1: Check auth0_users table
+	userID, err := db.GetUserByAuth0Sub(profile.Sub)
+	if err == nil {
+		db.UpdateAuth0Profile(profile.Sub, profileStr)
+		return userID, nil
+	}
+	if !errors.Is(err, database.ErrNoUser) {
+		return 0, err
 	}
 
-	return toUserID(db, userId)
+	// Tier 2: Check gh_users table (migration fallback)
+	provider, providerID, err := parseAuth0Subject(profile.Sub)
+	if err != nil {
+		return 0, err
+	}
+
+	if provider == "github" {
+		existingUserID, err := db.GetUserByGHID(providerID)
+		if err == nil {
+			// Found existing GitHub user - migrate by linking Auth0 identity
+			err = db.LinkAuth0Account(existingUserID, profile.Sub, profileStr)
+			if err != nil {
+				return 0, fmt.Errorf("failed to migrate github user to auth0: %w", err)
+			}
+			return existingUserID, nil
+		}
+		if !errors.Is(err, database.ErrNoUser) {
+			return 0, err
+		}
+	}
+
+	// Tier 3: New user signup
+	return db.SaveUserByAuth0Sub(profile.Sub, profileStr)
 }
 
-// TODO: gracefully handle arbitrary social login providers
-var validProviders = []string{
-	"github",
-}
-
-func validateAuth0Subject(sub string) (string, error) {
+func parseAuth0Subject(sub string) (provider string, identifier string, err error) {
 	parts := strings.Split(sub, "|")
-
 	if len(parts) != 2 {
-		return "", fmt.Errorf("invalid number of sub parts")
+		return "", "", fmt.Errorf("invalid subject format")
 	}
-
-	provider := parts[0]
-	identifier := parts[1]
-
-	if !slices.Contains(validProviders, provider) {
-		return "", fmt.Errorf("invalid social login: %s", provider)
-	}
-
-	return identifier, nil
+	return parts[0], parts[1], nil
 }
 
 func handleDemoAuth(cfg config.IntegratedApp, db database.Databaser) http.HandlerFunc {

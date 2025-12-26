@@ -28,6 +28,11 @@ type Databaser interface {
 	UpdateUser(userID int, ghID string, username string) error
 	UpdateUserGithub(userID int, ghID string, username string) error
 
+	GetUserByAuth0Sub(sub string) (int, error)
+	SaveUserByAuth0Sub(sub string, profile string) (int, error)
+	UpdateAuth0Profile(sub string, profile string) error
+	LinkAuth0Account(userID int, sub string, profile string) error
+
 	GetThemePreferences(userID int) (model.ThemePreferences, error)
 	SaveThemePreferences(userID int, prefs model.ThemePreferences) error
 	GetSchedulePreferences(userID int) (model.SchedulePreferences, error)

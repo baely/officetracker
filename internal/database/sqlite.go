@@ -210,6 +210,26 @@ func (s *sqliteClient) UpdateUserGithub(_ int, _ string, _ string) error {
 	return nil
 }
 
+func (s *sqliteClient) GetUserByAuth0Sub(_ string) (int, error) {
+	// Auth0 not supported in standalone mode
+	return 0, fmt.Errorf("Auth0 authentication not supported in standalone mode")
+}
+
+func (s *sqliteClient) SaveUserByAuth0Sub(_ string, _ string) (int, error) {
+	// Auth0 not supported in standalone mode
+	return 0, fmt.Errorf("Auth0 authentication not supported in standalone mode")
+}
+
+func (s *sqliteClient) UpdateAuth0Profile(_ string, _ string) error {
+	// Auth0 not supported in standalone mode
+	return fmt.Errorf("Auth0 authentication not supported in standalone mode")
+}
+
+func (s *sqliteClient) LinkAuth0Account(_ int, _ string, _ string) error {
+	// Auth0 not supported in standalone mode
+	return fmt.Errorf("Auth0 authentication not supported in standalone mode")
+}
+
 func (s *sqliteClient) GetThemePreferences(_ int) (model.ThemePreferences, error) {
 	// Check if the preferences table exists
 	q := `SELECT name FROM sqlite_master WHERE type='table' AND name='user_preferences';`

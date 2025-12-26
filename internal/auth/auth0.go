@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -16,6 +17,13 @@ import (
 	"github.com/baely/officetracker/internal/config"
 	"github.com/baely/officetracker/internal/database"
 )
+
+type Auth0Profile struct {
+	Sub string `json:"sub"`
+
+	Nickname string `json:"nickname,omitempty"` // Username displayed in UI
+	Picture  string `json:"picture,omitempty"`  // Avatar URL displayed in UI
+}
 
 func (a *Auth) Auth0OauthCfg() *oauth2.Config {
 	return &oauth2.Config{
@@ -94,35 +102,15 @@ func (a *Auth) handleAuth0Callback(cfg config.IntegratedApp, db database.Databas
 			return
 		}
 
-		var profile map[string]interface{}
+		var profile Auth0Profile
 		if err := idToken.Claims(&profile); err != nil {
 			slog.Error(fmt.Sprintf("failed to parse claims: %v", err))
 			http.Redirect(w, r, "/login", http.StatusTemporaryRedirect)
 			return
 		}
 
-		subject, ok := profile["sub"]
-		if !ok {
-			slog.Error("failed to retrieve subject")
-			http.Error(w, "Internal server error", http.StatusInternalServerError)
-			return
-		}
-		subjectString, ok := subject.(string)
-		if !ok {
-			slog.Error(fmt.Sprintf("subject not in string format. format: %T", subject))
-			http.Error(w, "Internal server error", http.StatusInternalServerError)
-			return
-		}
-
-		display, ok := profile["nickname"]
-		if !ok {
-			slog.Error("failed to retrieve nickname")
-			http.Error(w, "Internal server error", http.StatusInternalServerError)
-			return
-		}
-		displayString, ok := display.(string)
-		if !ok {
-			slog.Error(fmt.Sprintf("display not in string format. format: %T", subject))
+		if profile.Sub == "" {
+			slog.Error("failed to retrieve subject from claims")
 			http.Error(w, "Internal server error", http.StatusInternalServerError)
 			return
 		}
@@ -130,11 +118,11 @@ func (a *Auth) handleAuth0Callback(cfg config.IntegratedApp, db database.Databas
 		var userID int
 		if existingUserID != 0 {
 			// Account linking flow - update existing user's social info
-			err = a.addLoginToUser(existingUserID, subjectString, displayString)
+			err = a.addLoginToUser(existingUserID, profile)
 			if err != nil {
-				if err.Error() == "github account already associated with another user" {
-					slog.Error(fmt.Sprintf("github account already linked: %v", err))
-					http.Error(w, "This GitHub account is already linked to another Officetracker account", http.StatusConflict)
+				if err.Error() == "auth0 account already associated with another user" {
+					slog.Error(fmt.Sprintf("auth0 account already linked: %v", err))
+					http.Error(w, "This account is already linked to another Officetracker account", http.StatusConflict)
 					return
 				}
 				slog.Error(fmt.Sprintf("failed to update user social: %v", err))
@@ -144,17 +132,17 @@ func (a *Auth) handleAuth0Callback(cfg config.IntegratedApp, db database.Databas
 			userID = existingUserID
 			slog.Info(fmt.Sprintf("linked social account for user: %d", userID))
 		} else {
-			userID, err = subjectToUserID(db, subjectString)
+			userID, err = subjectToUserID(db, profile)
 			if err != nil {
 				slog.Error(fmt.Sprintf("failed to get/create user: %v", err))
 				http.Error(w, "Internal server error", http.StatusInternalServerError)
 				return
 			}
 
-			// Update username in case it changed
-			err = a.updateLoginForUser(userID, subjectString, displayString)
+			// Update profile in case it changed
+			err = a.updateLoginForUser(userID, profile)
 			if err != nil {
-				slog.Error(fmt.Sprintf("failed to update username: %v", err))
+				slog.Error(fmt.Sprintf("failed to update profile: %v", err))
 				// Non-critical error, continue
 			}
 
@@ -187,20 +175,18 @@ func (a *Auth) verifyIDToken(ctx context.Context, token *oauth2.Token) (*oidc.ID
 	return a.provider.Verifier(oidcConfig).Verify(ctx, rawIDToken)
 }
 
-func (a *Auth) addLoginToUser(existingUserID int, subject string, display string) error {
-	userId, err := validateAuth0Subject(subject)
+func (a *Auth) addLoginToUser(existingUserID int, profile Auth0Profile) error {
+	profileJSON, err := json.Marshal(profile)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to marshal profile: %w", err)
 	}
-
-	return a.db.UpdateUserGithub(existingUserID, userId, display)
+	return a.db.LinkAuth0Account(existingUserID, profile.Sub, string(profileJSON))
 }
 
-func (a *Auth) updateLoginForUser(userID int, subject string, display string) error {
-	social, err := validateAuth0Subject(subject)
+func (a *Auth) updateLoginForUser(userID int, profile Auth0Profile) error {
+	profileJSON, err := json.Marshal(profile)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to marshal profile: %w", err)
 	}
-
-	return a.db.UpdateUser(userID, social, display)
+	return a.db.UpdateAuth0Profile(profile.Sub, string(profileJSON))
 }

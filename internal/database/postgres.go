@@ -340,6 +340,76 @@ func (p *postgres) GetUserGithubAccounts(userID int) ([]string, error) {
 	return accounts, err
 }
 
+func (p *postgres) GetUserByAuth0Sub(sub string) (int, error) {
+	q := `SELECT user_id FROM auth0_users WHERE sub = $1;`
+	var id int
+	err := p.readOnlyTransaction(func(tx *sql.Tx) error {
+		row := tx.QueryRow(q, sub)
+		err := row.Scan(&id)
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrNoUser
+		}
+		return err
+	})
+	return id, err
+}
+
+func (p *postgres) SaveUserByAuth0Sub(sub string, profile string) (int, error) {
+	var id int
+	err := p.readWriteTransaction(func(tx *sql.Tx) error {
+		// Create the user entry
+		q1 := `INSERT INTO users DEFAULT VALUES RETURNING user_id;`
+		row := tx.QueryRow(q1)
+		if err := row.Scan(&id); err != nil {
+			return err
+		}
+
+		// Add to auth0_users table
+		q2 := `INSERT INTO auth0_users (sub, profile, user_id) VALUES ($1, $2, $3);`
+		_, err := tx.Exec(q2, sub, profile, id)
+		return err
+	})
+	return id, err
+}
+
+func (p *postgres) UpdateAuth0Profile(sub string, profile string) error {
+	q := `UPDATE auth0_users SET profile = $1 WHERE sub = $2;`
+	return p.readWriteTransaction(func(tx *sql.Tx) error {
+		_, err := tx.Exec(q, profile, sub)
+		return err
+	})
+}
+
+func (p *postgres) LinkAuth0Account(userID int, sub string, profile string) error {
+	return p.readWriteTransaction(func(tx *sql.Tx) error {
+		// Check if this Auth0 subject already exists
+		var existingUserID int
+		checkQ := `SELECT user_id FROM auth0_users WHERE sub = $1;`
+		err := tx.QueryRow(checkQ, sub).Scan(&existingUserID)
+
+		if err == nil {
+			// Auth0 subject exists - check if it belongs to another user
+			if existingUserID != userID {
+				return fmt.Errorf("auth0 account already associated with another user")
+			}
+
+			// Auth0 subject exists and belongs to this user - update profile only
+			updateQ := `UPDATE auth0_users SET profile = $1 WHERE sub = $2;`
+			_, err = tx.Exec(updateQ, profile, sub)
+			return err
+		}
+
+		if !errors.Is(err, sql.ErrNoRows) {
+			return err
+		}
+
+		// Auth0 subject doesn't exist - insert new association
+		insertQ := `INSERT INTO auth0_users (sub, profile, user_id) VALUES ($1, $2, $3);`
+		_, err = tx.Exec(insertQ, sub, profile, userID)
+		return err
+	})
+}
+
 func incrementer(start int) func() int {
 	i := start
 	return func() int {
