@@ -141,7 +141,6 @@ func getUserIDFromToken(cfg config.IntegratedApp, token string) (int, error) {
 	}, getValidationOptions())
 
 	if err != nil {
-		// Check if error is specifically due to token expiration
 		if errors.Is(err, jwt.ErrTokenExpired) {
 			slog.Info("token validation failed: token expired", "userID", claims.User)
 			return 0, fmt.Errorf("token expired")
@@ -156,7 +155,6 @@ func getUserIDFromToken(cfg config.IntegratedApp, token string) (int, error) {
 		return 0, fmt.Errorf("invalid token")
 	}
 
-	// Validate required claims - all must be present (no backward compatibility)
 	if claims.IssuedAt == nil {
 		slog.Warn("token validation failed: missing iat claim")
 		return 0, fmt.Errorf("token missing required iat claim")
@@ -167,7 +165,6 @@ func getUserIDFromToken(cfg config.IntegratedApp, token string) (int, error) {
 		return 0, fmt.Errorf("token missing required exp claim")
 	}
 
-	// Validate issuer (required)
 	expectedIssuer := util.QualifiedDomain(cfg.Domain)
 	if claims.Issuer == "" {
 		slog.Warn("token validation failed: missing iss claim")
@@ -180,7 +177,6 @@ func getUserIDFromToken(cfg config.IntegratedApp, token string) (int, error) {
 		return 0, fmt.Errorf("invalid token issuer")
 	}
 
-	// Validate subject (required) and ensure it matches user ID
 	expectedSubject := fmt.Sprintf("%d", claims.User)
 	if claims.Subject == "" {
 		slog.Warn("token validation failed: missing sub claim")

@@ -75,9 +75,9 @@ func NewServer(cfg config.AppConfigurer, db database.Databaser, redis *database.
 		r.Route("/auth", auth.Router(integratedCfg, s.db, s.auth))
 		r.Get("/login", s.handleLogin)
 		r.Get("/logout", s.handleLogout)
-		// Developer page
+		// Cool stuff
 		r.Get("/developer", s.handleDeveloper)
-		// Legal pages
+		// Boring stuff
 		r.Get("/tos", s.handleTos)
 		r.Get("/privacy", s.handlePrivacy)
 	}
