@@ -14,8 +14,8 @@
 <p>
     The following social accounts are currently associated with your Officetracker account:
     <ul>
-        {{range .GithubAccounts}}
-        <li>{{.}}</li>
+        {{range .LinkedAccounts}}
+        <li><strong>{{.ProviderDisplay}}</strong>: {{.Nickname}}</li>
         {{end}}
     </ul>
 </p>

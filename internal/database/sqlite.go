@@ -180,6 +180,11 @@ func (s *sqliteClient) GetUserGithubAccounts(userID int) ([]string, error) {
 	return []string{}, nil
 }
 
+func (s *sqliteClient) GetUserLinkedAccounts(userID int) ([]model.LinkedAccount, error) {
+	// Standalone mode doesn't use linked accounts
+	return []model.LinkedAccount{}, nil
+}
+
 func (s *sqliteClient) SaveUserByGHID(ghID string) (int, error) {
 	// All users in standalone mode have ID 1
 	return 1, nil
@@ -208,6 +213,26 @@ func (s *sqliteClient) UpdateUser(_ int, _ string, _ string) error {
 func (s *sqliteClient) UpdateUserGithub(_ int, _ string, _ string) error {
 	// Standalone mode doesn't support multiple GitHub accounts
 	return nil
+}
+
+func (s *sqliteClient) GetUserByAuth0Sub(_ string) (int, error) {
+	// Auth0 not supported in standalone mode
+	return 0, fmt.Errorf("Auth0 authentication not supported in standalone mode")
+}
+
+func (s *sqliteClient) SaveUserByAuth0Sub(_ string, _ string) (int, error) {
+	// Auth0 not supported in standalone mode
+	return 0, fmt.Errorf("Auth0 authentication not supported in standalone mode")
+}
+
+func (s *sqliteClient) UpdateAuth0Profile(_ string, _ string) error {
+	// Auth0 not supported in standalone mode
+	return fmt.Errorf("Auth0 authentication not supported in standalone mode")
+}
+
+func (s *sqliteClient) LinkAuth0Account(_ int, _ string, _ string) error {
+	// Auth0 not supported in standalone mode
+	return fmt.Errorf("Auth0 authentication not supported in standalone mode")
 }
 
 func (s *sqliteClient) GetThemePreferences(_ int) (model.ThemePreferences, error) {

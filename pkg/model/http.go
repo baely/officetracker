@@ -163,8 +163,14 @@ type SchedulePreferences struct {
 	Sunday    State `json:"sunday"`
 }
 
+type LinkedAccount struct {
+	Provider        string `json:"provider"`
+	ProviderDisplay string `json:"provider_display"`
+	Nickname        string `json:"nickname"`
+}
+
 type GetSettingsResponse struct {
-	GithubAccounts      []string            `json:"github_accounts"`
+	LinkedAccounts      []LinkedAccount     `json:"linked_accounts"`
 	ThemePreferences    ThemePreferences    `json:"theme_preferences"`
 	SchedulePreferences SchedulePreferences `json:"schedule_preferences"`
 }
