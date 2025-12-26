@@ -2,6 +2,8 @@ package auth
 
 import (
 	"context"
+	"net/http"
+	"time"
 
 	"github.com/coreos/go-oidc/v3/oidc"
 
@@ -50,4 +52,16 @@ func NewAuth(cfg config.AppConfigurer, db database.Databaser, redis *database.Re
 		redis:    redis,
 		provider: provider,
 	}, nil
+}
+
+func ClearCookie(cfg config.IntegratedApp, w http.ResponseWriter) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     cookieName(cfg),
+		Value:    "",
+		Path:     util.BasePath(cfg.Domain),
+		Expires:  time.Unix(0, 0),
+		Domain:   util.QualifiedDomain(cfg.Domain),
+		HttpOnly: true,
+		Secure:   false,
+	})
 }

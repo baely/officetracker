@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/coreos/go-oidc/v3/oidc"
@@ -18,7 +19,7 @@ import (
 	"github.com/baely/officetracker/internal/database"
 )
 
-type Auth0Profile struct {
+type Profile struct {
 	Sub string `json:"sub"`
 
 	Nickname string `json:"nickname,omitempty"` // Username displayed in UI
@@ -102,7 +103,7 @@ func (a *Auth) handleAuth0Callback(cfg config.IntegratedApp, db database.Databas
 			return
 		}
 
-		var profile Auth0Profile
+		var profile Profile
 		if err := idToken.Claims(&profile); err != nil {
 			slog.Error(fmt.Sprintf("failed to parse claims: %v", err))
 			http.Redirect(w, r, "/login", http.StatusTemporaryRedirect)
@@ -122,7 +123,7 @@ func (a *Auth) handleAuth0Callback(cfg config.IntegratedApp, db database.Databas
 			if err != nil {
 				if err.Error() == "auth0 account already associated with another user" {
 					slog.Error(fmt.Sprintf("auth0 account already linked: %v", err))
-					http.Error(w, "This account is already linked to another Officetracker account", http.StatusConflict)
+					http.Error(w, "This account is already linked to another Officetracker account. Please contact us at contact@officetracker.com.au if you believe ", http.StatusConflict)
 					return
 				}
 				slog.Error(fmt.Sprintf("failed to update user social: %v", err))
@@ -175,7 +176,7 @@ func (a *Auth) verifyIDToken(ctx context.Context, token *oauth2.Token) (*oidc.ID
 	return a.provider.Verifier(oidcConfig).Verify(ctx, rawIDToken)
 }
 
-func (a *Auth) addLoginToUser(existingUserID int, profile Auth0Profile) error {
+func (a *Auth) addLoginToUser(existingUserID int, profile Profile) error {
 	profileJSON, err := json.Marshal(profile)
 	if err != nil {
 		return fmt.Errorf("failed to marshal profile: %w", err)
@@ -183,10 +184,61 @@ func (a *Auth) addLoginToUser(existingUserID int, profile Auth0Profile) error {
 	return a.db.LinkAuth0Account(existingUserID, profile.Sub, string(profileJSON))
 }
 
-func (a *Auth) updateLoginForUser(userID int, profile Auth0Profile) error {
+func (a *Auth) updateLoginForUser(userID int, profile Profile) error {
 	profileJSON, err := json.Marshal(profile)
 	if err != nil {
 		return fmt.Errorf("failed to marshal profile: %w", err)
 	}
 	return a.db.UpdateAuth0Profile(profile.Sub, string(profileJSON))
+}
+
+func subjectToUserID(db database.Databaser, profile Profile) (int, error) {
+	profileJSON, err := json.Marshal(profile)
+	if err != nil {
+		return 0, fmt.Errorf("failed to marshal profile: %w", err)
+	}
+	profileStr := string(profileJSON)
+
+	// Tier 1: Check auth0_users table
+	userID, err := db.GetUserByAuth0Sub(profile.Sub)
+	if err == nil {
+		// User exists in auth0_users - update profile and return
+		db.UpdateAuth0Profile(profile.Sub, profileStr)
+		return userID, nil
+	}
+	if !errors.Is(err, database.ErrNoUser) {
+		return 0, err
+	}
+
+	// Tier 2: Check gh_users table (migration fallback)
+	provider, providerID, err := parseAuth0Subject(profile.Sub)
+	if err != nil {
+		return 0, err
+	}
+
+	if provider == "github" {
+		existingUserID, err := db.GetUserByGHID(providerID)
+		if err == nil {
+			// Found existing GitHub user - migrate by linking Auth0 identity
+			err = db.LinkAuth0Account(existingUserID, profile.Sub, profileStr)
+			if err != nil {
+				return 0, fmt.Errorf("failed to migrate github user to auth0: %w", err)
+			}
+			return existingUserID, nil
+		}
+		if !errors.Is(err, database.ErrNoUser) {
+			return 0, err
+		}
+	}
+
+	// Tier 3: New user signup
+	return db.SaveUserByAuth0Sub(profile.Sub, profileStr)
+}
+
+func parseAuth0Subject(sub string) (provider string, identifier string, err error) {
+	parts := strings.Split(sub, "|")
+	if len(parts) != 2 {
+		return "", "", fmt.Errorf("invalid subject format")
+	}
+	return parts[0], parts[1], nil
 }
