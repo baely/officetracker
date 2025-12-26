@@ -349,7 +349,7 @@ func (p *postgres) rcvTx(fn func(*sql.Tx) error, opts *sql.TxOptions) error {
 	ctx := context.Background()
 	start := time.Now()
 	defer func() {
-		slog.Info(fmt.Sprintf("transaction took: %s", time.Since(start)))
+		slog.Debug(fmt.Sprintf("transaction took: %s", time.Since(start)))
 	}()
 	conn, err := p.db.Conn(ctx)
 	if err != nil {

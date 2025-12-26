@@ -197,6 +197,9 @@ func getUserIDFromToken(cfg config.IntegratedApp, token string) (int, error) {
 }
 
 func validateDevSecret(secret string) string {
+	if secret == "" {
+		return ""
+	}
 	if !strings.HasPrefix(strings.ToLower(secret), "bearer ") {
 		slog.Warn("invalid secret format")
 		return ""
