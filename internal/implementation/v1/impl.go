@@ -5,18 +5,26 @@ import (
 
 	"github.com/baely/officetracker/internal/database"
 	"github.com/baely/officetracker/internal/report"
+	"github.com/baely/officetracker/internal/util"
 )
 
 type Service struct {
 	db       database.Databaser
 	reporter report.Reporter
 	mcp      *mcp.Server
+	clock    util.Clock
 }
 
 func New(db database.Databaser, reporter report.Reporter) *Service {
+	return NewWithClock(db, reporter, &util.RealClock{})
+}
+
+// NewWithClock creates a Service with a custom clock (useful for testing)
+func NewWithClock(db database.Databaser, reporter report.Reporter, clock util.Clock) *Service {
 	s := &Service{
 		db:       db,
 		reporter: reporter,
+		clock:    clock,
 	}
 
 	s.mcp = createMcpServer(s)

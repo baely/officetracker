@@ -137,11 +137,15 @@ func getBasePageData(r *http.Request) basePage {
 }
 
 func errorPage(w http.ResponseWriter, r *http.Request, err error, userMsg string, status int) {
-	slog.Error(err.Error())
+	errMsg := userMsg
+	if err != nil {
+		errMsg = err.Error()
+		slog.Error(errMsg)
+	}
 	w.WriteHeader(status)
 	if err := embed.Error.Execute(w, ErrorPage{
 		basePage:     getBasePageData(r),
-		ErrorMessage: err.Error(),
+		ErrorMessage: errMsg,
 	}); err != nil {
 		err = fmt.Errorf("failed to execute error template: %w", err)
 		slog.Error(err.Error())
