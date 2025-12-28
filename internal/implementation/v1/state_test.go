@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/baely/officetracker/pkg/model"
-	"github.com/baely/officetracker/testutil/clock"
 	"github.com/baely/officetracker/testutil/fixtures"
 	"github.com/baely/officetracker/testutil/mocks"
 )
@@ -144,8 +143,7 @@ func TestPutMonth(t *testing.T) {
 
 func TestGetYear_WithScheduleMerging(t *testing.T) {
 	mockDB := mocks.NewMockDB()
-	mockClock := clock.NewMockClockAt(2024, 1, 1)
-	service := NewWithClock(mockDB, nil, mockClock)
+	service := New(mockDB, nil)
 
 	// Setup actual state data in 2024 calendar year
 	// January 1, 2024 is a Monday - set it to Office
@@ -174,8 +172,7 @@ func TestGetYear_WithScheduleMerging(t *testing.T) {
 }
 
 func TestMergeScheduleWithYear_EmptyYearWithSchedule(t *testing.T) {
-	mockClock := clock.NewMockClockAt(2024, 1, 1)
-	service := NewWithClock(mocks.NewMockDB(), nil, mockClock)
+	service := New(mocks.NewMockDB(), nil)
 
 	yearState := model.YearState{Months: make(map[int]model.MonthState)}
 	schedulePrefs := fixtures.NewSchedulePreferences().
@@ -201,8 +198,7 @@ func TestMergeScheduleWithYear_EmptyYearWithSchedule(t *testing.T) {
 }
 
 func TestMergeScheduleWithYear_ActualStateOverridesSchedule(t *testing.T) {
-	mockClock := clock.NewMockClockAt(2024, 1, 1)
-	service := NewWithClock(mocks.NewMockDB(), nil, mockClock)
+	service := New(mocks.NewMockDB(), nil)
 
 	// Year with actual state on a Monday
 	yearState := fixtures.NewYearState(2024).
@@ -223,8 +219,7 @@ func TestMergeScheduleWithYear_ActualStateOverridesSchedule(t *testing.T) {
 }
 
 func TestMergeScheduleWithYear_UntrackedShowsSchedule(t *testing.T) {
-	mockClock := clock.NewMockClockAt(2024, 1, 1)
-	service := NewWithClock(mocks.NewMockDB(), nil, mockClock)
+	service := New(mocks.NewMockDB(), nil)
 
 	// Year with explicitly untracked state
 	// January 1, 2024 is a Monday
@@ -246,8 +241,7 @@ func TestMergeScheduleWithYear_UntrackedShowsSchedule(t *testing.T) {
 }
 
 func TestMergeScheduleWithYear_AcademicYearBoundaries(t *testing.T) {
-	mockClock := clock.NewMockClockAt(2024, 1, 1)
-	service := NewWithClock(mocks.NewMockDB(), nil, mockClock)
+	service := New(mocks.NewMockDB(), nil)
 
 	yearState := model.YearState{Months: make(map[int]model.MonthState)}
 	schedulePrefs := fixtures.NewSchedulePreferences().
@@ -271,8 +265,7 @@ func TestMergeScheduleWithYear_AcademicYearBoundaries(t *testing.T) {
 }
 
 func TestMergeScheduleWithYear_LeapYear(t *testing.T) {
-	mockClock := clock.NewMockClockAt(2024, 1, 1)
-	service := NewWithClock(mocks.NewMockDB(), nil, mockClock)
+	service := New(mocks.NewMockDB(), nil)
 
 	yearState := model.YearState{Months: make(map[int]model.MonthState)}
 
@@ -292,8 +285,7 @@ func TestMergeScheduleWithYear_LeapYear(t *testing.T) {
 }
 
 func TestMergeScheduleWithYear_NonLeapYear(t *testing.T) {
-	mockClock := clock.NewMockClockAt(2023, 1, 1)
-	service := NewWithClock(mocks.NewMockDB(), nil, mockClock)
+	service := New(mocks.NewMockDB(), nil)
 
 	yearState := model.YearState{Months: make(map[int]model.MonthState)}
 	schedulePrefs := fixtures.NewSchedulePreferences().
@@ -312,8 +304,7 @@ func TestMergeScheduleWithYear_NonLeapYear(t *testing.T) {
 }
 
 func TestMergeScheduleWithYear_MixedSchedule(t *testing.T) {
-	mockClock := clock.NewMockClockAt(2024, 1, 1)
-	service := NewWithClock(mocks.NewMockDB(), nil, mockClock)
+	service := New(mocks.NewMockDB(), nil)
 
 	yearState := model.YearState{Months: make(map[int]model.MonthState)}
 

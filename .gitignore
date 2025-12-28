@@ -3,3 +3,10 @@
 config/local.env
 officetracker
 *.db
+
+# Test coverage files
+*.out
+coverage.html
+
+# Test binaries
+*.test
