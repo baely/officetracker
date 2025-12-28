@@ -71,6 +71,8 @@ func (p *postgres) SaveMonth(userID int, month int, year int, state model.MonthS
 		q += fmt.Sprintf("($%d, $%d, $%d, $%d, $%d), ", argNum(), argNum(), argNum(), argNum(), argNum())
 		args = append(args, userID, day, month, year, dayState.State)
 	}
+	// Remove trailing comma and space
+	q = strings.TrimSuffix(q, ", ")
 	q = q + strings.Join(queries, ", ") + " ON CONFLICT(user_id, day, month, year) DO UPDATE SET state=EXCLUDED.state;"
 	err := p.readWriteTransaction(func(tx *sql.Tx) error {
 		_, err := tx.Exec(q, args...)

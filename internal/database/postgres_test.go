@@ -69,8 +69,8 @@ func setupPostgresDB(t *testing.T) (Databaser, func()) {
 			user_id INTEGER NOT NULL UNIQUE
 		)`,
 		`CREATE TABLE IF NOT EXISTS auth0_users (
-			auth0_sub TEXT PRIMARY KEY,
-			user_id INTEGER NOT NULL UNIQUE,
+			sub TEXT PRIMARY KEY,
+			user_id INTEGER NOT NULL,
 			profile TEXT NOT NULL
 		)`,
 		`CREATE TABLE IF NOT EXISTS user_preferences (
