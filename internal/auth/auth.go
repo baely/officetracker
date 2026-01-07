@@ -36,7 +36,7 @@ func NewAuth(cfg config.AppConfigurer, db database.Databaser, redis *database.Re
 	if appCfg.Auth0.ClientID != "" && appCfg.Auth0.ClientID != "auth0_client_id" && appCfg.Auth0.ClientID != "dummy_client_id" {
 		provider, err = oidc.NewProvider(
 			context.Background(),
-			"https://"+appCfg.Auth0.Domain+"/",
+			appCfg.Auth0.Domain,
 		)
 		if err != nil {
 			return nil, err
