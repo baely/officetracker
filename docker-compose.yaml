@@ -15,6 +15,18 @@ services:
       retries: 10
       start_period: 80s
 
+  redis:
+    image: redis:7-alpine
+    container_name: officetracker-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
   migrate:
     build:
       context: .
@@ -29,6 +41,83 @@ services:
       POSTGRES_PORT: 5432
       POSTGRES_DB: postgres
 
+  oidc-server-mock:
+    image: ghcr.io/soluto/oidc-server-mock:0.8.3
+    container_name: officetracker-oidc-mock
+    ports:
+      - "4011:80"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      SERVER_OPTIONS_INLINE: |
+        {
+          "IssuerUri": "http://localhost:4011",
+          "AccessTokenJwtType": "JWT",
+          "Discovery": {
+            "ShowKeySet": true
+          },
+          "Authentication": {
+            "CookieSameSiteMode": "Lax",
+            "CheckSessionCookieSameSiteMode": "Lax"
+          }
+        }
+      LOGIN_OPTIONS_INLINE: |
+        {
+          "AllowRememberLogin": false
+        }
+      LOGOUT_OPTIONS_INLINE: |
+        {
+          "AutomaticRedirectAfterSignOut": true
+        }
+      CLIENTS_CONFIGURATION_INLINE: |
+        [
+          {
+            "ClientId": "officetracker-local-client",
+            "ClientSecrets": ["officetracker-local-secret"],
+            "Description": "Officetracker local development client",
+            "AllowedGrantTypes": ["authorization_code"],
+            "RequirePkce": false,
+            "AllowAccessTokensViaBrowser": true,
+            "RedirectUris": [
+              "http://localhost:8080/auth/callback/auth0"
+            ],
+            "AllowedScopes": ["openid", "profile"],
+            "IdentityTokenLifetime": 3600,
+            "AccessTokenLifetime": 3600,
+            "RequireClientSecret": false
+          }
+        ]
+      USERS_CONFIGURATION_INLINE: |
+        [
+          {
+            "SubjectId": "auth0|mock-user-001",
+            "Username": "user",
+            "Password": "password",
+            "Claims": [
+              {
+                "Type": "sub",
+                "Value": "auth0|mock-user-001",
+                "ValueType": "string"
+              },
+              {
+                "Type": "nickname",
+                "Value": "Test User",
+                "ValueType": "string"
+              },
+              {
+                "Type": "picture",
+                "Value": "https://api.dicebear.com/7.x/avataaars/svg?seed=mock-user-001",
+                "ValueType": "string"
+              }
+            ]
+          }
+        ]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/.well-known/openid-configuration"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
   app:
     build:
       context: .
@@ -36,9 +125,15 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_healthy
       migrate:
         condition: service_completed_successfully
+      oidc-server-mock:
+        condition: service_healthy
     ports:
       - "8080:8080"
     env_file:
       - ./config/local.env
+    extra_hosts:
+      - "localhost:host-gateway"
