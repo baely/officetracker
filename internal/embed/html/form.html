@@ -1,31 +1,4 @@
 {{ template "base.html" . }}
-{{ define "postheader" }}
-<section class="notification" id="privacy-banner" style="display: none;">
-    <div style="display: flex; justify-content: space-between; align-items: center;">
-        <div>
-            We have updated our Privacy Policy to reflect upcoming changes to our authentication provider. You can review these changes at: <a href="https://officetracker.com.au/privacy" style="color: #000; text-decoration: underline;">https://officetracker.com.au/privacy</a>
-        </div>
-        <button id="dismiss-banner" style="background: none; border: none; font-size: 1.2em; cursor: pointer; padding: 0 0 0 10px;" aria-label="Dismiss banner">✕</button>
-    </div>
-</section>
-<script>
-// Check if banner was previously dismissed
-if (!document.cookie.split('; ').find(row => row.startsWith('privacy-banner-dismissed='))) {
-    document.getElementById('privacy-banner').style.display = 'block';
-}
-
-// Add dismiss functionality
-document.getElementById('dismiss-banner').addEventListener('click', function() {
-    // Set cookie to remember dismissal (expires in 1 year)
-    const expires = new Date();
-    expires.setFullYear(expires.getFullYear() + 1);
-    document.cookie = 'privacy-banner-dismissed=true; expires=' + expires.toUTCString() + '; path=/';
-
-    // Hide the banner
-    document.getElementById('privacy-banner').style.display = 'none';
-});
-</script>
-{{ end }}
 {{ define "content" }}
 <div id="calendar-nav">
     <button id="prev-month">Previous</button>
