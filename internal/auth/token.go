@@ -17,8 +17,6 @@ import (
 
 const (
 	userCookieBase = "user"
-	debugCookie    = "debug"
-	demoUserId     = "42069"
 )
 
 func cookieName(cfg config.IntegratedApp) string {
@@ -56,13 +54,6 @@ func getValidationOptions() jwt.ParserOption {
 }
 
 func GetUserID(cfg config.AppConfigurer, db database.Databaser, token string, authMethod Method) (int, error) {
-	switch cfg := cfg.(type) {
-	case config.IntegratedApp:
-		if cfg.App.Demo {
-			return 1, nil
-		}
-	}
-
 	switch authMethod {
 	case MethodSSO:
 		return getUserIDFromToken(cfg.(config.IntegratedApp), token)
