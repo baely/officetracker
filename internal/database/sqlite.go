@@ -176,7 +176,17 @@ func (s *sqliteClient) GetUserLinkedAccounts(userID int) ([]model.LinkedAccount,
 	return []model.LinkedAccount{}, nil
 }
 
-func (s *sqliteClient) SaveSecret(userID int, secret string) error {
+func (s *sqliteClient) SaveSecret(userID int, secret string, name string) error {
+	// Standalone mode doesn't use secrets
+	return nil
+}
+
+func (s *sqliteClient) ListActiveTokens(userID int) ([]TokenMetadata, error) {
+	// Standalone mode doesn't use secrets
+	return []TokenMetadata{}, nil
+}
+
+func (s *sqliteClient) RevokeToken(userID int, tokenID int) error {
 	// Standalone mode doesn't use secrets
 	return nil
 }

@@ -1,15 +1,140 @@
 {{ template "base.html" . }}
 {{ define "title" }}Developer{{ end }}
 {{ define "content" }}
+<style>
+    .create-token-section {
+        margin-bottom: 2rem;
+    }
+    .token-form {
+        display: flex;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+    }
+    #token-name {
+        flex: 1;
+        padding: 0.5rem;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        background-color: #f8f9fa;
+        color: #495057;
+    }
+    #generate-token-btn {
+        padding: 10px;
+        background: #24292e;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+    #generate-token-btn:hover {
+        background: #1c2025;
+    }
+    #new-token-display {
+        margin-top: 1rem;
+        padding: 1rem;
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+    }
+    .token-warning {
+        margin-bottom: 0.5rem;
+    }
+    .token-value-container {
+        display: flex;
+        gap: 0.5rem;
+    }
+    #new-token-value {
+        flex: 1;
+        padding: 0.5rem;
+        background: white;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        font-family: monospace;
+    }
+    #copy-token-btn {
+        padding: 10px;
+        background: #24292e;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+    #copy-token-btn:hover {
+        background: #1c2025;
+    }
+    .tokens-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    .tokens-table th {
+        background: #f4f4f4;
+        padding: 8px;
+        text-align: left;
+        border: 1px solid #ddd;
+    }
+    .tokens-table td {
+        padding: 8px;
+        border: 1px solid #ddd;
+    }
+    .revoke-btn {
+        padding: 6px 12px;
+        background: #24292e;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+    .revoke-btn:hover {
+        background: #1c2025;
+    }
+    .no-tokens {
+        padding: 1rem;
+        text-align: center;
+        color: #666;
+        background: #f8f9fa;
+        border-radius: 4px;
+    }
+    .error {
+        padding: 1rem;
+        background: #f8f9fa;
+        color: #495057;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+    }
+</style>
+
 <p>
-    Generate an API key below.
-    By generating a new key, you will revoke all previously generated keys.
-    If you wish to revoke a key, click the generate button below.
+    Manage your API tokens below. You can create multiple tokens for different applications.
+    Each token provides full API access, so keep them secure.
 </p>
-<p>
-    <input type="text" disabled id="api-key">
-    <button id="generate-api-key">Generate</button>
-    <button id="copy-api-key">Copy</button>
-</p>
+
+<!-- Token creation form -->
+<div class="create-token-section">
+    <h3>Create New Token</h3>
+    <div class="token-form">
+        <input type="text" id="token-name" placeholder="Token name (e.g., 'Mobile App', 'CI/CD')" maxlength="50">
+        <button id="generate-token-btn">Generate Token</button>
+    </div>
+
+    <!-- Only shown when a new token is created -->
+    <div id="new-token-display" style="display: none;">
+        <div class="token-warning">
+            <strong>Important:</strong> Copy this token now. You won't be able to see it again!
+        </div>
+        <div class="token-value-container">
+            <input type="text" id="new-token-value" disabled readonly>
+            <button id="copy-token-btn">Copy</button>
+        </div>
+    </div>
+</div>
+
+<!-- Active tokens list -->
+<div class="tokens-list-section">
+    <h3>Active Tokens</h3>
+    <div id="tokens-list">
+        <!-- Populated by JavaScript -->
+    </div>
+</div>
+
 <script>{{ template "developer.js" . }}</script>
 {{ end }}
