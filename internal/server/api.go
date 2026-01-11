@@ -65,7 +65,9 @@ func settingsRouter(service *v1.Service) func(router chi.Router) {
 func developerRouter(service *v1.Service) func(chi.Router) {
 	middlewares := chi.Middlewares{AllowedAuthMethods(auth.MethodSSO)}
 	return func(r chi.Router) {
-		r.With(middlewares...).Method(http.MethodGet, "/secret", wrap(service.GetSecret))
+		r.With(middlewares...).Method(http.MethodPost, "/secret", wrap(service.PostSecret))
+		r.With(middlewares...).Method(http.MethodGet, "/tokens", wrap(service.ListTokens))
+		r.With(middlewares...).Method(http.MethodDelete, "/tokens/{token_id}", wrap(service.RevokeToken))
 	}
 }
 

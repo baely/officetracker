@@ -180,21 +180,59 @@ func (p *postgres) GetNotes(userID int, year int) (map[int]model.Note, error) {
 
 }
 
-func (p *postgres) SaveSecret(userID int, secret string) error {
-	q := `UPDATE secrets SET active = false WHERE user_id = $1 AND active;`
+func (p *postgres) SaveSecret(userID int, secret string, name string) error {
+	q := `INSERT INTO secrets (user_id, secret, name, active, created_at) VALUES ($1, $2, $3, true, NOW());`
 	err := p.readWriteTransaction(func(tx *sql.Tx) error {
-		_, err := tx.Exec(q, userID)
-		return err
-	})
-	if err != nil {
-		return err
-	}
-	q = `INSERT INTO secrets (user_id, secret, active) VALUES ($1, $2, true);`
-	err = p.readWriteTransaction(func(tx *sql.Tx) error {
-		_, err := tx.Exec(q, userID, secret)
+		_, err := tx.Exec(q, userID, secret, name)
 		return err
 	})
 	return err
+}
+
+func (p *postgres) ListActiveTokens(userID int) ([]TokenMetadata, error) {
+	q := `SELECT token_id, name, created_at, active
+	      FROM secrets
+	      WHERE user_id = $1 AND active = true
+	      ORDER BY created_at DESC;`
+
+	var tokens []TokenMetadata
+	err := p.readOnlyTransaction(func(tx *sql.Tx) error {
+		rows, err := tx.Query(q, userID)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			var token TokenMetadata
+			err = rows.Scan(&token.TokenID, &token.Name, &token.CreatedAt, &token.Active)
+			if err != nil {
+				return err
+			}
+			tokens = append(tokens, token)
+		}
+		return rows.Err()
+	})
+	return tokens, err
+}
+
+func (p *postgres) RevokeToken(userID int, tokenID int) error {
+	q := `UPDATE secrets SET active = false
+	      WHERE user_id = $1 AND token_id = $2 AND active = true;`
+	return p.readWriteTransaction(func(tx *sql.Tx) error {
+		result, err := tx.Exec(q, userID, tokenID)
+		if err != nil {
+			return err
+		}
+		rowsAffected, err := result.RowsAffected()
+		if err != nil {
+			return err
+		}
+		if rowsAffected == 0 {
+			return fmt.Errorf("token not found or already revoked")
+		}
+		return nil
+	})
 }
 
 func (p *postgres) GetUserByGHID(ghID string) (int, error) {

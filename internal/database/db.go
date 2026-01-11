@@ -2,6 +2,7 @@ package database
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/baely/officetracker/pkg/model"
 )
@@ -9,6 +10,13 @@ import (
 var (
 	ErrNoUser = fmt.Errorf("no user found")
 )
+
+type TokenMetadata struct {
+	TokenID   int
+	Name      string
+	CreatedAt time.Time
+	Active    bool
+}
 
 type Databaser interface {
 	SaveDay(userID int, day int, month int, year int, state model.DayState) error
@@ -34,7 +42,9 @@ type Databaser interface {
 	GetSchedulePreferences(userID int) (model.SchedulePreferences, error)
 	SaveSchedulePreferences(userID int, prefs model.SchedulePreferences) error
 
-	SaveSecret(userID int, secret string) error
+	SaveSecret(userID int, secret string, name string) error
+	ListActiveTokens(userID int) ([]TokenMetadata, error)
+	RevokeToken(userID int, tokenID int) error
 
 	IsUserSuspended(userID int) (bool, error)
 }

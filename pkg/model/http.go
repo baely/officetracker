@@ -197,16 +197,53 @@ type UpdateSchedulePreferencesRequestMeta struct {
 
 type UpdateSchedulePreferencesResponse struct{}
 
-type GetSecretRequest struct {
-	Meta GetSecretRequestMeta `meta:"meta" json:"-"`
+// Token management models
+type PostSecretRequest struct {
+	Meta PostSecretRequestMeta `meta:"meta" json:"-"`
+	Data PostSecretRequestData `json:"data"`
 }
 
-type GetSecretRequestMeta struct {
+type PostSecretRequestMeta struct {
 	UserID int `meta:"user_id"`
 }
 
-type GetSecretResponse struct {
+type PostSecretRequestData struct {
+	Name string `json:"name"`
+}
+
+type PostSecretResponse struct {
 	Secret string `json:"secret"`
+}
+
+type ListTokensRequest struct {
+	Meta ListTokensRequestMeta `meta:"meta" json:"-"`
+}
+
+type ListTokensRequestMeta struct {
+	UserID int `meta:"user_id"`
+}
+
+type TokenInfo struct {
+	TokenID   int    `json:"token_id"`
+	Name      string `json:"name"`
+	CreatedAt string `json:"created_at"`
+}
+
+type ListTokensResponse struct {
+	Tokens []TokenInfo `json:"tokens"`
+}
+
+type RevokeTokenRequest struct {
+	Meta RevokeTokenRequestMeta `meta:"meta" json:"-"`
+}
+
+type RevokeTokenRequestMeta struct {
+	UserID  int `meta:"user_id"`
+	TokenID int `meta:"token_id"`
+}
+
+type RevokeTokenResponse struct {
+	Success bool `json:"success"`
 }
 
 type GetReportRequest struct {
