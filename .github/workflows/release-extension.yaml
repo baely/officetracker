@@ -1,0 +1,35 @@
+name: Release Extension
+
+on:
+  release:
+    types: [published, created]
+
+jobs:
+  package-extension:
+    name: Package and Upload Extension
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Zip extension
+        run: |
+          cd tools
+          zip -r officetracker-extension.zip extension/
+          cd ..
+          mv tools/officetracker-extension.zip officetracker-extension.zip
+
+      - name: Upload to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: officetracker-extension.zip
+
+      - name: Upload as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: officetracker-extension-${{ github.event.release.tag_name }}
+          path: officetracker-extension.zip
+          retention-days: 90
