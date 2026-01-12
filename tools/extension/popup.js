@@ -1,7 +1,6 @@
 // ============ Constants ============
 
 const API_BASE_URL = "https://officetracker.com.au";
-const STORAGE_KEY = "officetracker_token";
 
 // State mapping (colors match webapp at internal/embed/static/themes.css)
 const STATE_MAP = {
@@ -14,46 +13,23 @@ const STATE_MAP = {
 // ============ Global Variables ============
 
 const contents = document.getElementById("contents");
-let loginHTML;
-let currentToken = null;
-
-// ============ Logging Helper ============
-
-function logToken(prefix, token) {
-    // Only log first 20 chars of token for security
-    const masked = token ? token.substring(0, 20) + "..." : "null";
-    console.log(`[Officetracker] ${prefix}:`, masked);
-}
 
 // ============ Authentication Functions ============
 
-async function isLoggedIn() {
-    console.log("[Officetracker] Checking login status...");
+async function checkAuthentication() {
+    console.log("[Officetracker] Checking authentication via cookie...");
     try {
-        const result = await chrome.storage.local.get([STORAGE_KEY]);
-        if (result[STORAGE_KEY]) {
-            currentToken = result[STORAGE_KEY];
-            logToken("Token found in storage", currentToken);
-            return true;
-        }
-        console.log("[Officetracker] No token found in storage");
-        return false;
-    } catch (error) {
-        console.error("[Officetracker] Error checking login status:", error);
-        return false;
-    }
-}
+        const response = await fetch(`${API_BASE_URL}/api/v1/settings/`, {
+            method: "GET",
+            credentials: "include"  // CRITICAL: Send cookies
+        });
 
-function validateTokenFormat(token) {
-    // Token should start with "officetracker:" followed by at least 60 characters
-    // Allow alphanumeric plus common base64 characters (+, /, =)
-    const tokenRegex = /^officetracker:[A-Za-z0-9+/=]{60,}$/;
-    const isValid = tokenRegex.test(token);
-    console.log(`[Officetracker] Token format validation: ${isValid ? "PASS" : "FAIL"}`);
-    if (!isValid && token) {
-        console.log(`[Officetracker] Token length: ${token.length}, starts with officetracker: ${token.startsWith('officetracker:')}`);
+        console.log(`[Officetracker] Auth check response: ${response.status}`);
+        return response.ok;  // 200 = authenticated, 401 = not authenticated
+    } catch (error) {
+        console.error("[Officetracker] Error checking authentication:", error);
+        return false;
     }
-    return isValid;
 }
 
 // ============ API Functions ============
@@ -71,21 +47,18 @@ async function fetchTodayStatus() {
     const { year, month, day } = getCurrentDate();
     const url = `${API_BASE_URL}/api/v1/state/${year}/${month}/${day}`;
     console.log(`[Officetracker] Fetching status from: ${url}`);
-    logToken("Using token", currentToken);
 
     try {
         const response = await fetch(url, {
             method: "GET",
-            headers: {
-                "Authorization": `Bearer ${currentToken}`
-            }
+            credentials: "include"  // Send cookies automatically
         });
 
         console.log(`[Officetracker] Fetch response status: ${response.status} ${response.statusText}`);
 
         if (!response.ok) {
             if (response.status === 401) {
-                console.error("[Officetracker] Unauthorized - token is invalid or revoked");
+                console.error("[Officetracker] Unauthorized - cookie is invalid or expired");
                 const error = new Error("Unauthorized");
                 error.status = 401;
                 throw error;
@@ -112,15 +85,14 @@ async function updateTodayStatus(state) {
     console.log(`[Officetracker] Updating status to: ${state} (${STATE_MAP[state].display})`);
     console.log(`[Officetracker] PUT ${url}`);
     console.log("[Officetracker] Payload:", payload);
-    logToken("Using token", currentToken);
 
     try {
         const response = await fetch(url, {
             method: "PUT",
             headers: {
-                "Authorization": `Bearer ${currentToken}`,
                 "Content-Type": "application/json"
             },
+            credentials: "include",  // Send cookies automatically
             body: JSON.stringify(payload)
         });
 
@@ -128,7 +100,7 @@ async function updateTodayStatus(state) {
 
         if (!response.ok) {
             if (response.status === 401) {
-                console.error("[Officetracker] Unauthorized - token is invalid or revoked");
+                console.error("[Officetracker] Unauthorized - cookie is invalid or expired");
                 const error = new Error("Unauthorized");
                 error.status = 401;
                 throw error;
@@ -155,16 +127,9 @@ function showError(message, containerId = "error-message") {
     }
 }
 
-function hideError(containerId = "error-message") {
-    const errorDiv = document.getElementById(containerId);
-    if (errorDiv) {
-        errorDiv.style.display = "none";
-    }
-}
-
 function getErrorMessage(error) {
     if (error.status === 401) {
-        return "Your token has expired or been revoked. Please login again.";
+        return "Your session has expired. Please login again.";
     }
     if (error.status && error.status >= 500) {
         return "Server error. Please try again later.";
@@ -176,63 +141,6 @@ function getErrorMessage(error) {
 }
 
 // ============ Event Handlers ============
-
-async function handleLogin() {
-    console.log("[Officetracker] === Login Flow Started ===");
-    const tokenInput = document.getElementById("token");
-    const loginButton = document.getElementById("login");
-    const token = tokenInput.value.trim();
-
-    logToken("Attempting login with token", token);
-    hideError();
-
-    // Validate non-empty
-    if (!token) {
-        console.log("[Officetracker] Login failed: empty token");
-        showError("Please enter an API token.");
-        return;
-    }
-
-    // Validate format
-    if (!validateTokenFormat(token)) {
-        console.log("[Officetracker] Login failed: invalid token format");
-        showError("Invalid token format. Token should start with 'officetracker:' followed by at least 60 characters.");
-        return;
-    }
-
-    // Disable button and save token
-    loginButton.disabled = true;
-    loginButton.textContent = "Logging in...";
-
-    // Save token
-    try {
-        console.log("[Officetracker] Saving token to storage...");
-        await chrome.storage.local.set({ [STORAGE_KEY]: token });
-        currentToken = token;
-        console.log("[Officetracker] Token saved successfully");
-
-        // Try to show logged-in UI (this will validate the token with the API)
-        console.log("[Officetracker] Attempting to load logged-in UI...");
-        await showLoggedInUI();
-    } catch (error) {
-        console.error("[Officetracker] Login failed:", error);
-        showError("Failed to save token. Please try again.");
-        loginButton.disabled = false;
-        loginButton.textContent = "Login";
-    }
-}
-
-async function handleLogout() {
-    console.log("[Officetracker] Logging out...");
-    try {
-        await chrome.storage.local.remove(STORAGE_KEY);
-        currentToken = null;
-        console.log("[Officetracker] Token removed from storage");
-        showLoginUI();
-    } catch (error) {
-        console.error("[Officetracker] Error logging out:", error);
-    }
-}
 
 async function handleStatusUpdate(newState) {
     console.log(`[Officetracker] === Status Update Started: ${newState} (${STATE_MAP[newState].display}) ===`);
@@ -252,13 +160,11 @@ async function handleStatusUpdate(newState) {
         const message = getErrorMessage(error);
         showError(message, "status-error");
 
-        // If unauthorized, clear token and show login
+        // If unauthorized, show not logged in UI
         if (error.status === 401) {
-            console.log("[Officetracker] Unauthorized - clearing token and returning to login");
-            await chrome.storage.local.remove(STORAGE_KEY);
-            currentToken = null;
+            console.log("[Officetracker] Unauthorized - showing not logged in UI");
             setTimeout(() => {
-                showLoginUI();
+                showNotLoggedInUI();
             }, 2000);
         } else {
             // Re-enable buttons on other errors
@@ -270,6 +176,30 @@ async function handleStatusUpdate(newState) {
 }
 
 // ============ UI Rendering Functions ============
+
+function showNotLoggedInUI() {
+    console.log("[Officetracker] Showing not-logged-in UI");
+    contents.innerHTML = `
+        <div class="not-logged-in">
+            <h2>Not Logged In</h2>
+            <p>You need to be logged into Officetracker to use this extension.</p>
+            <p>
+                <a href="https://officetracker.com.au" target="_blank" class="btn-primary">
+                    Login to Officetracker
+                </a>
+            </p>
+            <p class="help-text">After logging in, close and reopen this popup.</p>
+        </div>
+        <style>
+            .not-logged-in { padding: 20px 0; text-align: center; }
+            .not-logged-in h2 { font-size: 24px; margin-bottom: 16px; }
+            .not-logged-in p { margin: 12px 0; line-height: 1.6; }
+            .btn-primary { display: inline-block; background-color: #4CAF50; color: white; padding: 12px 24px; border-radius: 4px; text-decoration: none; font-weight: 500; }
+            .btn-primary:hover { background-color: #45a049; }
+            .help-text { font-size: 14px; color: #666; }
+        </style>
+    `;
+}
 
 function createLoggedInHTML(currentState) {
     const stateInfo = STATE_MAP[currentState];
@@ -290,14 +220,15 @@ function createLoggedInHTML(currentState) {
             </div>
             <div class="actions">
                 <h3>Quick Actions</h3>
-                <button class="status-button btn-wfh" data-state="1">🏠 Work From Home</button>
-                <button class="status-button btn-wfo" data-state="2">🏢 Work From Office</button>
-                <button class="status-button btn-other" data-state="3">📍 Other</button>
-                <button class="status-button btn-untrack" data-state="0">❌ Untrack</button>
+                <div class="button-grid">
+                    <button class="status-button btn-wfh" data-state="1">🏠 Work From Home</button>
+                    <button class="status-button btn-wfo" data-state="2">🏢 Work From Office</button>
+                    <button class="status-button btn-other" data-state="3">📍 Other</button>
+                    <button class="status-button btn-untrack" data-state="0">❌ Untrack</button>
+                </div>
             </div>
             <div id="status-error" class="error" style="display: none;"></div>
             <div class="footer">
-                <button id="logout" class="btn-logout">Logout</button>
                 <a href="https://officetracker.com.au" target="_blank" class="link-app">Open Web App</a>
             </div>
         </div>
@@ -314,16 +245,15 @@ function createLoggedInHTML(currentState) {
             .state-wfo { background-color: ${STATE_MAP[2].color}; color: white; }
             .state-other { background-color: ${STATE_MAP[3].color}; color: white; }
             .actions { margin: 20px 0 16px 0; }
-            .status-button { display: block; width: 100%; padding: 12px; margin: 8px 0; border: none; border-radius: 4px; font-size: 15px; cursor: pointer; transition: opacity 0.2s; font-weight: 500; }
+            .button-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+            .status-button { padding: 12px; border: none; border-radius: 4px; font-size: 15px; cursor: pointer; transition: opacity 0.2s; font-weight: 500; }
             .status-button:hover:not(:disabled) { opacity: 0.85; }
             .status-button:disabled { opacity: 0.5; cursor: not-allowed; }
             .btn-wfh { background-color: ${STATE_MAP[1].color}; color: white; }
             .btn-wfo { background-color: ${STATE_MAP[2].color}; color: white; }
             .btn-other { background-color: ${STATE_MAP[3].color}; color: white; }
             .btn-untrack { background-color: #757575; color: white; }
-            .footer { margin-top: 20px; padding-top: 16px; border-top: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
-            .btn-logout { background-color: #757575; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; }
-            .btn-logout:hover { background-color: #616161; }
+            .footer { margin-top: 20px; padding-top: 16px; border-top: 1px solid #eee; text-align: center; }
             .link-app { color: #1976d2; text-decoration: none; font-size: 13px; }
             .link-app:hover { text-decoration: underline; }
             .error { color: #d32f2f; margin-top: 10px; padding: 10px; background-color: #ffebee; border-radius: 4px; font-size: 14px; }
@@ -356,60 +286,31 @@ async function showLoggedInUI() {
             });
         });
 
-        const logoutButton = document.getElementById("logout");
-        logoutButton.addEventListener("click", handleLogout);
-
         console.log("[Officetracker] Logged-in UI rendered successfully");
     } catch (error) {
         console.error("[Officetracker] Error showing logged-in UI:", error);
         const message = getErrorMessage(error);
 
-        // If unauthorized, clear token and show login
+        // If unauthorized, show not logged in UI
         if (error.status === 401) {
-            console.log("[Officetracker] Token unauthorized - clearing and showing login");
-            await chrome.storage.local.remove(STORAGE_KEY);
-            currentToken = null;
-            showLoginUI();
-            setTimeout(() => {
-                showError("Token is invalid or has been revoked. Please login again.");
-            }, 100);
+            console.log("[Officetracker] Cookie unauthorized - showing not logged in UI");
+            showNotLoggedInUI();
         } else {
             console.log("[Officetracker] Showing error UI with retry option");
             contents.innerHTML = `<div class="error-container">
                 <p>${message}</p>
                 <button id="retry" class="btn-primary">Retry</button>
-                <button id="logout-error" class="btn-logout" style="margin-top: 10px;">Logout</button>
             </div>
             <style>
                 .error-container { padding: 20px; text-align: center; }
                 .error-container p { color: #d32f2f; margin-bottom: 20px; }
                 .btn-primary { background-color: #4CAF50; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; width: 100%; }
                 .btn-primary:hover { background-color: #45a049; }
-                .btn-logout { background-color: #f44336; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; width: 100%; }
-                .btn-logout:hover { background-color: #d32f2f; }
             </style>`;
 
             document.getElementById("retry").addEventListener("click", showLoggedInUI);
-            document.getElementById("logout-error").addEventListener("click", handleLogout);
         }
     }
-}
-
-function showLoginUI() {
-    console.log("[Officetracker] Showing login UI");
-    contents.innerHTML = loginHTML;
-
-    // Register event listeners
-    const loginButton = document.getElementById("login");
-    const tokenInput = document.getElementById("token");
-
-    loginButton.addEventListener("click", handleLogin);
-    tokenInput.addEventListener("keypress", (e) => {
-        if (e.key === "Enter") {
-            handleLogin();
-        }
-    });
-    console.log("[Officetracker] Login UI rendered, event listeners attached");
 }
 
 // ============ Initialization ============
@@ -420,21 +321,15 @@ async function init() {
     console.log("[Officetracker] API Base URL:", API_BASE_URL);
 
     try {
-        // Load login template
-        console.log("[Officetracker] Loading login.html template...");
-        const response = await fetch(chrome.runtime.getURL("./login.html"));
-        loginHTML = await response.text();
-        console.log("[Officetracker] Login template loaded successfully");
+        // Check if user is authenticated via cookie
+        const isAuthenticated = await checkAuthentication();
 
-        // Check if user is logged in
-        const loggedIn = await isLoggedIn();
-
-        if (loggedIn) {
-            console.log("[Officetracker] User is logged in, showing logged-in UI");
+        if (isAuthenticated) {
+            console.log("[Officetracker] User authenticated, showing status UI");
             await showLoggedInUI();
         } else {
-            console.log("[Officetracker] User not logged in, showing login UI");
-            showLoginUI();
+            console.log("[Officetracker] User not authenticated");
+            showNotLoggedInUI();
         }
 
         console.log("[Officetracker] Initialization complete");
