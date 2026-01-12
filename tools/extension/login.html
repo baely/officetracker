@@ -1,0 +1,31 @@
+<div class="login-container">
+    <h2>Login Required</h2>
+    <p>You need an API token from Officetracker to continue. To obtain a token:</p>
+    <ol>
+        <li>Login to <a href="https://officetracker.com.au" target="_blank">Officetracker</a></li>
+        <li>Navigate to the <a href="https://officetracker.com.au/developer" target="_blank">developer page</a></li>
+        <li>Create a new token and copy it below</li>
+    </ol>
+    <div class="form-group">
+        <label for="token">API Token:</label>
+        <input type="text" id="token" placeholder="officetracker:..." class="token-input">
+    </div>
+    <button id="login" class="btn-primary">Login</button>
+    <div id="error-message" class="error" style="display: none;"></div>
+</div>
+
+<style>
+    .login-container { padding: 20px 0; }
+    .login-container h2 { margin-top: 0; font-size: 24px; }
+    .login-container p { line-height: 1.6; }
+    .login-container ol { padding-left: 20px; line-height: 1.6; margin: 16px 0; }
+    .login-container a { color: #1976d2; text-decoration: none; }
+    .login-container a:hover { text-decoration: underline; }
+    .form-group { margin: 20px 0; }
+    .form-group label { display: block; margin-bottom: 8px; font-weight: bold; }
+    .token-input { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-family: monospace; font-size: 14px; box-sizing: border-box; }
+    .btn-primary { background-color: #4CAF50; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; width: 100%; }
+    .btn-primary:hover { background-color: #45a049; }
+    .btn-primary:disabled { background-color: #ccc; cursor: not-allowed; }
+    .error { color: #d32f2f; margin-top: 10px; padding: 10px; background-color: #ffebee; border-radius: 4px; font-size: 14px; }
+</style>

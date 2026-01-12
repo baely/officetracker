@@ -1,0 +1,20 @@
+{
+  "name": "Officetracker Autodetection",
+  "description": "Autodetects office presence for Officetracker.com.au",
+  "version": "1.0",
+  "manifest_version": 3,
+  "action": {
+    "default_popup": "landing.html",
+    "default_icon": "office-building.png"
+  },
+  "background": {
+    "service_worker": "worker.js"
+  },
+  "permissions": [
+    "alarms",
+    "storage"
+  ],
+  "host_permissions": [
+    "https://officetracker.com.au/*"
+  ]
+}
