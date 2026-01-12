@@ -1,9 +1,8 @@
-// ============ Service Worker for Officetracker Extension ============
+// ============ Alarms Feature (COMMENTED OUT FOR NOW) ============
+// TODO: Re-enable when implementing auto-detection feature
 
-console.log("Officetracker service worker started");
-
-// ============ Alarm Setup ============
-
+/*
+// Initialize alarm on service worker startup
 async function createAlarm() {
     const alarm = await chrome.alarms.get("autodetect-alarm");
 
@@ -200,6 +199,11 @@ chrome.alarms.onAlarm.addListener((alarm) => {
     // // Call from alarm handler
     // handleAutoDetection().catch(console.error);
 });
+*/
+
+// ============ Service Worker for Officetracker Extension ============
+
+console.log("Officetracker service worker started");
 
 // ============ Extension Lifecycle ============
 

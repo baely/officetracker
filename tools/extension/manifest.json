@@ -10,10 +10,6 @@
   "background": {
     "service_worker": "worker.js"
   },
-  "permissions": [
-    "alarms",
-    "storage"
-  ],
   "host_permissions": [
     "https://officetracker.com.au/*"
   ]
