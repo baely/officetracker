@@ -496,7 +496,7 @@ function showTooltip(event, currState, month, year, day) {
     tooltip.id = 'calendar-tooltip';
     tooltip.innerHTML = `<strong>Through ${monthNames[month]} ${day}:</strong><br>` +
         `Month: ${monthTotal.presentDays}/${monthTotal.totalWorkDays} days (${monthTotal.percentage}%)<br>` +
-        `All time: ${allTimeTotal.presentDays}/${allTimeTotal.totalWorkDays} days (${allTimeTotal.percentage}%)`;
+        `Year: ${allTimeTotal.presentDays}/${allTimeTotal.totalWorkDays} days (${allTimeTotal.percentage}%)`;
 
     document.body.appendChild(tooltip);
 
