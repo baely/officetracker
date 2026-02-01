@@ -350,6 +350,13 @@ function generateCalendar(month, year, currState, callback) {
                     event.preventDefault();
                     callback(this, -1);
                 });
+
+                // Add tooltip events for running total
+                let dayNum = currentDate.getDate();
+                td.addEventListener('mouseenter', function(event) {
+                    showTooltip(event, currState, month, year, dayNum);
+                });
+                td.addEventListener('mouseleave', hideTooltip);
             }
             row.appendChild(td);
             currentDate.setDate(currentDate.getDate() + 1);
@@ -407,3 +414,103 @@ function mapNotes(payload) {
 }
 
 function formatDate(year, month) { return year + "-" + (month + 1).toString().padStart(2, "0"); }
+
+function calculateRunningTotal(currState, month, year, upToDay) {
+    let presentDays = 0;
+    let totalWorkDays = 0;
+
+    // Calculate for all days in the month up to and including the specified day
+    for (let day = 1; day <= upToDay; day++) {
+        if (month + 1 in currState && day in currState[month + 1]) {
+            let state = currState[month + 1][day];
+            // States 2 and 5 are office days (actual and scheduled)
+            if (state === 2 || state === 5) {
+                presentDays++;
+                totalWorkDays++;
+            }
+            // States 1 and 4 are WFH days (actual and scheduled)
+            else if (state === 1 || state === 4) {
+                totalWorkDays++;
+            }
+        }
+    }
+
+    let percentage = totalWorkDays > 0 ? ((presentDays / totalWorkDays) * 100).toFixed(1) : "0.0";
+    return { presentDays, totalWorkDays, percentage };
+}
+
+function calculateAllTimeTotal(currState, currentMonth, upToDay) {
+    let presentDays = 0;
+    let totalWorkDays = 0;
+
+    // Get all months from the state and sort them
+    let months = Object.keys(currState).map(m => parseInt(m)).sort((a, b) => {
+        // Fiscal year ordering: Oct(10), Nov(11), Dec(12), Jan(1), Feb(2), etc.
+        let aOrder = a >= 10 ? a - 10 : a + 2;
+        let bOrder = b >= 10 ? b - 10 : b + 2;
+        return aOrder - bOrder;
+    });
+
+    for (let m of months) {
+        let isCurrentMonth = (m === currentMonth + 1);
+        let days = currState[m];
+
+        for (let day in days) {
+            let dayNum = parseInt(day);
+            // For current month, only count up to the hovered day
+            if (isCurrentMonth && dayNum > upToDay) {
+                continue;
+            }
+
+            let state = days[day];
+            // States 2 and 5 are office days (actual and scheduled)
+            if (state === 2 || state === 5) {
+                presentDays++;
+                totalWorkDays++;
+            }
+            // States 1 and 4 are WFH days (actual and scheduled)
+            else if (state === 1 || state === 4) {
+                totalWorkDays++;
+            }
+        }
+
+        // Stop after processing current month
+        if (isCurrentMonth) {
+            break;
+        }
+    }
+
+    let percentage = totalWorkDays > 0 ? ((presentDays / totalWorkDays) * 100).toFixed(1) : "0.0";
+    return { presentDays, totalWorkDays, percentage };
+}
+
+function showTooltip(event, currState, month, year, day) {
+    // Remove any existing tooltip
+    hideTooltip();
+
+    let monthTotal = calculateRunningTotal(currState, month, year, day);
+    let allTimeTotal = calculateAllTimeTotal(currState, month, day);
+
+    let tooltip = document.createElement('div');
+    tooltip.className = 'day-tooltip';
+    tooltip.id = 'calendar-tooltip';
+    tooltip.innerHTML = `<strong>Through ${monthNames[month]} ${day}:</strong><br>` +
+        `Month: ${monthTotal.presentDays}/${monthTotal.totalWorkDays} days (${monthTotal.percentage}%)<br>` +
+        `Year: ${allTimeTotal.presentDays}/${allTimeTotal.totalWorkDays} days (${allTimeTotal.percentage}%)`;
+
+    document.body.appendChild(tooltip);
+
+    // Position the tooltip above the hovered element
+    let rect = event.target.getBoundingClientRect();
+    let tooltipRect = tooltip.getBoundingClientRect();
+
+    tooltip.style.left = (rect.left + rect.width / 2 - tooltipRect.width / 2 + window.scrollX) + 'px';
+    tooltip.style.top = (rect.top - tooltipRect.height - 10 + window.scrollY) + 'px';
+}
+
+function hideTooltip() {
+    let existing = document.getElementById('calendar-tooltip');
+    if (existing) {
+        existing.remove();
+    }
+}
