@@ -170,8 +170,7 @@ body.theme-city-skyline main {
     background-color: var(--content-bg);
 }
 
-body.theme-dark main nav,
-body.theme-city-skyline main nav {
+body.theme-dark main nav {
     background-color: var(--secondary-bg);
 }
 
