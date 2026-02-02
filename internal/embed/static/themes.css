@@ -13,47 +13,51 @@
     --present-color: #4CAF50;
     --not-present-color: #F44336;
     --other-color: #2196F3;
-    
-    background: linear-gradient(to bottom, var(--primary-bg), var(--secondary-bg));
-    background-attachment: fixed;
+
+    background: transparent;
     position: relative;
     overflow-x: hidden;
 }
 
-/* City Skyline Overlay */
-.theme-city-skyline:before {
-    content: '';
+/* City Skyline SVG Background Container */
+.skyline-background {
     position: fixed;
-    bottom: 0;
+    top: 0;
     left: 0;
-    right: 0;
-    height: 240px;
-    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 320"><path fill="%23000" fill-opacity="0.5" d="M0,224L30,218.7C60,213,120,203,180,202.7C240,203,300,213,360,202.7C420,192,480,160,540,149.3C600,139,660,149,720,160C780,171,840,181,900,202.7C960,224,1020,256,1080,245.3C1140,235,1200,181,1260,165.3C1320,149,1380,171,1410,181.3L1440,192L1440,320L1410,320C1380,320,1320,320,1260,320C1200,320,1140,320,1080,320C1020,320,960,320,900,320C840,320,780,320,720,320C660,320,600,320,540,320C480,320,420,320,360,320C300,320,240,320,180,320C120,320,60,320,30,320L0,320Z"></path></svg>');
-    background-size: cover;
-    background-position: center bottom;
-    background-repeat: no-repeat;
-    z-index: -1;
+    width: 100vw;
+    height: 100vh;
+    z-index: -2;
+    overflow: hidden;
 }
 
-/* Time-based variations */
-.theme-city-skyline.time-morning {
-    --primary-bg: #ff7e5f;
-    --secondary-bg: #feb47b;
+.skyline-background object,
+.skyline-background iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+    pointer-events: none;
 }
 
-.theme-city-skyline.time-day {
-    --primary-bg: #3a7bd5;
-    --secondary-bg: #00d2ff;
+/* Fallback gradient when SVG isn't loaded */
+.theme-city-skyline .skyline-background {
+    background: linear-gradient(to bottom, #4a8fc0, #6aafe0, #8bcdf0, #acf7fd);
 }
 
-.theme-city-skyline.time-evening {
-    --primary-bg: #614385;
-    --secondary-bg: #516395;
+/* Time-based variations - fallback backgrounds */
+.theme-city-skyline.time-morning .skyline-background {
+    background: linear-gradient(to bottom, #ff7e5f, #feb47b, #ffd89b, #ffe5b4);
 }
 
-.theme-city-skyline.time-night {
-    --primary-bg: #141e30;
-    --secondary-bg: #243b55;
+.theme-city-skyline.time-day .skyline-background {
+    background: linear-gradient(to bottom, #4a8fc0, #6aafe0, #8bcdf0, #acf7fd);
+}
+
+.theme-city-skyline.time-evening .skyline-background {
+    background: linear-gradient(to bottom, #614385, #516395, #7a8bb5, #a8b5d5);
+}
+
+.theme-city-skyline.time-night .skyline-background {
+    background: linear-gradient(to bottom, #0a1628, #141e30, #1e3048, #243b55);
 }
 
 /* Weather variations */
@@ -128,81 +132,15 @@
     z-index: -1;
 }
 
-/* Parallax elements */
-.theme-city-skyline .cloud {
+/* Weather overlay effects on top of the skyline */
+.theme-city-skyline .weather-overlay {
     position: fixed;
-    background: rgba(255, 255, 255, 0.7);
-    border-radius: 50px;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    pointer-events: none;
     z-index: -1;
-}
-
-.theme-city-skyline .cloud1 {
-    width: 200px;
-    height: 60px;
-    top: 20%;
-    left: -200px;
-    animation: moveCloud 120s linear infinite;
-}
-
-.theme-city-skyline .cloud2 {
-    width: 150px;
-    height: 40px;
-    top: 30%;
-    left: -150px;
-    animation: moveCloud 100s linear infinite;
-    animation-delay: 20s;
-}
-
-.theme-city-skyline .cloud3 {
-    width: 250px;
-    height: 70px;
-    top: 15%;
-    left: -250px;
-    animation: moveCloud 140s linear infinite;
-    animation-delay: 50s;
-}
-
-.theme-city-skyline .bird {
-    position: fixed;
-    width: 20px;
-    height: 10px;
-    background-color: rgba(0, 0, 0, 0.5);
-    clip-path: polygon(0% 30%, 50% 0%, 100% 30%, 80% 30%, 80% 100%, 20% 100%, 20% 30%);
-    z-index: -1;
-}
-
-.theme-city-skyline .bird1 {
-    top: 40%;
-    left: -20px;
-    animation: moveBird 40s linear infinite;
-}
-
-.theme-city-skyline .bird2 {
-    top: 35%;
-    left: -20px;
-    animation: moveBird 50s linear infinite;
-    animation-delay: 15s;
-}
-
-.theme-city-skyline .bird3 {
-    top: 45%;
-    left: -20px;
-    animation: moveBird 45s linear infinite;
-    animation-delay: 30s;
-}
-
-.theme-city-skyline .plane {
-    position: fixed;
-    top: 100px;
-    left: -100px;
-    width: 60px;
-    height: 20px;
-    background-color: white;
-    border-radius: 50% 50% 0 0;
-    clip-path: polygon(0% 50%, 10% 20%, 90% 20%, 100% 50%, 90% 80%, 10% 80%);
-    z-index: -1;
-    animation: movePlane 60s linear infinite;
-    animation-delay: 40s;
 }
 
 /* Dark theme */
@@ -292,46 +230,7 @@ body.theme-city-skyline .today {
     border-color: var(--highlight-color);
 }
 
-/* Animations */
-@keyframes moveCloud {
-    0% {
-        left: -200px;
-    }
-    100% {
-        left: calc(100vw + 200px);
-    }
-}
-
-@keyframes moveBird {
-    0% {
-        left: -20px;
-        transform: translateY(0) scale(1);
-    }
-    25% {
-        transform: translateY(-10px) scale(0.8);
-    }
-    50% {
-        transform: translateY(0) scale(1);
-    }
-    75% {
-        transform: translateY(-10px) scale(0.8);
-    }
-    100% {
-        left: calc(100vw + 20px);
-        transform: translateY(0) scale(1);
-    }
-}
-
-@keyframes movePlane {
-    0% {
-        left: -100px;
-        top: 100px;
-    }
-    100% {
-        left: calc(100vw + 100px);
-        top: 50px;
-    }
-}
+/* Animations for weather effects */
 
 @keyframes rain {
     0% {
