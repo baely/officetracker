@@ -324,4 +324,9 @@ func staticHandler(r chi.Router) {
 		w.Header().Set("Cache-Control", "public, max-age=604800, immutable")
 		w.Write(embed.ThemesCSS)
 	})
+	r.Get("/skyline.svg", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "image/svg+xml")
+		w.Header().Set("Cache-Control", "public, max-age=604800, immutable")
+		w.Write(embed.SkylineSVG)
+	})
 }
