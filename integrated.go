@@ -6,8 +6,6 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/honeycombio/otel-config-go/otelconfig"
-
 	"github.com/baely/officetracker/internal/config"
 	"github.com/baely/officetracker/internal/database"
 	"github.com/baely/officetracker/internal/report"
@@ -21,14 +19,6 @@ func main() {
 
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	slog.SetDefault(logger)
-
-	if os.Getenv("OTEL_SDK_DISABLED") != "true" {
-		otelShutdown, err := otelconfig.ConfigureOpenTelemetry()
-		if err != nil {
-			panic(err)
-		}
-		defer otelShutdown()
-	}
 
 	cfg, err := config.LoadIntegratedApp()
 	if err != nil {
