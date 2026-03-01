@@ -28,7 +28,7 @@ jobs:
           files: officetracker-extension.zip
 
       - name: Upload as workflow artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: officetracker-extension-${{ github.event.release.tag_name }}
           path: officetracker-extension.zip
