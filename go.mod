@@ -12,7 +12,7 @@ require (
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/lib/pq v1.10.9
 	github.com/mattn/go-sqlite3 v1.14.34
-	github.com/modelcontextprotocol/go-sdk v1.3.1
+	github.com/modelcontextprotocol/go-sdk v1.4.0
 	github.com/redis/go-redis/v9 v9.18.0
 	golang.org/x/oauth2 v0.35.0
 	golang.org/x/text v0.34.0
@@ -27,5 +27,5 @@ require (
 	github.com/segmentio/encoding v0.5.3 // indirect
 	github.com/yosida95/uritemplate/v3 v3.0.2 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
-	golang.org/x/sys v0.35.0 // indirect
+	golang.org/x/sys v0.40.0 // indirect
 )
