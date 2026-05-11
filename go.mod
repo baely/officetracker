@@ -15,7 +15,7 @@ require (
 	github.com/modelcontextprotocol/go-sdk v1.6.0
 	github.com/redis/go-redis/v9 v9.19.0
 	golang.org/x/oauth2 v0.36.0
-	golang.org/x/text v0.36.0
+	golang.org/x/text v0.37.0
 )
 
 require (
