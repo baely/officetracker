@@ -112,21 +112,24 @@ func (s *Server) Run() error {
 }
 
 // handleIndex handles the index route:
-// - if the app is standalone or integrated and the user is logged in, it shows the form
+// - if the app is standalone or integrated and the user is logged in, it redirects to the form
 // - if the app is integrated and the user is not logged in, it shows the hero
 func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 	switch s.cfg.(type) {
 	case config.StandaloneApp:
-		s.handleForm(w, r)
+		http.Redirect(w, r, fmt.Sprintf("/%s", time.Now().Format("2006-01")), http.StatusTemporaryRedirect)
 		return
 	case config.IntegratedApp:
 		method, _ := getAuthMethod(r)
 		var loggedInMethods = []auth.Method{auth.MethodSSO, auth.MethodSecret}
-		if !slices.Contains(loggedInMethods, method) {
-			s.handleHero(w, r)
+		if slices.Contains(loggedInMethods, method) {
+			if userID, err := getUserID(r); err == nil && userID != 0 {
+				http.Redirect(w, r, fmt.Sprintf("/%s", time.Now().Format("2006-01")), http.StatusTemporaryRedirect)
+				return
+			}
 		}
 
-		s.handleForm(w, r)
+		s.handleHero(w, r)
 	default:
 		s.handleHero(w, r)
 	}
