@@ -35,13 +35,11 @@ type heroPage struct {
 }
 
 func serveHero(w http.ResponseWriter, r *http.Request, page heroPage) {
-	http.Redirect(w, r, "/login", http.StatusTemporaryRedirect)
-
-	// TODO: create proper hero
-	//if err := embed.Hero.Execute(w, page); err != nil {
-	//	err = fmt.Errorf("failed to execute hero template: %w", err)
-	//	errorPage(w, err, internalErrorMsg, http.StatusInternalServerError)
-	//}
+	page.basePage = getBasePageData(r)
+	if err := embed.Hero.Execute(w, page); err != nil {
+		err = fmt.Errorf("failed to execute hero template: %w", err)
+		errorPage(w, r, err, internalErrorMsg, http.StatusInternalServerError)
+	}
 }
 
 type loginPage struct {
