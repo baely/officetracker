@@ -2,7 +2,10 @@
 
 /* Base theme (default) has default styling in original CSS, no vars needed */
 
-/* City Skyline Theme */
+/* City Skyline Theme.
+   The skyline SVG is inlined into .skyline-background, so the CSS variables
+   below cascade into it. Time-of-day is just a body class (.time-*) swapping
+   the palette; everything else is handled by the SVG itself. */
 .theme-city-skyline {
     --primary-bg: #3a7bd5;
     --secondary-bg: #00d2ff;
@@ -14,9 +17,109 @@
     --not-present-color: #F44336;
     --other-color: #2196F3;
 
+    /* Daytime palette (default) */
+    --sky-1: #3f87cf;
+    --sky-2: #74b3e3;
+    --sky-3: #b2d9f0;
+    --sky-4: #e3f2fb;
+    --bldg-far: #a9c3d9;
+    --bldg-mid: #7592ad;
+    --bldg-front: #47627c;
+    --win-front: rgba(25, 40, 57, 0.45);
+    --win-glass: rgba(222, 240, 250, 0.8);
+    --lit: 0;
+    --lit-mid: 0;
+    --stars: 0;
+    --sun-op: 1;
+    --sun-glow: 0.45;
+    --sun-core: #fff6dc;
+    --sun-glow-color: #fff3c4;
+    --sun-x: 880px;
+    --sun-y: 150px;
+    --moon-op: 0;
+    --cloud: #ffffff;
+    --cloud-op: 0.75;
+    --bird: #33475c;
+    --birds: 0.9;
+    --beacon: 0;
+    --city-glow: 0;
+
     background: transparent;
     position: relative;
     overflow-x: hidden;
+}
+
+.theme-city-skyline.time-morning {
+    --sky-1: #46639f;
+    --sky-2: #8f7fb8;
+    --sky-3: #eba27c;
+    --sky-4: #ffd9a3;
+    --bldg-far: #b39fb4;
+    --bldg-mid: #836f94;
+    --bldg-front: #4e3d5e;
+    --win-front: rgba(35, 25, 48, 0.5);
+    --win-glass: rgba(255, 205, 160, 0.85);
+    --lit: 0.3;
+    --lit-mid: 0.25;
+    --stars: 0.2;
+    --sun-glow: 0.85;
+    --sun-core: #ffe9b8;
+    --sun-glow-color: #ffc98a;
+    --sun-x: 250px;
+    --sun-y: 560px;
+    --cloud: #ffd9c4;
+    --cloud-op: 0.7;
+    --bird: #3d3048;
+    --birds: 0.8;
+    --beacon: 0.25;
+    --city-glow: 0.1;
+}
+
+.theme-city-skyline.time-evening {
+    --sky-1: #2c2a5c;
+    --sky-2: #5c4985;
+    --sky-3: #c66e6e;
+    --sky-4: #f3a96b;
+    --bldg-far: #6a5f8c;
+    --bldg-mid: #423a63;
+    --bldg-front: #221d3c;
+    --win-front: rgba(10, 8, 24, 0.5);
+    --win-glass: rgba(255, 170, 115, 0.8);
+    --lit: 0.85;
+    --lit-mid: 0.7;
+    --stars: 0.45;
+    --sun-glow: 0.9;
+    --sun-core: #ffd9a0;
+    --sun-glow-color: #ff9e6a;
+    --sun-x: 950px;
+    --sun-y: 565px;
+    --cloud: #d98f7e;
+    --cloud-op: 0.55;
+    --birds: 0.35;
+    --beacon: 1;
+    --city-glow: 0.18;
+}
+
+.theme-city-skyline.time-night {
+    --sky-1: #04091a;
+    --sky-2: #0a1428;
+    --sky-3: #12203a;
+    --sky-4: #1d2e4a;
+    --bldg-far: #1d2c44;
+    --bldg-mid: #131f33;
+    --bldg-front: #090f1b;
+    --win-front: rgba(0, 0, 0, 0.35);
+    --win-glass: rgba(28, 42, 60, 0.6);
+    --lit: 1;
+    --lit-mid: 0.9;
+    --stars: 1;
+    --sun-op: 0;
+    --moon-op: 1;
+    --cloud: #243348;
+    --cloud-op: 0.45;
+    --birds: 0;
+    --beacon: 1;
+    --city-glow: 0.3;
 }
 
 /* City Skyline SVG Background Container */
@@ -28,58 +131,70 @@
     height: 100vh;
     z-index: -2;
     overflow: hidden;
+    transition: background 1.5s ease;
+    /* Fallback gradient shown until the SVG loads */
+    background: linear-gradient(to bottom, var(--sky-1), var(--sky-2), var(--sky-3), var(--sky-4));
 }
 
-.skyline-background object,
-.skyline-background iframe {
+.skyline-background svg {
+    display: block;
     width: 100%;
     height: 100%;
-    border: none;
     pointer-events: none;
 }
 
-/* Fallback gradient when SVG isn't loaded */
-.theme-city-skyline .skyline-background {
-    background: linear-gradient(to bottom, #4a8fc0, #6aafe0, #8bcdf0, #acf7fd);
+/* Weather variations: tone down the sun and thicken the clouds, plus an
+   overlay for precipitation. */
+.theme-city-skyline.weather-cloudy,
+.theme-city-skyline.weather-rain,
+.theme-city-skyline.weather-thunderstorm,
+.theme-city-skyline.weather-snow {
+    --cloud-op: 1;
+    --sun-glow: 0.15;
+    --birds: 0;
 }
 
-/* Time-based variations - fallback backgrounds */
-.theme-city-skyline.time-morning .skyline-background {
-    background: linear-gradient(to bottom, #ff7e5f, #feb47b, #ffd89b, #ffe5b4);
+.theme-city-skyline.weather-rain,
+.theme-city-skyline.weather-thunderstorm {
+    --cloud: #8d99aa;
 }
 
-.theme-city-skyline.time-day .skyline-background {
-    background: linear-gradient(to bottom, #4a8fc0, #6aafe0, #8bcdf0, #acf7fd);
+.theme-city-skyline.weather-cloudy {
+    --cloud: #d4dbe2;
 }
 
-.theme-city-skyline.time-evening .skyline-background {
-    background: linear-gradient(to bottom, #614385, #516395, #7a8bb5, #a8b5d5);
-}
-
-.theme-city-skyline.time-night .skyline-background {
-    background: linear-gradient(to bottom, #0a1628, #141e30, #1e3048, #243b55);
-}
-
-/* Weather variations */
-.theme-city-skyline.weather-rain:after {
+.theme-city-skyline.weather-rain:after,
+.theme-city-skyline.weather-thunderstorm:after {
     content: '';
     position: fixed;
     top: 0;
     left: 0;
     right: 0;
     bottom: 0;
-    background: 
-        linear-gradient(to bottom, 
-            rgba(255, 255, 255, 0) 0%, 
-            rgba(255, 255, 255, 0.2) 100%),
-        repeating-linear-gradient(to bottom, 
-            transparent 0px, 
-            transparent 5px, 
-            rgba(255, 255, 255, 0.3) 5px, 
-            rgba(255, 255, 255, 0.3) 10px);
+    background: repeating-linear-gradient(105deg,
+        transparent 0px,
+        transparent 7px,
+        rgba(255, 255, 255, 0.18) 7px,
+        rgba(255, 255, 255, 0.18) 8px);
+    background-size: 100% 32px;
     pointer-events: none;
-    animation: rain 0.8s linear infinite;
+    animation: rain 0.7s linear infinite;
     z-index: -1;
+}
+
+.theme-city-skyline.weather-thunderstorm:after {
+    /* Streak layer must stay first: the rain keyframes only scroll layer one */
+    background:
+        repeating-linear-gradient(105deg,
+            transparent 0px,
+            transparent 6px,
+            rgba(255, 255, 255, 0.22) 6px,
+            rgba(255, 255, 255, 0.22) 7px),
+        linear-gradient(to bottom,
+            rgba(0, 0, 0, 0.35) 0%,
+            rgba(0, 0, 0, 0.1) 100%);
+    background-size: 100% 32px, 100% 100%;
+    animation: rain 0.45s linear infinite;
 }
 
 .theme-city-skyline.weather-snow:after {
@@ -89,57 +204,13 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background-image: 
+    background-image:
         radial-gradient(rgba(255, 255, 255, 0.9) 2px, transparent 0),
         radial-gradient(rgba(255, 255, 255, 0.7) 1px, transparent 0);
     background-size: 20px 20px, 30px 30px;
     background-position: 0 0, 10px 10px;
     pointer-events: none;
     animation: snow 20s linear infinite;
-    z-index: -1;
-}
-
-/* If we get thunderstorm weather code from the API */
-.theme-city-skyline.weather-thunderstorm:after {
-    content: '';
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: 
-        linear-gradient(to bottom, 
-            rgba(0, 0, 0, 0.4) 0%, 
-            rgba(0, 0, 0, 0.1) 100%),
-        repeating-linear-gradient(to bottom, 
-            transparent 0px, 
-            transparent 5px, 
-            rgba(255, 255, 255, 0.3) 5px, 
-            rgba(255, 255, 255, 0.3) 10px);
-    pointer-events: none;
-    animation: rain 0.5s linear infinite;
-    z-index: -1;
-}
-
-.theme-city-skyline.weather-cloudy:after {
-    content: '';
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(255, 255, 255, 0.3);
-    z-index: -1;
-}
-
-/* Weather overlay effects on top of the skyline */
-.theme-city-skyline .weather-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    pointer-events: none;
     z-index: -1;
 }
 
@@ -233,10 +304,12 @@ body.theme-city-skyline .today {
 
 @keyframes rain {
     0% {
-        background-position: 0px 0px;
+        background-position: 0px 0px, 0px 0px;
     }
     100% {
-        background-position: 0px 20px;
+        /* One 32px background tile per loop, so the pattern repeats seamlessly.
+           Only the first layer scrolls; thunderstorm's dim layer stays put. */
+        background-position: 0px 32px, 0px 0px;
     }
 }
 
