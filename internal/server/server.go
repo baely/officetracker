@@ -47,7 +47,7 @@ func NewServer(cfg config.AppConfigurer, db database.Databaser, redis *database.
 	}
 	s.auth = author
 
-	r := chi.NewMux().With(Otel, injectAuth(db, cfg), s.logRequest)
+	r := chi.NewMux().With(injectAuth(db, cfg), s.logRequest)
 
 	// Suspension page (must be accessible to suspended users)
 	r.Get("/suspended", s.handleSuspended)
@@ -326,5 +326,10 @@ func staticHandler(r chi.Router) {
 		w.Header().Set("Content-Type", "text/css")
 		w.Header().Set("Cache-Control", "public, max-age=604800, immutable")
 		w.Write(embed.ThemesCSS)
+	})
+	r.Get("/skyline.svg", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "image/svg+xml")
+		w.Header().Set("Cache-Control", "public, max-age=604800, immutable")
+		w.Write(embed.SkylineSVG)
 	})
 }
