@@ -47,7 +47,11 @@ func NewServer(cfg config.AppConfigurer, db database.Databaser, redis *database.
 	}
 	s.auth = author
 
-	r := chi.NewMux().With(injectAuth(db, cfg), s.logRequest)
+	// Use (not With) so the middlewares and custom NotFound handler apply to
+	// unmatched paths too; With returns an inline router whose NotFound
+	// registration lands on the parent and never serves.
+	r := chi.NewMux()
+	r.Use(injectAuth(db, cfg), s.logRequest)
 
 	// Suspension page (must be accessible to suspended users)
 	r.Get("/suspended", s.handleSuspended)

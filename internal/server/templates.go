@@ -122,6 +122,7 @@ func serveSuspended(w http.ResponseWriter, r *http.Request, page suspendedPage) 
 type ErrorPage struct {
 	basePage
 	ErrorMessage string
+	StatusCode   int
 }
 
 func getBasePageData(r *http.Request) basePage {
@@ -135,13 +136,18 @@ func getBasePageData(r *http.Request) basePage {
 }
 
 func errorPage(w http.ResponseWriter, r *http.Request, err error, userMsg string, status int) {
-	slog.Error(err.Error())
-	w.WriteHeader(status)
-	if err := embed.Error.Execute(w, ErrorPage{
-		basePage:     getBasePageData(r),
-		ErrorMessage: err.Error(),
-	}); err != nil {
-		err = fmt.Errorf("failed to execute error template: %w", err)
+	if err != nil {
 		slog.Error(err.Error())
+	}
+	if userMsg == "" {
+		userMsg = internalErrorMsg
+	}
+	w.WriteHeader(status)
+	if tmplErr := embed.Error.Execute(w, ErrorPage{
+		basePage:     getBasePageData(r),
+		ErrorMessage: userMsg,
+		StatusCode:   status,
+	}); tmplErr != nil {
+		slog.Error(fmt.Errorf("failed to execute error template: %w", tmplErr).Error())
 	}
 }

@@ -1,516 +1,520 @@
-const states = ["untracked", "present", "not present", "other", "scheduled-present", "scheduled-not-present", "scheduled-other"];
-const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September",
-    "October", "November", "December"];
+// ----------------------------------------------------------------
+// Officetracker ledger
+// State ints (API contract): 0 untracked · 1 home · 2 office ·
+// 3 other · 4/5/6 scheduled (planned) variants of 1/2/3.
+// The tracking year runs October–September: GET /api/v1/state/{y}
+// returns months 1–12 where months 10–12 belong to calendar y-1.
+// ----------------------------------------------------------------
+"use strict";
 
-class Summary {
-    constructor(data, year) {
-        this.updateYear(year, data);
-    }
+var MONTHS = ["January", "February", "March", "April", "May", "June", "July",
+    "August", "September", "October", "November", "December"];
+var WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+var STAMP_LABEL = ["", "Home", "Office", "Other", "Home", "Office", "Other"];
+var STATE_NAME = ["Not tracked", "Worked from home", "In the office", "Other",
+    "Planned: home", "Planned: office", "Planned: other"];
 
-    refreshDOM() {
-        const elem = Data.summaryDOM;
-        const headings = ["Month", "Present", "Total", "Percent"];
-        elem.innerHTML = "";
-        let header = document.createElement("tr");
-        headings.forEach(heading => {
-            let th = document.createElement("th");
-            th.textContent = heading;
-            header.appendChild(th);
-        });
-        elem.appendChild(header);
+var rawState = {{ .YearlyState }};
+var rawNotes = {{ .YearlyNotes }};
 
-        let allTime = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
+var calendarEl = document.getElementById("calendar");
+var monthNameEl = document.getElementById("month-name");
+var monthYrEl = document.getElementById("month-yr");
+var notesEl = document.getElementById("notes");
+var notesMonthEl = document.getElementById("notes-month");
+var summaryTableEl = document.getElementById("summary-table");
+var statPctEl = document.getElementById("stat-pct");
+var statSubEl = document.getElementById("stat-sub");
+var statBarEl = document.getElementById("stat-bar-fill");
+var statRangeEl = document.getElementById("stat-range");
 
-        if (this.data == null) { return; }
-        let keys = Object.keys(this.data);
-        keys.sort();
-        for (let i = 0; i < keys.length; i++) {
-            let key = keys[i];
-            let stats = this.data[key];
-            for (let j = 0; j < 7; j++) {
-                allTime[j] += (stats[j] || 0);
-            }
-            let monthYear = key.split("-");
-            let month = parseInt(monthYear[1]) - 1;
-            let year = parseInt(monthYear[0]);
+var state = {};   // { month(1-12): { day: stateInt } }
+var notes = {};   // { month(1-12): "..." }
+var currentYear;  // calendar year of the visible month
+var currentMonth; // 0-based visible month
 
-            let row = document.createElement("tr");
-            let monthCell = document.createElement("td");
-            monthCell.textContent = monthNames[month] + " " + year;
-            row.appendChild(monthCell);
+// ---------------------------------------------------------------- helpers
 
-            let presentCell = document.createElement("td");
-            // Count actual office days + scheduled office days
-            let actualPresent = stats[2] || 0;
-            let scheduledPresent = stats[5] || 0; // StateScheduledWorkFromOffice
-            presentCell.textContent = actualPresent + scheduledPresent;
-            row.appendChild(presentCell);
-
-            let totalCell = document.createElement("td");
-            // Count all work days (WFH + Office, both actual and scheduled)
-            let totalExpected = (stats[1] || 0) + (stats[2] || 0) + (stats[4] || 0) + (stats[5] || 0);
-            totalCell.textContent = totalExpected;
-            row.appendChild(totalCell);
-
-            let percentCell = document.createElement("td");
-            let percentage = totalExpected > 0 ? ((actualPresent + scheduledPresent) / totalExpected * 100).toFixed(2) : "0.00";
-            percentCell.textContent = percentage + "%";
-            row.appendChild(percentCell);
-
-            if (totalExpected <= 0) { continue; }
-
-            elem.appendChild(row);
-        }
-        let headline = Data.summaryHeadlineDOM;
-        let actualPresent = allTime[2] || 0;
-        let scheduledPresent = allTime[5] || 0;
-        let totalPresent = actualPresent + scheduledPresent;
-        let total = (allTime[1] || 0) + (allTime[2] || 0) + (allTime[4] || 0) + (allTime[5] || 0);
-        let percent = total > 0 ? ((totalPresent / total * 100) || 0).toFixed(2) : "0.00";
-        headline.textContent = `Present in office for ${totalPresent} out of ${total} days. (${percent}%)`;
-    }
-
-    updateMonth(year, month, state) {
-        let key = formatDate(year, month);
-        let stats = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
-        for (let day in state[month + 1]) {
-            stats[state[month + 1][day]] += 1;
-        }
-        
-        this.data[key] = stats;
-        this.refreshDOM();
-    }
-
-    updateYear(year, state) {
-        this.year = year;
-        this.data = {};
-        for (const [month, vals] of Object.entries(state)) {
-            let monthYear = month <= 9 ? year : year - 1;
-            let key = formatDate(monthYear, parseInt(month) - 1);
-            let stats = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
-            for (const [day, state] of Object.entries(vals)) {
-                stats[state] += 1;
-            }
-            
-            this.data[key] = stats;
-        }
-        this.refreshDOM();
-    }
-    
+function fiscalYearOf(year, monthIdx) {
+    // months Oct–Dec belong to the following tracking year
+    return monthIdx < 9 ? year : year + 1;
 }
 
-class Data {
-    static titleDOM = document.getElementById("month-year");
-    static calendarDOM = document.getElementById("calendar");
-    static notesDOM = document.getElementById("notes");
-    static summaryDOM = document.getElementById("summary-table");
-    static summaryHeadlineDOM = document.getElementById("summary-headline");
-
-    constructor(state, notes) {
-        this.state = state;
-        this.notes = notes;
-        this.updateDate(true, false);
-        let year = this.currentMonth < 9 ? this.currentYear : this.currentYear + 1;
-        this.summary = new Summary(state, year);
-        this.refreshDOM();
-        Data.notesDOM.addEventListener("blur", () => { this.updateNote() });
-        document.getElementById("prev-month").addEventListener("click", () => this.updateMonth(-1));
-        document.getElementById("next-month").addEventListener("click", () => this.updateMonth(1));
-        window.addEventListener("popstate", this.updateDate);
-    }
-
-    cycleState(dayDOM, direction) {
-        let originalState = parseInt(dayDOM.dataset.state);
-        let previousState = originalState;
-        
-        // If this is a scheduled state, convert it to untracked first
-        if (previousState >= 4) { // Scheduled states are 4, 5, 6
-            previousState = 0; // Convert to untracked
-        }
-        
-        // Only cycle through the first 4 states (0-3), not scheduled states
-        let currentState = (previousState + direction + 4) % 4;
-        let date = dayDOM.textContent;
-        
-        // Remove all state classes (use original state for correct class removal)
-        dayDOM.classList.remove(getClassForState(states[originalState]));
-        
-        dayDOM.classList.add(getClassForState(states[currentState]));
-        dayDOM.dataset.state = currentState;
-        this.updateState(date, currentState);
-    }
-
-    drawCalendar() {
-        let calendarDOM = generateCalendar(this.currentMonth, this.currentYear, this.state,
-            (dayDOM, direction) => this.cycleState(dayDOM, direction)
-        );
-        Data.calendarDOM.removeAttribute("id");
-        calendarDOM.id = "calendar";
-        Data.calendarDOM.replaceWith(calendarDOM);
-        Data.calendarDOM = calendarDOM;
-    }
-
-    drawNotes() {
-        if (!(this.currentMonth+1 in this.notes)) {
-            this.notes[this.currentMonth+1] = "";
-        }
-        Data.notesDOM.value = this.notes[this.currentMonth+1];
-    }
-
-    drawSummary() { this.summary.refreshDOM(); }
-
-    fetchData() {
-        let year = this.currentMonth < 9 ? this.currentYear : this.currentYear + 1;
-        fetch("/api/v1/state/" + year)
-            .then(r => r.json())
-            .then(payload => {
-                this.state = mapState(payload);
-                this.refreshDOM();
-                this.summary.updateYear(year, this.state);
-            });
-    }
-
-    fetchNotes() {
-        let year = this.currentMonth < 9 ? this.currentYear : this.currentYear + 1;
-        fetch("/api/v1/note/" + year)
-            .then(r => r.json())
-            .then(payload => {
-                this.notes = mapNotes(payload);
-                this.refreshDOM();
-            });
-    }
-
-    refreshDOM() {
-        this.drawCalendar();
-        this.drawNotes();
-        this.drawSummary();
-        this.updateTitle();
-        this.updateReportButtons();
-    }
-
-    updateBackend(day) {
-        let month = "" + (this.currentMonth + 1);
-        let year = "" + this.currentYear;
-        if (!(month in this.state)) {
-            this.state[month] = {};
-        }
-        let thisState = this.state[month][day];
-
-        let obj = {
-            "data": {
-                "state": thisState
-            }
-        };
-        fetch("/api/v1/state/" + year + "/" + month + "/" + day, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(obj),
-            credentials: "include"
-        });
-    }
-
-    updateNote() {
-        let notes = Data.notesDOM.value;
-        this.notes[this.currentMonth+1] = notes;
-        let month = "" + (this.currentMonth + 1);
-        let year = "" + this.currentYear;
-        let obj = {
-            "data": {
-                "note": notes
-            }
-        }
-        fetch("/api/v1/note/" + year + "/" + month, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(obj),
-            credentials: "include"
-        });
-    }
-
-    updateDate(sameYear = false, refresh = true) {
-        const url = window.location.href;
-        const urlParts = url.split("/");
-        const yearMonth = urlParts[urlParts.length - 1];
-        const year = parseInt(yearMonth.substring(0, 4));
-        const month = parseInt(yearMonth.substring(5, 7)) - 1;
-        if (!isNaN(year) && !isNaN(month)) {
-            this.currentMonth = month;
-            this.currentYear = year;
-        }
-        if (!sameYear) {
-            this.fetchData();
-            this.fetchNotes();
-        } else if (refresh) {
-            this.refreshDOM();
-        }
-    }
-
-    updateMonth(delta) {
-        this.currentMonth += delta;
-        if (this.currentMonth < 0) {
-            this.currentMonth = 11;
-            this.currentYear--;
-        } else if (this.currentMonth > 11) {
-            this.currentMonth = 0;
-            this.currentYear++;
-        }
-        window.history.pushState({}, "", "/" + formatDate(this.currentYear, this.currentMonth));
-        let sameYear = !(this.currentMonth === 8 && delta === -1) && !(this.currentMonth === 9 && delta === 1);
-        this.updateDate(sameYear, true);
-    }
-
-    updateState(date, state) {
-        if (!(this.currentMonth+1 in this.state)) {
-            this.state[this.currentMonth+1] = {};
-        }
-        this.state[this.currentMonth+1][date] = state;
-        this.updateBackend(date);
-        
-        // If setting to untracked, fetch fresh data to get the fallthrough scheduled state
-        if (state === 0) {
-            setTimeout(() => {
-                this.fetchData();
-            }, 100); // Small delay to ensure backend update completes
-        } else {
-            this.summary.updateMonth(this.currentYear, this.currentMonth, this.state);
-        }
-    }
-
-    updateTitle() { Data.titleDOM.textContent = monthNames[this.currentMonth] + " " + this.currentYear; }
-
-    updateReportButtons() {
-        const csvButton = document.getElementById("export-csv");
-        const pdfButton = document.getElementById("export-pdf");
-
-        if (csvButton.onclick) { csvButton.onclick = null; }
-        if (pdfButton.onclick) { pdfButton.onclick = null; }
-
-        let year = this.currentMonth < 9 ? this.currentYear : this.currentYear + 1;
-
-        csvButton.onclick = () => {
-            window.location.href = "/api/v1/report/csv/" + year + "-attendance";
-        }
-
-        pdfButton.onclick = () => {
-            let name = prompt("(Optional) Please enter your name", "");
-            window.location.href = "/api/v1/report/pdf/" + year + "-attendance?name=" + name;
-        }
-    }
-}
-
-let rawState = {{ .YearlyState }};
-let rawNotes = {{ .YearlyNotes }};
-let state = mapState(rawState);
-let notes = mapNotes(rawNotes);
-
-let data = new Data(state, notes);
-
-function generateCalendar(month, year, currState, callback) {
-    let calendar = document.createElement("div");
-    let table = document.createElement('table');
-    let thead = document.createElement('thead');
-    let tbody = document.createElement('tbody');
-    const weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-    let row = document.createElement('tr');
-    weekdays.forEach(day => {
-        let th = document.createElement('th');
-        th.textContent = day;
-        row.appendChild(th);
-    });
-    thead.appendChild(row);
-    table.appendChild(thead);
-    let firstDayOfMonth = new Date(year, month, 1);
-    let startingDayOfWeek = firstDayOfMonth.getDay() || 7; // Convert Sunday from 0 to 7
-    let currentDate = new Date(year, month, 1 - (startingDayOfWeek - 1));
-    let today = new Date();
-    today = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    let first = true;
-    while (first || currentDate.getMonth() === month || currentDate.getDay() !== 1) {
-        first = false;
-        row = document.createElement('tr');
-        for (let i = 0; i < 7; i++) {
-            let td = document.createElement('td');
-            if (currentDate.getMonth() === month) {
-                td.textContent = currentDate.getDate();
-                td.classList.add('day');
-                let cellState = 0;
-                if (month+1 in currState && currentDate.getDate() in currState[month+1]) {
-                    cellState = currState[month+1][currentDate.getDate()];
-                }
-                td.dataset.state = cellState; // Initial state
-                td.classList.add(getClassForState(states[td.dataset.state]));
-                
-                if (currentDate.getTime() === today.getTime()) { td.classList.add('today'); }
-                td.addEventListener('click', function () { callback(this, 1); });
-                td.addEventListener('contextmenu', function (event) {
-                    event.preventDefault();
-                    callback(this, -1);
-                });
-
-                // Add tooltip events for running total
-                let dayNum = currentDate.getDate();
-                td.addEventListener('mouseenter', function(event) {
-                    showTooltip(event, currState, month, year, dayNum);
-                });
-                td.addEventListener('mouseleave', hideTooltip);
-            }
-            row.appendChild(td);
-            currentDate.setDate(currentDate.getDate() + 1);
-        }
-        tbody.appendChild(row);
-    }
-    table.appendChild(tbody);
-    calendar.appendChild(table);
-    return calendar;
-}
-
-function getClassForState(state) {
-    switch (state) {
-        case "untracked":
-            return "untracked";
-        case "present":
-            return "present";
-        case "not present":
-            return "not-present";
-        case "other":
-            return "other";
-        case "scheduled-present":
-            return "scheduled-home";
-        case "scheduled-not-present":
-            return "scheduled-office";
-        case "scheduled-other":
-            return "scheduled-other";
-        default:
-            return "untracked";
-    }
-}
+function pad2(n) { return (n < 10 ? "0" : "") + n; }
 
 function mapState(payload) {
-    let state = {};
-    const months = payload.data.months;
-    for (const [key, value] of Object.entries(months)) {
-        if (!(key in state)) {
-            state[key] = {};
-        }
-
-        let days = value.days;
-        for (const [day, dayVal] of Object.entries(days)) {
-            state[key][day] = dayVal.state;
+    var out = {};
+    var months = (payload && payload.data && payload.data.months) || {};
+    for (var m in months) {
+        out[m] = {};
+        var days = months[m].days || {};
+        for (var d in days) {
+            out[m][d] = days[d].state;
         }
     }
-    return state;
+    return out;
 }
 
 function mapNotes(payload) {
-    let notes = {};
-    for (const [key, value] of Object.entries(payload.data)) {
-        notes[key] = value.note;
+    var out = {};
+    var data = (payload && payload.data) || {};
+    for (var m in data) {
+        out[m] = data[m].note;
     }
-    return notes;
+    return out;
 }
 
-function formatDate(year, month) { return year + "-" + (month + 1).toString().padStart(2, "0"); }
+function stateOf(day) {
+    var m = state[currentMonth + 1];
+    return (m && day in m) ? m[day] : 0;
+}
 
-function calculateRunningTotal(currState, month, year, upToDay) {
-    let presentDays = 0;
-    let totalWorkDays = 0;
+function parseLocation() {
+    var m = window.location.pathname.match(/(\d{4})-(\d{1,2})$/);
+    if (m) {
+        currentYear = parseInt(m[1], 10);
+        currentMonth = parseInt(m[2], 10) - 1;
+    } else {
+        var now = new Date();
+        currentYear = now.getFullYear();
+        currentMonth = now.getMonth();
+    }
+}
 
-    // Calculate for all days in the month up to and including the specified day
-    for (let day = 1; day <= upToDay; day++) {
-        if (month + 1 in currState && day in currState[month + 1]) {
-            let state = currState[month + 1][day];
-            // States 2 and 5 are office days (actual and scheduled)
-            if (state === 2 || state === 5) {
-                presentDays++;
-                totalWorkDays++;
-            }
-            // States 1 and 4 are WFH days (actual and scheduled)
-            else if (state === 1 || state === 4) {
-                totalWorkDays++;
-            }
+// ---------------------------------------------------------------- data
+
+function refetchAll() {
+    refetchState();
+    refetchNotes();
+}
+
+function refetchState() {
+    var fy = fiscalYearOf(currentYear, currentMonth);
+    fetch("/api/v1/state/" + fy)
+        .then(function (r) { return r.json(); })
+        .then(function (payload) {
+            state = mapState(payload);
+            renderCalendar();
+            renderSummary();
+        })
+        .catch(function () { OT.error("Could not load the year"); });
+}
+
+function refetchNotes() {
+    var fy = fiscalYearOf(currentYear, currentMonth);
+    fetch("/api/v1/note/" + fy)
+        .then(function (r) { return r.json(); })
+        .then(function (payload) {
+            notes = mapNotes(payload);
+            renderNotes();
+        })
+        .catch(function () { /* notes are non-critical */ });
+}
+
+// Rapid clicks cycle through several states; debounce so only the final
+// state is written, avoiding concurrent PUTs racing each other.
+var pendingSaves = {}; // "y-m-d" -> { y, m, d, state, timer }
+
+function persistDay(day, st) {
+    var m = currentMonth + 1;
+    if (!(m in state)) state[m] = {};
+    state[m][day] = st;
+
+    var key = currentYear + "-" + m + "-" + day;
+    if (pendingSaves[key]) clearTimeout(pendingSaves[key].timer);
+    pendingSaves[key] = {
+        y: currentYear, m: m, d: day, state: st,
+        timer: setTimeout(function () { flushDaySave(key); }, 300)
+    };
+}
+
+function flushDaySave(key) {
+    var p = pendingSaves[key];
+    if (!p) return;
+    delete pendingSaves[key];
+    clearTimeout(p.timer);
+
+    fetch("/api/v1/state/" + p.y + "/" + p.m + "/" + p.d, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ data: { state: p.state } }),
+        credentials: "include",
+        keepalive: true
+    }).then(function (r) {
+        if (!r.ok) throw new Error("save failed");
+        OT.saved();
+        if (p.state === 0) {
+            // clearing a day may fall back to a scheduled (planned) state
+            setTimeout(refetchState, 150);
+        } else {
+            renderSummary();
         }
-    }
-
-    let percentage = totalWorkDays > 0 ? ((presentDays / totalWorkDays) * 100).toFixed(1) : "0.0";
-    return { presentDays, totalWorkDays, percentage };
+    }).catch(function () {
+        OT.error("Day not recorded — try again");
+    });
 }
 
-function calculateAllTimeTotal(currState, currentMonth, upToDay) {
-    let presentDays = 0;
-    let totalWorkDays = 0;
+window.addEventListener("pagehide", function () {
+    for (var key in pendingSaves) flushDaySave(key);
+});
 
-    // Get all months from the state and sort them
-    let months = Object.keys(currState).map(m => parseInt(m)).sort((a, b) => {
-        // Fiscal year ordering: Oct(10), Nov(11), Dec(12), Jan(1), Feb(2), etc.
-        let aOrder = a >= 10 ? a - 10 : a + 2;
-        let bOrder = b >= 10 ? b - 10 : b + 2;
-        return aOrder - bOrder;
+function saveNote() {
+    var val = notesEl.value;
+    if ((notes[currentMonth + 1] || "") === val) return;
+    notes[currentMonth + 1] = val;
+
+    fetch("/api/v1/note/" + currentYear + "/" + (currentMonth + 1), {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ data: { note: val } }),
+        credentials: "include"
+    }).then(function (r) {
+        if (!r.ok) throw new Error("save failed");
+        OT.saved();
+    }).catch(function () {
+        OT.error("Note not saved — try again");
+    });
+}
+
+// ---------------------------------------------------------------- calendar
+
+function ariaFor(day, st) {
+    var wd = WEEKDAYS[new Date(currentYear, currentMonth, day).getDay()];
+    return wd + " " + day + " " + MONTHS[currentMonth] + ": " + STATE_NAME[st] + ". Press to change.";
+}
+
+function makeStamp(st) {
+    var stamp = document.createElement("span");
+    stamp.className = "dstamp";
+    stamp.textContent = STAMP_LABEL[st];
+    return stamp;
+}
+
+function applyDayState(btn, st) {
+    btn.dataset.state = st;
+    var old = btn.querySelector(".dstamp");
+    if (old) old.remove();
+    btn.appendChild(makeStamp(st));
+    btn.setAttribute("aria-label", ariaFor(parseInt(btn.dataset.day, 10), st));
+}
+
+function cycleDay(btn, dir) {
+    var orig = parseInt(btn.dataset.state, 10);
+    var base = orig >= 4 ? 0 : orig; // planned states reset to untracked before cycling
+    var next = (base + dir + 4) % 4;
+    applyDayState(btn, next);
+    persistDay(parseInt(btn.dataset.day, 10), next);
+}
+
+function renderCalendar() {
+    var grid = document.createElement("div");
+    grid.className = "cal-grid";
+
+    ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].forEach(function (d) {
+        var wd = document.createElement("span");
+        wd.className = "cal-wd";
+        wd.textContent = d;
+        grid.appendChild(wd);
     });
 
-    for (let m of months) {
-        let isCurrentMonth = (m === currentMonth + 1);
-        let days = currState[m];
+    var lead = (new Date(currentYear, currentMonth, 1).getDay() || 7) - 1;
+    var daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+    var today = new Date();
 
-        for (let day in days) {
-            let dayNum = parseInt(day);
-            // For current month, only count up to the hovered day
-            if (isCurrentMonth && dayNum > upToDay) {
-                continue;
-            }
-
-            let state = days[day];
-            // States 2 and 5 are office days (actual and scheduled)
-            if (state === 2 || state === 5) {
-                presentDays++;
-                totalWorkDays++;
-            }
-            // States 1 and 4 are WFH days (actual and scheduled)
-            else if (state === 1 || state === 4) {
-                totalWorkDays++;
-            }
-        }
-
-        // Stop after processing current month
-        if (isCurrentMonth) {
-            break;
-        }
+    function blank() {
+        var b = document.createElement("span");
+        b.className = "day-blank";
+        b.setAttribute("aria-hidden", "true");
+        grid.appendChild(b);
     }
 
-    let percentage = totalWorkDays > 0 ? ((presentDays / totalWorkDays) * 100).toFixed(1) : "0.0";
-    return { presentDays, totalWorkDays, percentage };
+    for (var i = 0; i < lead; i++) blank();
+
+    for (var d = 1; d <= daysInMonth; d++) {
+        var st = stateOf(d);
+        var btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "day";
+        btn.dataset.day = d;
+        btn.dataset.state = st;
+
+        var dow = new Date(currentYear, currentMonth, d).getDay();
+        if (dow === 0 || dow === 6) btn.classList.add("weekend");
+        if (today.getFullYear() === currentYear && today.getMonth() === currentMonth && today.getDate() === d) {
+            btn.classList.add("today");
+        }
+
+        var num = document.createElement("span");
+        num.className = "dnum";
+        num.textContent = d;
+        btn.appendChild(num);
+
+        btn.appendChild(makeStamp(st));
+
+        btn.setAttribute("aria-label", ariaFor(d, st));
+
+        btn.addEventListener("click", function () { cycleDay(this, 1); });
+        btn.addEventListener("contextmenu", function (e) {
+            e.preventDefault();
+            cycleDay(this, -1);
+        });
+        btn.addEventListener("mouseenter", function (e) {
+            showTooltip(e, parseInt(this.dataset.day, 10));
+        });
+        btn.addEventListener("mouseleave", hideTooltip);
+
+        grid.appendChild(btn);
+    }
+
+    var filled = lead + daysInMonth;
+    var trail = (7 - (filled % 7)) % 7;
+    for (i = 0; i < trail; i++) blank();
+
+    calendarEl.innerHTML = "";
+    calendarEl.appendChild(grid);
 }
 
-function showTooltip(event, currState, month, year, day) {
-    // Remove any existing tooltip
+// ---------------------------------------------------------------- tooltip (running totals)
+
+function monthToDate(upToDay) {
+    var present = 0, total = 0;
+    var m = state[currentMonth + 1] || {};
+    for (var d = 1; d <= upToDay; d++) {
+        var st = m[d];
+        if (st === 2 || st === 5) { present++; total++; }
+        else if (st === 1 || st === 4) { total++; }
+    }
+    return { present: present, total: total };
+}
+
+function yearToDate(upToDay) {
+    var present = 0, total = 0;
+    var months = Object.keys(state).map(function (m) { return parseInt(m, 10); });
+    months.sort(function (a, b) {
+        // tracking-year order: Oct, Nov, Dec, Jan … Sep
+        var ao = a >= 10 ? a - 10 : a + 2;
+        var bo = b >= 10 ? b - 10 : b + 2;
+        return ao - bo;
+    });
+
+    for (var i = 0; i < months.length; i++) {
+        var m = months[i];
+        var isCurrent = (m === currentMonth + 1);
+        var days = state[m];
+        for (var d in days) {
+            if (isCurrent && parseInt(d, 10) > upToDay) continue;
+            var st = days[d];
+            if (st === 2 || st === 5) { present++; total++; }
+            else if (st === 1 || st === 4) { total++; }
+        }
+        if (isCurrent) break;
+    }
+    return { present: present, total: total };
+}
+
+function pct(present, total) {
+    return total > 0 ? ((present / total) * 100).toFixed(1) : "0.0";
+}
+
+function showTooltip(event, day) {
     hideTooltip();
 
-    let monthTotal = calculateRunningTotal(currState, month, year, day);
-    let allTimeTotal = calculateAllTimeTotal(currState, month, day);
+    var mtd = monthToDate(day);
+    var ytd = yearToDate(day);
 
-    let tooltip = document.createElement('div');
-    tooltip.className = 'day-tooltip';
-    tooltip.id = 'calendar-tooltip';
-    tooltip.innerHTML = `<strong>Through ${monthNames[month]} ${day}:</strong><br>` +
-        `Month: ${monthTotal.presentDays}/${monthTotal.totalWorkDays} days (${monthTotal.percentage}%)<br>` +
-        `Year: ${allTimeTotal.presentDays}/${allTimeTotal.totalWorkDays} days (${allTimeTotal.percentage}%)`;
+    var tip = document.createElement("div");
+    tip.className = "day-tooltip";
+    tip.id = "calendar-tooltip";
 
-    document.body.appendChild(tooltip);
+    var head = document.createElement("strong");
+    head.textContent = "Through " + MONTHS[currentMonth] + " " + day;
+    tip.appendChild(head);
+    tip.appendChild(document.createElement("br"));
+    tip.appendChild(document.createTextNode(
+        "Month " + mtd.present + "/" + mtd.total + " (" + pct(mtd.present, mtd.total) + "%)"));
+    tip.appendChild(document.createElement("br"));
+    tip.appendChild(document.createTextNode(
+        "Year " + ytd.present + "/" + ytd.total + " (" + pct(ytd.present, ytd.total) + "%)"));
 
-    // Position the tooltip above the hovered element
-    let rect = event.target.getBoundingClientRect();
-    let tooltipRect = tooltip.getBoundingClientRect();
+    document.body.appendChild(tip);
 
-    tooltip.style.left = (rect.left + rect.width / 2 - tooltipRect.width / 2 + window.scrollX) + 'px';
-    tooltip.style.top = (rect.top - tooltipRect.height - 10 + window.scrollY) + 'px';
+    var rect = event.target.getBoundingClientRect();
+    var tipRect = tip.getBoundingClientRect();
+    tip.style.left = (rect.left + rect.width / 2 - tipRect.width / 2 + window.scrollX) + "px";
+    tip.style.top = (rect.top - tipRect.height - 10 + window.scrollY) + "px";
 }
 
 function hideTooltip() {
-    let existing = document.getElementById('calendar-tooltip');
-    if (existing) {
-        existing.remove();
+    var existing = document.getElementById("calendar-tooltip");
+    if (existing) existing.remove();
+}
+
+// ---------------------------------------------------------------- summary
+
+function renderSummary() {
+    var fy = fiscalYearOf(currentYear, currentMonth);
+    var order = [10, 11, 12, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+    var allPresent = 0, allTotal = 0;
+
+    var thead = document.createElement("thead");
+    var hrow = document.createElement("tr");
+    [["Month", ""], ["In", "num"], ["Days", "num"], ["Rate", "num"]].forEach(function (h) {
+        var th = document.createElement("th");
+        th.textContent = h[0];
+        if (h[1]) th.className = h[1];
+        hrow.appendChild(th);
+    });
+    thead.appendChild(hrow);
+
+    var tbody = document.createElement("tbody");
+
+    order.forEach(function (m) {
+        var days = state[m];
+        if (!days) return;
+
+        var counts = [0, 0, 0, 0, 0, 0, 0];
+        for (var d in days) counts[days[d]]++;
+
+        var present = counts[2] + counts[5];
+        var total = counts[1] + counts[2] + counts[4] + counts[5];
+        allPresent += present;
+        allTotal += total;
+        if (total <= 0) return;
+
+        var calYear = m >= 10 ? fy - 1 : fy;
+        var tr = document.createElement("tr");
+        if (m === currentMonth + 1) tr.className = "now";
+
+        var cells = [
+            [MONTHS[m - 1].slice(0, 3) + " " + calYear, ""],
+            [String(present), "num"],
+            [String(total), "num"],
+            [pct(present, total) + "%", "num"]
+        ];
+        cells.forEach(function (c) {
+            var td = document.createElement("td");
+            td.textContent = c[0];
+            if (c[1]) td.className = c[1];
+            tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+    });
+
+    if (!tbody.children.length) {
+        var tr = document.createElement("tr");
+        var td = document.createElement("td");
+        td.colSpan = 4;
+        td.className = "empty";
+        td.textContent = "Nothing stamped yet.";
+        tr.appendChild(td);
+        tbody.appendChild(tr);
+    }
+
+    summaryTableEl.innerHTML = "";
+    summaryTableEl.appendChild(thead);
+    summaryTableEl.appendChild(tbody);
+
+    // headline
+    if (allTotal > 0) {
+        var rate = (allPresent / allTotal) * 100;
+        statPctEl.textContent = rate.toFixed(1) + "%";
+        statSubEl.textContent = allPresent + " of " + allTotal + " working days in the office";
+        statBarEl.style.width = Math.min(rate, 100) + "%";
+    } else {
+        statPctEl.textContent = "—";
+        statSubEl.textContent = "No working days recorded yet";
+        statBarEl.style.width = "0%";
+    }
+    statRangeEl.textContent = "Oct " + (fy - 1) + " — Sep " + fy;
+}
+
+// ---------------------------------------------------------------- notes & title
+
+function renderNotes() {
+    notesEl.value = notes[currentMonth + 1] || "";
+    notesMonthEl.textContent = MONTHS[currentMonth];
+}
+
+function renderTitle() {
+    monthNameEl.textContent = MONTHS[currentMonth];
+    monthYrEl.textContent = String(currentYear);
+}
+
+function renderAll() {
+    renderTitle();
+    renderCalendar();
+    renderNotes();
+    renderSummary();
+}
+
+// ---------------------------------------------------------------- navigation
+
+function afterNav(fyBefore) {
+    renderTitle();
+    if (fiscalYearOf(currentYear, currentMonth) !== fyBefore) {
+        refetchAll();
+    } else {
+        renderAll();
     }
 }
+
+function gotoMonth(delta) {
+    var fyBefore = fiscalYearOf(currentYear, currentMonth);
+    currentMonth += delta;
+    if (currentMonth < 0) { currentMonth = 11; currentYear--; }
+    else if (currentMonth > 11) { currentMonth = 0; currentYear++; }
+    window.history.pushState({}, "", "/" + currentYear + "-" + pad2(currentMonth + 1));
+    afterNav(fyBefore);
+}
+
+function gotoToday() {
+    var fyBefore = fiscalYearOf(currentYear, currentMonth);
+    var now = new Date();
+    currentYear = now.getFullYear();
+    currentMonth = now.getMonth();
+    window.history.pushState({}, "", "/" + currentYear + "-" + pad2(currentMonth + 1));
+    afterNav(fyBefore);
+}
+
+document.getElementById("prev-month").addEventListener("click", function () { gotoMonth(-1); });
+document.getElementById("next-month").addEventListener("click", function () { gotoMonth(1); });
+document.getElementById("today-btn").addEventListener("click", gotoToday);
+
+window.addEventListener("popstate", function () {
+    var fyBefore = fiscalYearOf(currentYear, currentMonth);
+    parseLocation();
+    afterNav(fyBefore);
+});
+
+document.addEventListener("keydown", function (e) {
+    if (e.target.closest("input, textarea, select")) return;
+    if (e.key === "ArrowLeft") gotoMonth(-1);
+    else if (e.key === "ArrowRight") gotoMonth(1);
+});
+
+// ---------------------------------------------------------------- notes & export
+
+notesEl.addEventListener("blur", saveNote);
+
+document.getElementById("export-csv").addEventListener("click", function () {
+    var fy = fiscalYearOf(currentYear, currentMonth);
+    window.location.href = "/api/v1/report/csv/" + fy + "-attendance";
+});
+
+var pdfRow = document.getElementById("pdf-name-row");
+document.getElementById("export-pdf").addEventListener("click", function () {
+    pdfRow.hidden = !pdfRow.hidden;
+    if (!pdfRow.hidden) document.getElementById("pdf-name").focus();
+});
+document.getElementById("pdf-go").addEventListener("click", function () {
+    var fy = fiscalYearOf(currentYear, currentMonth);
+    var name = document.getElementById("pdf-name").value.trim();
+    window.location.href = "/api/v1/report/pdf/" + fy + "-attendance?name=" + encodeURIComponent(name);
+});
+
+// ---------------------------------------------------------------- init
+
+parseLocation();
+state = mapState(rawState);
+notes = mapNotes(rawNotes);
+renderAll();

@@ -1,250 +1,155 @@
-/* Theme system for Officetracker */
+/* Officetracker themes — token overrides for the minimal base.
+   Default (light) tokens live in base.html. */
 
-/* Base theme (default) has default styling in original CSS, no vars needed */
+/* ------------------------------------------------------------
+   Dark
+   ------------------------------------------------------------ */
+.theme-dark {
+    --bg: #121214;
+    --bg-subtle: #1a1a1e;
+    --surface: #161619;
+    --text: #ededf0;
+    --text-2: #a6a6af;
+    --text-3: #6e6e78;
+    --border: #28282e;
+    --border-strong: #3a3a42;
+    --accent: #5b8def;
+    --danger: #ef5350;
 
-/* City Skyline Theme */
-.theme-city-skyline {
-    --primary-bg: #3a7bd5;
-    --secondary-bg: #00d2ff;
-    --content-bg: rgba(255, 255, 255, 0.95);
-    --text-color: #333;
-    --border-color: #dee2e6;
-    --highlight-color: #FFC107;
-    --present-color: #4CAF50;
-    --not-present-color: #F44336;
-    --other-color: #2196F3;
+    --office-bg: #1b2b4d; --office-text: #93b4f5;
+    --home-bg: #14301f;   --home-text: #67c98f;
+    --other-bg: #322a13;  --other-text: #d3ad53;
 
-    background: transparent;
-    position: relative;
-    overflow-x: hidden;
+    color-scheme: dark;
 }
 
-/* City Skyline SVG Background Container */
+.theme-dark .btn-primary { background: #ededf0; border-color: #ededf0; color: #121214; }
+.theme-dark .btn-primary:hover { background: #d4d4da; border-color: #d4d4da; }
+.theme-dark #ot-toast .toast-chip { background: #ededf0; color: #121214; }
+.theme-dark #ot-toast .toast-chip.toast-err { background: var(--danger); color: #fff; }
+
+/* ------------------------------------------------------------
+   City skyline
+   A flat minimal skyline sits behind the content panel.
+   Time-of-day and weather effects apply when enabled.
+   ------------------------------------------------------------ */
+.theme-city-skyline {
+    background: transparent;
+    --bg: transparent;
+    --bg-subtle: rgba(0, 0, 0, 0.03);
+    --surface: #ffffff;
+}
+
+.theme-city-skyline .page {
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(0, 0, 0, 0.07);
+    border-radius: 12px;
+    margin: 20px auto;
+    padding-top: 4px;
+    padding-bottom: 32px;
+}
+
+@media (max-width: 700px) {
+    .theme-city-skyline .page { margin: 0; border-radius: 0; border: none; }
+}
+
 .skyline-background {
     position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
+    inset: 0;
     z-index: -2;
     overflow: hidden;
+    /* fallback while the SVG loads */
+    background: linear-gradient(to bottom, #bfd9ee, #eef5fa);
 }
 
-.skyline-background object,
-.skyline-background iframe {
+.skyline-background object {
     width: 100%;
     height: 100%;
     border: none;
     pointer-events: none;
 }
 
-/* Fallback gradient when SVG isn't loaded */
-.theme-city-skyline .skyline-background {
-    background: linear-gradient(to bottom, #4a8fc0, #6aafe0, #8bcdf0, #acf7fd);
-}
-
-/* Time-based variations - fallback backgrounds */
+/* time-of-day fallback backgrounds */
 .theme-city-skyline.time-morning .skyline-background {
-    background: linear-gradient(to bottom, #ff7e5f, #feb47b, #ffd89b, #ffe5b4);
+    background: linear-gradient(to bottom, #f6cfa5, #fdf0e0);
 }
-
 .theme-city-skyline.time-day .skyline-background {
-    background: linear-gradient(to bottom, #4a8fc0, #6aafe0, #8bcdf0, #acf7fd);
+    background: linear-gradient(to bottom, #bfd9ee, #eef5fa);
 }
-
 .theme-city-skyline.time-evening .skyline-background {
-    background: linear-gradient(to bottom, #614385, #516395, #7a8bb5, #a8b5d5);
+    background: linear-gradient(to bottom, #b9a3c9, #f0d8c5);
 }
-
 .theme-city-skyline.time-night .skyline-background {
-    background: linear-gradient(to bottom, #0a1628, #141e30, #1e3048, #243b55);
+    background: linear-gradient(to bottom, #0e1726, #243450);
 }
 
-/* Weather variations */
-.theme-city-skyline.weather-rain:after {
+/* ------------------------------------------------------------
+   Weather effects (subtle)
+   ------------------------------------------------------------ */
+.theme-city-skyline.weather-rain::after,
+.theme-city-skyline.weather-thunderstorm::after {
     content: '';
     position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: 
-        linear-gradient(to bottom, 
-            rgba(255, 255, 255, 0) 0%, 
-            rgba(255, 255, 255, 0.2) 100%),
-        repeating-linear-gradient(to bottom, 
-            transparent 0px, 
-            transparent 5px, 
-            rgba(255, 255, 255, 0.3) 5px, 
-            rgba(255, 255, 255, 0.3) 10px);
+    inset: 0;
+    background: repeating-linear-gradient(to bottom,
+        transparent 0px,
+        transparent 6px,
+        rgba(255, 255, 255, 0.18) 6px,
+        rgba(255, 255, 255, 0.18) 11px);
     pointer-events: none;
-    animation: rain 0.8s linear infinite;
+    animation: ot-rain 0.7s linear infinite;
     z-index: -1;
 }
 
-.theme-city-skyline.weather-snow:after {
+.theme-city-skyline.weather-thunderstorm::after {
+    background:
+        linear-gradient(to bottom, rgba(0, 0, 0, 0.25), rgba(0, 0, 0, 0.05)),
+        repeating-linear-gradient(to bottom,
+            transparent 0px,
+            transparent 6px,
+            rgba(255, 255, 255, 0.18) 6px,
+            rgba(255, 255, 255, 0.18) 11px);
+    animation: ot-rain 0.45s linear infinite;
+}
+
+.theme-city-skyline.weather-snow::after {
     content: '';
     position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-image: 
-        radial-gradient(rgba(255, 255, 255, 0.9) 2px, transparent 0),
-        radial-gradient(rgba(255, 255, 255, 0.7) 1px, transparent 0);
-    background-size: 20px 20px, 30px 30px;
-    background-position: 0 0, 10px 10px;
+    inset: 0;
+    background-image:
+        radial-gradient(rgba(255, 255, 255, 0.8) 1.5px, transparent 0),
+        radial-gradient(rgba(255, 255, 255, 0.5) 1px, transparent 0);
+    background-size: 24px 24px, 36px 36px;
+    background-position: 0 0, 12px 12px;
     pointer-events: none;
-    animation: snow 20s linear infinite;
+    animation: ot-snow 24s linear infinite;
     z-index: -1;
 }
 
-/* If we get thunderstorm weather code from the API */
-.theme-city-skyline.weather-thunderstorm:after {
+.theme-city-skyline.weather-cloudy::after {
     content: '';
     position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: 
-        linear-gradient(to bottom, 
-            rgba(0, 0, 0, 0.4) 0%, 
-            rgba(0, 0, 0, 0.1) 100%),
-        repeating-linear-gradient(to bottom, 
-            transparent 0px, 
-            transparent 5px, 
-            rgba(255, 255, 255, 0.3) 5px, 
-            rgba(255, 255, 255, 0.3) 10px);
+    inset: 0;
+    background: rgba(255, 255, 255, 0.22);
     pointer-events: none;
-    animation: rain 0.5s linear infinite;
     z-index: -1;
 }
 
-.theme-city-skyline.weather-cloudy:after {
-    content: '';
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(255, 255, 255, 0.3);
-    z-index: -1;
-}
-
-/* Weather overlay effects on top of the skyline */
 .theme-city-skyline .weather-overlay {
     position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
+    inset: 0;
     pointer-events: none;
     z-index: -1;
 }
 
-/* Dark theme */
-.theme-dark {
-    --primary-bg: #333;
-    --secondary-bg: #222;
-    --content-bg: #444;
-    --text-color: #ddd;
-    --border-color: #555;
-    --highlight-color: #FFC107;
-    --present-color: #4CAF50;
-    --not-present-color: #F44336;
-    --other-color: #2196F3;
+@keyframes ot-rain {
+    0% { background-position: 0 0; }
+    100% { background-position: 0 22px; }
 }
 
-/* No light theme as it's redundant with default */
-
-/* Apply CSS variables only to themed elements (dark and city-skyline) */
-body.theme-dark, 
-body.theme-city-skyline {
-    background-color: var(--primary-bg);
-    color: var(--text-color);
-}
-
-body.theme-dark main,
-body.theme-city-skyline main {
-    background-color: var(--content-bg);
-}
-
-body.theme-dark main nav {
-    background-color: var(--secondary-bg);
-}
-
-body.theme-dark .weekday-header, 
-body.theme-dark .day,
-body.theme-city-skyline .weekday-header, 
-body.theme-city-skyline .day {
-    border-color: var(--border-color);
-    background-color: var(--content-bg);
-    color: var(--text-color);
-}
-
-body.theme-dark .weekday-header,
-body.theme-city-skyline .weekday-header {
-    color: var(--text-color);
-}
-
-/* These should apply to all themes since they're consistent */
-.present { background-color: #4CAF50; }
-.not-present { background-color: #F44336; }
-.other { background-color: #2196F3; }
-
-body.theme-dark .present,
-body.theme-city-skyline .present { 
-    background-color: var(--present-color); 
-}
-
-body.theme-dark .not-present,
-body.theme-city-skyline .not-present { 
-    background-color: var(--not-present-color); 
-}
-
-body.theme-dark .other,
-body.theme-city-skyline .other { 
-    background-color: var(--other-color); 
-}
-
-/* Scheduled state styles for themed versions */
-body.theme-dark .scheduled-home,
-body.theme-city-skyline .scheduled-home {
-    background-color: rgba(76, 175, 80, 0.4); /* Semi-transparent green */
-}
-
-body.theme-dark .scheduled-office,
-body.theme-city-skyline .scheduled-office {
-    background-color: rgba(244, 67, 54, 0.4); /* Semi-transparent red */
-}
-
-body.theme-dark .scheduled-other,
-body.theme-city-skyline .scheduled-other {
-    background-color: rgba(33, 150, 243, 0.4); /* Semi-transparent blue */
-}
-
-body.theme-dark .today,
-body.theme-city-skyline .today {
-    border-color: var(--highlight-color);
-}
-
-/* Animations for weather effects */
-
-@keyframes rain {
-    0% {
-        background-position: 0px 0px;
-    }
-    100% {
-        background-position: 0px 20px;
-    }
-}
-
-@keyframes snow {
-    0% {
-        background-position: 0 0, 10px 10px;
-    }
-    100% {
-        background-position: 500px 500px, 510px 510px;
-    }
+@keyframes ot-snow {
+    0% { background-position: 0 0, 12px 12px; }
+    100% { background-position: 480px 480px, 492px 492px; }
 }

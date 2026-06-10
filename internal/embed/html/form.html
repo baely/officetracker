@@ -1,49 +1,264 @@
 {{ template "base.html" . }}
+
+{{ define "pagestyle" }}
+<style>
+    .ledger {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 280px;
+        gap: 40px;
+        align-items: start;
+    }
+
+    /* calendar */
+    .cal-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 10px 16px;
+        margin-bottom: 16px;
+    }
+
+    .cal-title { font-size: 20px; font-weight: 650; margin: 0; }
+    .cal-title #month-yr { color: var(--text-3); font-weight: 400; }
+
+    .cal-nav { display: flex; gap: 6px; }
+    .nav-btn {
+        min-width: 32px;
+        height: 32px;
+        padding: 0 10px;
+        border: 1px solid var(--border-strong);
+        border-radius: 7px;
+        background: var(--surface);
+        color: var(--text-2);
+        font: 500 13px var(--font);
+        cursor: pointer;
+    }
+    .nav-btn:hover { color: var(--text); background: var(--bg-subtle); }
+
+    .cal-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 5px;
+    }
+
+    .cal-wd {
+        text-align: center;
+        font-size: 11px;
+        font-weight: 500;
+        color: var(--text-3);
+        padding: 2px 0 6px;
+    }
+
+    .day, .day-blank { min-height: 58px; border-radius: 7px; }
+
+    .day {
+        position: relative;
+        border: 1px solid var(--border);
+        background: var(--surface);
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        justify-content: space-between;
+        padding: 6px 8px;
+        cursor: pointer;
+        font-family: inherit;
+        text-align: left;
+        transition: border-color 0.1s, background 0.1s;
+    }
+    .day:hover { border-color: var(--border-strong); }
+
+    .day .dnum { font-size: 12px; color: var(--text-3); line-height: 1; }
+    .day .dstamp { font-size: 11.5px; font-weight: 500; line-height: 1.2; }
+
+    .day.weekend { background: var(--bg-subtle); }
+
+    .day.today { box-shadow: inset 0 0 0 1.5px var(--accent); border-color: var(--accent); }
+    .day.today .dnum { color: var(--accent); font-weight: 600; }
+
+    .day[data-state="0"] .dstamp { visibility: hidden; }
+
+    .day[data-state="1"] { background: var(--home-bg); border-color: transparent; }
+    .day[data-state="1"] .dstamp { color: var(--home-text); }
+    .day[data-state="2"] { background: var(--office-bg); border-color: transparent; }
+    .day[data-state="2"] .dstamp { color: var(--office-text); }
+    .day[data-state="3"] { background: var(--other-bg); border-color: transparent; }
+    .day[data-state="3"] .dstamp { color: var(--other-text); }
+
+    /* planned (from weekly schedule): dashed outline, lighter */
+    .day[data-state="4"], .day[data-state="5"], .day[data-state="6"] {
+        background: var(--surface);
+        border-style: dashed;
+    }
+    .day[data-state="4"] { border-color: var(--home-text); }
+    .day[data-state="5"] { border-color: var(--office-text); }
+    .day[data-state="6"] { border-color: var(--other-text); }
+    .day[data-state="4"] .dstamp { color: var(--home-text); opacity: 0.75; }
+    .day[data-state="5"] .dstamp { color: var(--office-text); opacity: 0.75; }
+    .day[data-state="6"] .dstamp { color: var(--other-text); opacity: 0.75; }
+
+    /* legend */
+    .legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 18px;
+        margin: 14px 0 2px;
+        font-size: 13px;
+        color: var(--text-2);
+    }
+    .legend-item { display: inline-flex; align-items: center; gap: 7px; }
+
+    .cal-hint { font-size: 12.5px; color: var(--text-3); margin: 8px 0 0; }
+
+    /* tooltip */
+    .day-tooltip {
+        position: absolute;
+        z-index: 90;
+        background: var(--text);
+        color: var(--bg);
+        font-size: 12px;
+        line-height: 1.6;
+        padding: 7px 10px;
+        border-radius: 7px;
+        pointer-events: none;
+        white-space: nowrap;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+    }
+
+    /* notes */
+    .notes-block { margin-top: 36px; }
+    #notes {
+        width: 100%;
+        min-height: 96px;
+        resize: vertical;
+        line-height: 1.6;
+    }
+    .notes-hint { font-size: 12.5px; color: var(--text-3); margin: 6px 0 0; }
+
+    /* sidebar */
+    .rail { display: flex; flex-direction: column; gap: 20px; }
+    .rail-card {
+        border: 1px solid var(--border);
+        border-radius: 9px;
+        padding: 16px 18px;
+        background: var(--surface);
+    }
+    .card-kicker {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text);
+        margin: 0 0 10px;
+    }
+
+    .stat-big { font-size: 30px; font-weight: 650; letter-spacing: -0.01em; line-height: 1.1; margin: 0 0 2px; }
+    .stat-sub { margin: 0 0 12px; font-size: 13px; color: var(--text-2); }
+    .stat-bar {
+        height: 6px;
+        border-radius: 99px;
+        background: var(--bg-subtle);
+        border: 1px solid var(--border);
+        overflow: hidden;
+    }
+    #stat-bar-fill { height: 100%; width: 0; background: var(--accent); transition: width 0.4s ease; }
+    .stat-range { font-size: 12px; color: var(--text-3); margin: 8px 0 0; }
+
+    .month-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .month-table th {
+        text-align: left;
+        font-size: 11.5px;
+        font-weight: 500;
+        color: var(--text-3);
+        padding: 0 0 6px;
+        border-bottom: 1px solid var(--border);
+    }
+    .month-table td {
+        padding: 6px 0;
+        border-bottom: 1px solid var(--border);
+        color: var(--text-2);
+        font-variant-numeric: tabular-nums;
+    }
+    .month-table tr:last-child td { border-bottom: none; }
+    .month-table th.num, .month-table td.num { text-align: right; }
+    .month-table tr.now td { color: var(--text); font-weight: 600; }
+    .month-table td.empty { color: var(--text-3); }
+
+    .export-desc { font-size: 13px; color: var(--text-2); margin: 0 0 12px; }
+    .export-actions { display: flex; gap: 8px; }
+    .export-actions .btn { flex: 1; }
+    #pdf-name-row { display: flex; gap: 8px; margin-top: 10px; }
+    #pdf-name-row[hidden] { display: none; }
+    #pdf-name { flex: 1; min-width: 0; }
+
+    @media (max-width: 920px) {
+        .ledger { grid-template-columns: 1fr; gap: 28px; }
+    }
+    @media (max-width: 560px) {
+        .day, .day-blank { min-height: 48px; }
+        .day .dstamp { font-size: 10px; }
+        .cal-grid { gap: 4px; }
+    }
+</style>
+{{ end }}
+
 {{ define "content" }}
-<div id="calendar-nav">
-    <button id="prev-month">Previous</button>
-    <span id="month-year"></span>
-    <button id="next-month">Next</button>
+<div class="ledger">
+    <section class="cal-pane" aria-label="Monthly calendar">
+        <div class="cal-head">
+            <h1 class="cal-title"><span id="month-name"></span> <span id="month-yr"></span></h1>
+            <div class="cal-nav">
+                <button id="prev-month" class="nav-btn" type="button" aria-label="Previous month">&#8592;</button>
+                <button id="today-btn" class="nav-btn" type="button">Today</button>
+                <button id="next-month" class="nav-btn" type="button" aria-label="Next month">&#8594;</button>
+            </div>
+        </div>
+
+        <div id="calendar"></div>
+
+        <div class="legend" aria-hidden="true">
+            <span class="legend-item"><span class="dot dot-office"></span>Office</span>
+            <span class="legend-item"><span class="dot dot-home"></span>Home</span>
+            <span class="legend-item"><span class="dot dot-other"></span>Other</span>
+            <span class="legend-item"><span class="dot dot-planned"></span>Planned</span>
+        </div>
+        <p class="cal-hint">Click a day to cycle its status. Right-click steps back.</p>
+
+        <section class="notes-block">
+            <h3>Notes &middot; <span id="notes-month"></span></h3>
+            <textarea id="notes" name="notes" placeholder="Notes for this month"></textarea>
+            <p class="notes-hint">Saved automatically when you click away.</p>
+        </section>
+    </section>
+
+    <aside class="rail" aria-label="Yearly summary">
+        <section class="rail-card">
+            <h3 class="card-kicker">This year</h3>
+            <p class="stat-big" id="stat-pct">&mdash;</p>
+            <p class="stat-sub" id="stat-sub"></p>
+            <div class="stat-bar"><div id="stat-bar-fill"></div></div>
+            <p class="stat-range" id="stat-range"></p>
+        </section>
+
+        <section class="rail-card">
+            <h3 class="card-kicker">Monthly</h3>
+            <table id="summary-table" class="month-table"></table>
+        </section>
+
+        <section class="rail-card">
+            <h3 class="card-kicker">Export</h3>
+            <p class="export-desc">Download this year&rsquo;s attendance.</p>
+            <div class="export-actions">
+                <button id="export-csv" class="btn" type="button">CSV</button>
+                <button id="export-pdf" class="btn" type="button">PDF</button>
+            </div>
+            <div id="pdf-name-row" hidden>
+                <input type="text" id="pdf-name" placeholder="Name on report (optional)" maxlength="60">
+                <button id="pdf-go" class="btn btn-primary" type="button">Download</button>
+            </div>
+        </section>
+    </aside>
 </div>
-<div id="calendar"></div>
-<div id="legend" class="legend">
-    <div class="legend-item">
-        <span class="legend-color present"></span> Work from Home
-    </div>
-    <div class="legend-item">
-        <span class="legend-color not-present"></span> In office
-    </div>
-    <div class="legend-item">
-        <span class="legend-color other"></span> Other (Untracked)
-    </div>
-</div>
-<div>
-    <h2>Notes</h2>
-    <p>
-        <textarea name="notes" id="notes"></textarea>
-    </p>
-</div>
-<div class="summary-container">
-    <h2>Summary</h2>
-    <p id="summary-headline"></p>
-    <table id="summary-table">
-        <tr>
-            <th>Month</th>
-            <th>Present</th>
-            <th>Total</th>
-            <th>Percent</th>
-        </tr>
-    </table>
-</div>
-<div>
-    <h2>Export</h2>
-    <p>
-        Export annual attendance as a PDF report or CSV
-    </p>
-    <p>
-        <button id="export-csv">Export to CSV</button>
-        <button id="export-pdf">Export to PDF</button>
-    </p>
-</div>
+{{ end }}
+
+{{ define "pagescript" }}
 <script>{{ template "form.js" . }}</script>
 {{ end }}

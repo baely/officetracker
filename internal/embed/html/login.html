@@ -1,10 +1,26 @@
 {{ template "base.html" . }}
-{{ define "title" }}Login{{ end }}
+
+{{ define "doctitle" }}Sign in — Officetracker{{ end }}
+
+{{ define "pagestyle" }}
+<style>
+    .login-wrap { max-width: 360px; margin: 64px auto 0; text-align: center; }
+    .login-wrap h1 { margin-bottom: 6px; }
+    .login-sub { color: var(--text-2); font-size: 14px; margin: 0 0 24px; }
+    .login-cta { width: 100%; padding: 10px 16px; }
+    .login-legal { margin: 18px 0 0; font-size: 12.5px; color: var(--text-3); }
+    .login-legal a { color: var(--text-2); }
+</style>
+{{ end }}
+
 {{ define "content" }}
-<a href="{{.SSOLink}}" class="login-btn">
-    Login with Auth0
-</a>
-<p>
-    By logging in, you agree to our <a href="/tos">Terms of Service</a> and <a href="/privacy">Privacy Policy</a>.
-</p>
+<div class="login-wrap">
+    <h1>Sign in</h1>
+    <p class="login-sub">Use your existing account to continue.</p>
+    <a href="{{.SSOLink}}" class="btn btn-primary login-cta">Continue with Auth0</a>
+    <p class="login-legal">
+        By signing in you agree to the <a href="/tos">Terms of Service</a>
+        and <a href="/privacy">Privacy Policy</a>.
+    </p>
+</div>
 {{ end }}

@@ -1,95 +1,80 @@
 {{ template "base.html" . }}
-{{ define "title" }}Office days, tracked.{{ end }}
-{{ define "content" }}
+
+{{ define "pagestyle" }}
 <style>
-    .hero {
-        background: #eef8f6 url("/static/office-building.png") no-repeat right 32px bottom 24px / 152px 152px;
-        margin: 0 -24px 32px;
-        min-height: 360px;
-        padding: 32px 180px 32px 24px;
-    }
+    .hero { max-width: 560px; padding: 48px 0 24px; }
+    .hero h1 { font-size: 32px; font-weight: 700; letter-spacing: -0.02em; margin: 0 0 12px; }
+    .hero p { font-size: 15.5px; color: var(--text-2); margin: 0 0 24px; }
+    .hero-actions { display: flex; gap: 10px; }
 
-    .hero p {
-        color: #384346;
-        font-size: 1.1rem;
-        line-height: 1.55;
-        margin: 0 0 24px;
-        max-width: 30rem;
-    }
-
-    .hero-actions {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 12px;
-    }
-
-    .hero-actions a {
-        border: 1px solid #24292e;
-        border-radius: 4px;
-        color: #24292e;
-        display: inline-flex;
-        font-weight: 700;
-        line-height: 1;
-        padding: 12px 16px;
-        text-decoration: none;
-    }
-
-    .hero-actions a.primary {
-        background-color: #24292e;
-        color: white;
-    }
-
-    .hero-details {
+    .hero-preview {
         display: grid;
-        gap: 16px;
-        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-        margin-top: 24px;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 5px;
+        max-width: 420px;
+        margin: 48px 0 0;
     }
+    .hp-cell {
+        min-height: 46px;
+        border: 1px solid var(--border);
+        border-radius: 7px;
+        font-size: 11px;
+        font-weight: 500;
+        display: flex;
+        align-items: flex-end;
+        padding: 6px 8px;
+    }
+    .hp-office { background: var(--office-bg); color: var(--office-text); border-color: transparent; }
+    .hp-home { background: var(--home-bg); color: var(--home-text); border-color: transparent; }
+    .hp-other { background: var(--other-bg); color: var(--other-text); border-color: transparent; }
 
-    .hero-details h3 {
-        font-size: 1rem;
-        margin: 0 0 8px;
+    .features {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 28px;
+        margin-top: 56px;
+        padding-top: 28px;
+        border-top: 1px solid var(--border);
     }
-
-    .hero-details p {
-        color: #526064;
-        line-height: 1.45;
-        margin: 0;
-    }
-
-    @media (max-width: 640px) {
-        .hero {
-            background-position: right 20px bottom 20px;
-            background-size: 96px 96px;
-            margin-left: 0;
-            margin-right: 0;
-            min-height: 420px;
-            padding: 24px 24px 132px;
-        }
-    }
+    .feature h3 { margin: 0 0 4px; }
+    .feature p { font-size: 13.5px; color: var(--text-2); margin: 0; }
 </style>
+{{ end }}
+
+{{ define "content" }}
 <div class="hero">
+    <h1>Track your office days.</h1>
     <p>
-        Keep a clear monthly record of where you work, add notes when context matters,
-        and export attendance summaries when you need them.
+        Mark each day as office, home, or other with one click. Officetracker keeps
+        the running monthly and yearly totals, and exports a CSV or PDF report when
+        you need one.
     </p>
     <div class="hero-actions">
-        <a href="/login" class="primary">Log in</a>
-        <a href="/privacy">Privacy</a>
+        <a href="/login" class="btn btn-primary">Sign in</a>
+        <a href="/privacy" class="btn btn-quiet">Privacy</a>
     </div>
 </div>
-<div class="hero-details">
-    <div>
-        <h3>Fast daily tracking</h3>
-        <p>Mark office, home, or other work days from a simple calendar.</p>
+
+<div class="hero-preview" aria-hidden="true">
+    <span class="hp-cell hp-office">Office</span>
+    <span class="hp-cell hp-office">Office</span>
+    <span class="hp-cell hp-home">Home</span>
+    <span class="hp-cell hp-office">Office</span>
+    <span class="hp-cell hp-other">Other</span>
+</div>
+
+<div class="features">
+    <div class="feature">
+        <h3>One click a day</h3>
+        <p>A plain calendar. Click a day to set where you worked.</p>
     </div>
-    <div>
-        <h3>Useful summaries</h3>
-        <p>Review monthly percentages and annual trends without spreadsheet work.</p>
+    <div class="feature">
+        <h3>Running totals</h3>
+        <p>Monthly and yearly attendance rates, computed as you go.</p>
     </div>
-    <div>
-        <h3>Portable reports</h3>
-        <p>Export CSV or PDF attendance records for your own files.</p>
+    <div class="feature">
+        <h3>Exports</h3>
+        <p>Download your record as CSV or PDF whenever you need it.</p>
     </div>
 </div>
 {{ end }}

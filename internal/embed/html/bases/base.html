@@ -1,359 +1,347 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>Officetracker</title>
+    <title>{{ block "doctitle" . }}Officetracker{{ end }}</title>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Calistoga&display=swap" rel="stylesheet">
-    <link href="/static/themes.css" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="/static/themes.css?v=2026-06b" rel="stylesheet">
     <style>
-        html, body { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; margin: 0; padding: 0; }
-        body { background-color: #f7f8f8; height: 100vh; overflow-x: hidden; overflow-y: auto; width: 100vw; }
-        main { background-color: white; margin: 0 auto; max-width: 540px; min-height: calc(100vh - 96px); padding: 48px; }
-        main nav { background-color: #dee !important; margin: -48px -48px 0; padding: 48px 48px 32px; }
-        main nav h1 { font-family: "Calistoga", serif; font-size: 2em; margin: 0 24px 0 0; }
-        main nav h1 a:link, main nav h1 a:visited { text-decoration: none; }
-        main nav h1 img { height: 32px; margin: 0 4px -2px 0; }
-        main nav a:link, main nav a:visited { color: inherit; }
-        main nav div.nav-links { margin: 18px 0 0; }
-        main nav h1, main nav div.nav-links { display: inline-block; }
-        main nav div.nav-links > a { font-size: 1.25em; margin: 12px 12px 0; }
+        /* Officetracker — minimal */
+        :root {
+            --bg: #ffffff;
+            --bg-subtle: #fafafa;
+            --surface: #ffffff;
+            --text: #18181b;
+            --text-2: #52525b;
+            --text-3: #a1a1aa;
+            --border: #e4e4e7;
+            --border-strong: #c8c8cf;
+            --accent: #2563eb;
+            --danger: #dc2626;
 
-        section.notification {
-            background-color: #fc0;
-            margin: 0px -48px 0;
-            padding: 32px 48px 32px;
+            /* day states */
+            --office-bg: #e7eefc; --office-text: #1d4ed8;
+            --home-bg: #e3f3e9;   --home-text: #157347;
+            --other-bg: #f6efdb;  --other-text: #8a6512;
+
+            --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
         }
 
-        .login-btn {
-            padding: 10px;
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            background: var(--bg);
+            color: var(--text);
+            font-family: var(--font);
+            font-size: 15px;
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        a { color: inherit; }
+
+        :focus-visible {
+            outline: 2px solid var(--accent);
+            outline-offset: 2px;
             border-radius: 4px;
-            border: none;
-            background-color: #24292e;
-            color: white;
-            cursor: pointer;
-            font-size: inherit;
+        }
+
+        .skip-link {
+            position: absolute;
+            left: -9999px;
+            top: 8px;
+            background: var(--text);
+            color: var(--bg);
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            z-index: 100;
+        }
+        .skip-link:focus { left: 8px; }
+
+        .page {
+            max-width: 1020px;
+            margin: 0 auto;
+            padding: 0 24px 56px;
+        }
+
+        /* header */
+        .masthead {
             display: flex;
             align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 8px 24px;
+            padding: 18px 0;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 32px;
+        }
+
+        .wordmark {
+            font-size: 15px;
+            font-weight: 600;
+            text-decoration: none;
+            letter-spacing: -0.01em;
+        }
+
+        .site-nav { display: flex; gap: 20px; flex-wrap: wrap; }
+        .site-nav a {
+            font-size: 13.5px;
+            color: var(--text-2);
+            text-decoration: none;
+        }
+        .site-nav a:hover { color: var(--text); }
+        .site-nav a[aria-current="page"] { color: var(--text); font-weight: 600; }
+
+        /* type */
+        h1 { font-size: 22px; font-weight: 650; letter-spacing: -0.01em; margin: 0 0 8px; }
+        h2 { font-size: 17px; font-weight: 600; margin: 0 0 10px; }
+        h3 { font-size: 14px; font-weight: 600; margin: 0 0 10px; }
+
+        /* buttons & inputs */
+        .btn {
+            display: inline-flex;
+            align-items: center;
             justify-content: center;
-            box-sizing: border-box;
+            gap: 6px;
+            font: 500 13.5px var(--font);
+            color: var(--text);
+            background: var(--surface);
+            border: 1px solid var(--border-strong);
+            border-radius: 7px;
+            padding: 8px 14px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: background 0.1s, border-color 0.1s;
         }
-        .login-btn:hover {
-            background-color: #1c2025;
+        .btn:hover { background: var(--bg-subtle); border-color: var(--text-3); }
+
+        .btn-primary {
+            background: var(--text);
+            border-color: var(--text);
+            color: var(--bg);
         }
-        #calendar-nav {
+        .btn-primary:hover { background: #333338; border-color: #333338; }
+
+        .btn-quiet { border-color: transparent; color: var(--text-2); }
+        .btn-quiet:hover { color: var(--text); background: var(--bg-subtle); border-color: transparent; }
+
+        input[type="text"], textarea, select {
+            font: 400 14px var(--font);
+            color: var(--text);
+            background: var(--surface);
+            border: 1px solid var(--border-strong);
+            border-radius: 7px;
+            padding: 8px 11px;
+        }
+        input[type="text"]:focus, textarea:focus, select:focus {
+            outline: 2px solid var(--accent);
+            outline-offset: -1px;
+            border-color: transparent;
+        }
+        ::placeholder { color: var(--text-3); }
+
+        /* legend dots */
+        .dot {
+            display: inline-block;
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        .dot-office { background: var(--office-text); }
+        .dot-home { background: var(--home-text); }
+        .dot-other { background: var(--other-text); }
+        .dot-planned { background: transparent; border: 1.5px dashed var(--text-3); }
+
+        /* longform pages */
+        .prose { max-width: 640px; }
+        .prose h1 { margin-bottom: 24px; }
+        .prose h2 { font-size: 15px; margin: 28px 0 6px; }
+        .prose h3 { font-size: 14px; margin: 18px 0 4px; }
+        .prose p, .prose li { color: var(--text-2); font-size: 14px; }
+        .prose a { color: var(--accent); }
+
+        /* footer */
+        .colophon {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 20px;
-        }
-
-        #calendar-nav #month-year {
-            font-weight: bold;
-            font-size: 1.5em;
-            margin: 10px;
-        }
-
-        #calendar {
-            display: grid;
-            gap: 0.5rem;
-            margin: auto;
-            width: 100%;
-            box-sizing: border-box;
-        }
-
-        .weekday-header, .day {
-            border: 1px solid #dee2e6; /* Bootstrap-like border color */
-            padding: 0.5rem;
-            text-align: center;
-            background-color: #f8f9fa; /* Bootstrap-like background color */
-        }
-
-        .weekday-header {
-            font-weight: bold;
-            color: #495057; /* Bootstrap-like text color */
-        }
-
-        .day {
-            cursor: pointer;
-            transition: background-color 0.3s ease;
-        }
-
-        .legend {
-            display: flex;
-            justify-content: center;
             flex-wrap: wrap;
-            margin-top: 1rem;
+            gap: 8px 24px;
+            margin-top: 56px;
+            padding-top: 16px;
+            border-top: 1px solid var(--border);
+            font-size: 12.5px;
+            color: var(--text-3);
         }
+        .colophon a { color: var(--text-2); text-decoration: none; margin-left: 14px; }
+        .colophon a:hover { color: var(--text); }
 
-        .legend-item {
-            display: flex;
-            align-items: center;
-            margin-right: 1rem;
-            margin-bottom: 0.5rem;
-        }
-
-        .legend-color {
-            width: 1rem;
-            height: 1rem;
-            border: 1px solid #dee2e6;
-            margin-right: 0.5rem;
-        }
-
-        .untracked { background-color: #FFFFFF; }
-        .present { background-color: #4CAF50; }
-        .not-present { background-color: #F44336; }
-        .other { background-color: #2196F3; }
-        
-        /* Lighter scheduled state styles */
-        .scheduled-home { background-color: #C8E6C9; } /* Light green for scheduled work from home */
-        .scheduled-office { background-color: #FFCDD2; } /* Light red for scheduled in office */
-        .scheduled-other { background-color: #BBDEFB; } /* Light blue for scheduled other */
-
-        .today {
-            border: 5px solid #FFC107;
-            font-weight: bold;
-            padding: 3px;
-        }
-
-        textarea#notes {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #dee2e6;
-            border-radius: 4px;
-            font-family: Arial, sans-serif;
-            font-size: 1rem;
-            line-height: 1.5;
-            color: #495057;
-            background-color: #f8f9fa;
-            box-sizing: border-box;
-            resize: vertical;
-        }
-
-        .summary-container table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        .summary-container th, .summary-container td {
-            border: 1px solid #ddd;
-            padding: 8px;
-            text-align: left;
-        }
-
-        .summary-container th {
-            background-color: #f4f4f4;
-        }
-
-        input#api-key {
-            width: 100%;
-        }
-        
-        /* Theme selector styles */
-        .theme-selector {
-            margin: 1rem 0;
-        }
-        
-        .theme-selector label {
-            display: block;
-            margin-bottom: 0.5rem;
-        }
-        
-        .theme-selector select {
-            padding: 0.5rem;
-            border-radius: 4px;
-            border: 1px solid #dee2e6;
-            background-color: white;
-            color: #495057;
-        }
-        
-        .theme-option {
-            margin: 0.5rem 0;
-        }
-        
-        .theme-option label {
-            margin-left: 0.5rem;
-        }
-        
-        /* Improved checkbox styling */
-        .checkbox-wrapper {
-            display: flex;
-            align-items: center;
-        }
-        
-        .checkbox-wrapper input[type="checkbox"] {
-            margin: 0;
-            margin-right: 0.5rem;
-        }
-        
-        /* Schedule calendar styles */
-        .schedule-container {
-            margin: 1rem 0;
-        }
-        
-        .schedule-container table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        
-        .schedule-day {
-            border: 1px solid #dee2e6;
-            padding: 1rem;
-            text-align: center;
-            cursor: pointer;
-            transition: background-color 0.3s ease;
-            width: calc(100% / 7);
-        }
-        
-        .schedule-day:hover {
-            background-color: #e9ecef;
-        }
-        
-        .schedule-day[data-state="0"] {
-            background-color: #f8f9fa; /* Untracked */
-        }
-        
-        .schedule-day[data-state="1"] {
-            background-color: #4CAF50; /* Work from Home */
-            color: white;
-        }
-        
-        .schedule-day[data-state="2"] {
-            background-color: #F44336; /* In office */
-            color: white;
-        }
-        
-        .schedule-day[data-state="3"] {
-            background-color: #2196F3; /* Other */
-            color: white;
-        }
-        
-        .schedule-day .day-header {
-            font-weight: bold;
-            margin-bottom: 0.5rem;
-        }
-        
-        .schedule-day .schedule-state {
-            font-size: 0.85em;
-        }
-
-        /* Tooltip styles for calendar running total */
-        .day-tooltip {
-            position: absolute;
-            background-color: #333;
-            color: white;
-            padding: 8px 12px;
-            border-radius: 4px;
-            font-size: 0.85em;
-            white-space: nowrap;
-            z-index: 1000;
+        /* toast */
+        #ot-toast {
+            position: fixed;
+            right: 20px;
+            bottom: 20px;
+            z-index: 80;
             pointer-events: none;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+        #ot-toast .toast-chip {
+            display: inline-block;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--bg);
+            background: var(--text);
+            border-radius: 7px;
+            padding: 7px 13px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+            animation: toast-in 0.15s ease-out both;
+        }
+        #ot-toast .toast-chip.toast-err { background: var(--danger); color: #fff; }
+        #ot-toast .toast-chip.toast-out { animation: toast-out 0.25s ease-in both; }
+        @keyframes toast-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; } }
+        @keyframes toast-out { from { opacity: 1; } to { opacity: 0; } }
+
+        @media (max-width: 700px) {
+            .page { padding: 0 14px 40px; }
+            .masthead { margin-bottom: 22px; }
         }
 
-        .day-tooltip::after {
-            content: '';
-            position: absolute;
-            top: 100%;
-            left: 50%;
-            margin-left: -5px;
-            border-width: 5px;
-            border-style: solid;
-            border-color: #333 transparent transparent transparent;
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                transition-duration: 0.01ms !important;
+            }
         }
     </style>
+    {{ block "pagestyle" . }}{{ end }}
 </head>
 <body>
-<!-- Dynamic theme elements -->
+<!-- Dynamic theme elements (skyline, weather) -->
 <div id="theme-elements"></div>
+<a class="skip-link" href="#main">Skip to content</a>
 
-<main>
-    <nav>
-        <h1><a href="/"><img src="/static/office-building.png" alt="Office building"/>Officetracker</a></h1>
-        <div class="nav-links">
+<div class="page">
+    <header class="masthead">
+        <a class="wordmark" href="/">Officetracker</a>
+        <nav class="site-nav" aria-label="Main">
             {{if .IsLoggedIn}}
-                {{if not .IsStandalone}}<a href="/logout">/logout</a>{{end}}
-                <a href="/settings">/settings</a>
-                {{if not .IsStandalone}}<a href="/developer">/developer</a>{{end}}
+                <a href="/">Calendar</a>
+                <a href="/settings">Settings</a>
+                {{if not .IsStandalone}}
+                    <a href="/developer">Developer</a>
+                    <a href="/logout">Log out</a>
+                {{end}}
             {{else}}
-                <a href="/login">/login</a>
+                <a href="/login">Sign in</a>
             {{end}}
-        </div>
-    </nav>
-    {{ block "postheader" .}}{{end}}
-    <h2>{{block "title" .}}{{end}}</h2>
-    <section>{{block "content" .}}{{end}}</section>
-    
-    <footer style="margin-top: 48px; padding: 24px 0; border-top: 1px solid #dee; text-align: center; color: #666;">
-        <p>
-            <a href="/tos" style="margin: 0 8px; color: #666;">Terms of Service</a>
-            <a href="/privacy" style="margin: 0 8px; color: #666;">Privacy Policy</a>
-        </p>
+        </nav>
+    </header>
+
+    {{ block "postheader" . }}{{ end }}
+
+    <main id="main">
+        {{ block "content" . }}{{ end }}
+    </main>
+
+    <footer class="colophon">
+        <span>Officetracker</span>
+        <span>
+            {{if not .IsStandalone}}
+                <a href="/tos">Terms</a>
+                <a href="/privacy">Privacy</a>
+            {{end}}
+        </span>
     </footer>
-</main>
+</div>
+
+<div id="ot-toast" role="status" aria-live="polite"></div>
 
 <script>
-// Theme management
+// ----------------------------------------------------------------
+// Shared helpers (toasts)
+// ----------------------------------------------------------------
+window.OT = {
+    _timer: null,
+    toast: function (msg, kind) {
+        var host = document.getElementById('ot-toast');
+        if (!host) return;
+        clearTimeout(this._timer);
+        host.innerHTML = '';
+        var chip = document.createElement('span');
+        chip.className = 'toast-chip' + (kind === 'err' ? ' toast-err' : '');
+        chip.textContent = msg;
+        host.appendChild(chip);
+        this._timer = setTimeout(function () {
+            chip.classList.add('toast-out');
+            setTimeout(function () { if (chip.parentNode) chip.remove(); }, 260);
+        }, kind === 'err' ? 3200 : 1300);
+    },
+    saved: function () { this.toast('Saved', 'ok'); },
+    error: function (msg) { this.toast(msg || 'Could not save', 'err'); }
+};
+
+// mark the current nav link
+(function () {
+    var path = window.location.pathname;
+    document.querySelectorAll('.site-nav a').forEach(function (a) {
+        var href = a.getAttribute('href');
+        if (href === path || (href === '/' && /^\/\d{4}-\d{1,2}$/.test(path))) {
+            a.setAttribute('aria-current', 'page');
+        }
+    });
+})();
+
+// ----------------------------------------------------------------
+// Theme management (default · dark · city-skyline)
+// ----------------------------------------------------------------
 function initializeTheme() {
-    // Default theme is 'default' (light)
-    let currentTheme = localStorage.getItem('officetracker-theme') || 'default';
-    let weatherEnabled = localStorage.getItem('officetracker-weather-enabled') === 'true';
-    let timeBasedEnabled = localStorage.getItem('officetracker-time-based-enabled') === 'true';
-    
+    var currentTheme = localStorage.getItem('officetracker-theme') || 'default';
+    var weatherEnabled = localStorage.getItem('officetracker-weather-enabled') === 'true';
+    var timeBasedEnabled = localStorage.getItem('officetracker-time-based-enabled') === 'true';
+
     applyTheme(currentTheme, weatherEnabled, timeBasedEnabled);
-    
-    // Every time the page loads, try to fetch the user's theme preferences from the server
     fetchThemePreferences();
 }
 
 function fetchThemePreferences() {
-    // Only try to fetch if the user is logged in
-    if (document.querySelector('a[href="/settings"]')) {
+    // Only fetch when logged in (settings link present)
+    if (document.querySelector('.site-nav a[href="/settings"]')) {
         fetch('/api/v1/settings/')
-            .then(response => response.json())
-            .then(data => {
+            .then(function (response) { return response.json(); })
+            .then(function (data) {
                 if (data && data.theme_preferences) {
-                    const prefs = data.theme_preferences;
+                    var prefs = data.theme_preferences;
                     localStorage.setItem('officetracker-theme', prefs.theme);
                     localStorage.setItem('officetracker-weather-enabled', prefs.weather_enabled);
                     localStorage.setItem('officetracker-time-based-enabled', prefs.time_based_enabled);
-                    
                     applyTheme(prefs.theme, prefs.weather_enabled, prefs.time_based_enabled);
                 }
             })
-            .catch(error => console.error('Error fetching theme preferences:', error));
+            .catch(function (error) { console.error('Error fetching theme preferences:', error); });
     }
 }
 
 function applyTheme(themeName, weatherEnabled, timeBasedEnabled) {
-    // Remove existing theme classes
     document.body.className = '';
 
-    // Reset dynamic elements
-    const themeElements = document.getElementById('theme-elements');
+    var themeElements = document.getElementById('theme-elements');
     themeElements.innerHTML = '';
 
-    // Apply the selected theme
-    if (themeName === 'default') {
-        // Default theme has no class
-    } else {
+    if (themeName && themeName !== 'default') {
         document.body.classList.add('theme-' + themeName);
 
-        // For city-skyline theme with special features
         if (themeName === 'city-skyline') {
-            // Create skyline background container
-            const skylineContainer = document.createElement('div');
+            var skylineContainer = document.createElement('div');
             skylineContainer.className = 'skyline-background';
 
-            // Use object tag to embed the SVG (allows animations to work)
-            const skylineObject = document.createElement('object');
+            var skylineObject = document.createElement('object');
             skylineObject.type = 'image/svg+xml';
-            skylineObject.data = '/static/skyline.svg';
+            skylineObject.data = '/static/skyline.svg?v=2026-06b';
             skylineObject.id = 'skyline-svg';
 
-            // Handle SVG load to apply time-based gradient
-            skylineObject.onload = function() {
+            skylineObject.onload = function () {
                 if (timeBasedEnabled) {
                     applySkylineTimeOfDay(skylineObject);
                 }
@@ -362,9 +350,8 @@ function applyTheme(themeName, weatherEnabled, timeBasedEnabled) {
             skylineContainer.appendChild(skylineObject);
             themeElements.appendChild(skylineContainer);
 
-            // Apply time-based theme class for fallback styling
             if (timeBasedEnabled) {
-                const hour = new Date().getHours();
+                var hour = new Date().getHours();
                 if (hour >= 5 && hour < 10) {
                     document.body.classList.add('time-morning');
                 } else if (hour >= 10 && hour < 17) {
@@ -376,9 +363,7 @@ function applyTheme(themeName, weatherEnabled, timeBasedEnabled) {
                 }
             }
 
-            // Apply weather effect if enabled
             if (weatherEnabled) {
-                // Fetch weather data for Melbourne, Australia
                 fetchMelbourneWeather(timeBasedEnabled);
             }
         }
@@ -387,19 +372,17 @@ function applyTheme(themeName, weatherEnabled, timeBasedEnabled) {
 
 function applySkylineTimeOfDay(skylineObject) {
     try {
-        const svgDoc = skylineObject.contentDocument;
+        var svgDoc = skylineObject.contentDocument;
         if (!svgDoc) return;
 
-        const hour = new Date().getHours();
-        const skyBg = svgDoc.getElementById('sky-bg');
-        const stars = svgDoc.querySelector('.stars');
-        const sunMoon = svgDoc.getElementById('sun-moon');
+        var hour = new Date().getHours();
+        var skyBg = svgDoc.getElementById('sky-bg');
+        var stars = svgDoc.querySelector('.stars');
+        var sunMoon = svgDoc.getElementById('sun-moon');
 
         if (!skyBg) return;
 
-        // Determine time of day and apply appropriate gradient
         if (hour >= 5 && hour < 10) {
-            // Morning
             skyBg.setAttribute('fill', 'url(#skyGradientMorning)');
             if (stars) stars.style.opacity = '0';
             if (sunMoon) {
@@ -407,7 +390,6 @@ function applySkylineTimeOfDay(skylineObject) {
                 sunMoon.setAttribute('cy', '150');
             }
         } else if (hour >= 10 && hour < 17) {
-            // Day (default)
             skyBg.setAttribute('fill', 'url(#skyGradient)');
             if (stars) stars.style.opacity = '0';
             if (sunMoon) {
@@ -415,7 +397,6 @@ function applySkylineTimeOfDay(skylineObject) {
                 sunMoon.setAttribute('cy', '106');
             }
         } else if (hour >= 17 && hour < 21) {
-            // Evening
             skyBg.setAttribute('fill', 'url(#skyGradientEvening)');
             if (stars) stars.style.opacity = '0.3';
             if (sunMoon) {
@@ -423,7 +404,6 @@ function applySkylineTimeOfDay(skylineObject) {
                 sunMoon.setAttribute('cy', '200');
             }
         } else {
-            // Night
             skyBg.setAttribute('fill', 'url(#skyGradientNight)');
             if (stars) stars.style.opacity = '1';
             if (sunMoon) {
@@ -438,88 +418,63 @@ function applySkylineTimeOfDay(skylineObject) {
 }
 
 function fetchMelbourneWeather(timeBasedEnabled) {
-    // Melbourne coordinates
-    const lat = -37.8142;
-    const lon = 144.9631;
-
-    // Use Open-Meteo API to get real weather data
-    // https://open-meteo.com/
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=weather_code,is_day&timezone=Australia/Melbourne`;
+    var lat = -37.8142;
+    var lon = 144.9631;
+    var url = 'https://api.open-meteo.com/v1/forecast?latitude=' + lat + '&longitude=' + lon +
+        '&current=weather_code,is_day&timezone=Australia%2FMelbourne';
 
     fetch(url)
-        .then(response => response.json())
-        .then(data => {
-            // Process the weather data from Open-Meteo API
-            // Weather codes are based on WMO standards:
-            // https://open-meteo.com/en/docs (see Weather variable documentation section)
-            const weatherCode = data.current.weather_code;
-            const isDay = data.current.is_day === 1;
+        .then(function (response) { return response.json(); })
+        .then(function (data) {
+            var weatherCode = data.current.weather_code;
+            var isDay = data.current.is_day === 1;
 
-            let weatherType = 'clear';
-
-            // Clear (0, 1)
+            var weatherType = 'clear';
             if (weatherCode === 0 || weatherCode === 1) {
                 weatherType = 'clear';
-            }
-            // Cloudy (2, 3, 45, 48)
-            else if (weatherCode === 2 || weatherCode === 3 || weatherCode === 45 || weatherCode === 48) {
+            } else if (weatherCode === 2 || weatherCode === 3 || weatherCode === 45 || weatherCode === 48) {
                 weatherType = 'cloudy';
-            }
-            // Rainy (51-67, 80-82)
-            else if ((weatherCode >= 51 && weatherCode <= 67) || (weatherCode >= 80 && weatherCode <= 82)) {
+            } else if ((weatherCode >= 51 && weatherCode <= 67) || (weatherCode >= 80 && weatherCode <= 82)) {
                 weatherType = 'rain';
-            }
-            // Snowy (71-77, 85-86) - unlikely in Melbourne but included for completeness
-            else if ((weatherCode >= 71 && weatherCode <= 77) || (weatherCode >= 85 && weatherCode <= 86)) {
+            } else if ((weatherCode >= 71 && weatherCode <= 77) || (weatherCode >= 85 && weatherCode <= 86)) {
                 weatherType = 'snow';
-            }
-            // Thunderstorm (95-99)
-            else if (weatherCode >= 95 && weatherCode <= 99) {
+            } else if (weatherCode >= 95 && weatherCode <= 99) {
                 weatherType = 'thunderstorm';
             }
 
-            // Apply the weather effect
             if (weatherType !== 'clear') {
                 document.body.classList.add('weather-' + weatherType);
                 applyWeatherToSkyline(weatherType);
             }
 
-            // If it's night, also add the night class regardless of weather
             if (!isDay && timeBasedEnabled) {
                 document.body.classList.add('time-night');
-                // Re-apply time of day to skyline for night
-                const skylineObject = document.getElementById('skyline-svg');
+                var skylineObject = document.getElementById('skyline-svg');
                 if (skylineObject && skylineObject.contentDocument) {
                     applySkylineTimeOfDay(skylineObject);
                 }
             }
         })
-        .catch(error => {
-            console.error('Error fetching weather data:', error);
-        });
+        .catch(function (error) { console.error('Error fetching weather data:', error); });
 }
 
 function applyWeatherToSkyline(weatherType) {
-    const themeElements = document.getElementById('theme-elements');
+    var themeElements = document.getElementById('theme-elements');
 
-    // Add weather overlay div on top of skyline
-    const weatherOverlay = document.createElement('div');
+    var weatherOverlay = document.createElement('div');
     weatherOverlay.className = 'weather-overlay weather-' + weatherType;
     themeElements.appendChild(weatherOverlay);
 
-    // Also try to modify the SVG clouds opacity based on weather
-    const skylineObject = document.getElementById('skyline-svg');
+    var skylineObject = document.getElementById('skyline-svg');
     if (skylineObject && skylineObject.contentDocument) {
         try {
-            const svgDoc = skylineObject.contentDocument;
-            const clouds = svgDoc.querySelector('.clouds');
+            var svgDoc = skylineObject.contentDocument;
+            var clouds = svgDoc.querySelector('.clouds');
             if (clouds) {
                 if (weatherType === 'cloudy' || weatherType === 'rain' || weatherType === 'thunderstorm') {
-                    // Make clouds more visible for cloudy/rainy weather
                     clouds.style.opacity = '1';
-                    const cloudEllipses = clouds.querySelectorAll('ellipse');
-                    cloudEllipses.forEach(el => {
-                        const currentOpacity = parseFloat(el.getAttribute('opacity') || 0.08);
+                    clouds.querySelectorAll('ellipse').forEach(function (el) {
+                        var currentOpacity = parseFloat(el.getAttribute('opacity') || 0.08);
                         el.setAttribute('opacity', Math.min(currentOpacity * 3, 0.4));
                     });
                 }
@@ -530,7 +485,8 @@ function applyWeatherToSkyline(weatherType) {
     }
 }
 
-// Initialize theme when page loads
 document.addEventListener('DOMContentLoaded', initializeTheme);
 </script>
+{{ block "pagescript" . }}{{ end }}
+</body>
 </html>

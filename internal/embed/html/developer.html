@@ -1,140 +1,129 @@
 {{ template "base.html" . }}
-{{ define "title" }}Developer{{ end }}
-{{ define "content" }}
+
+{{ define "doctitle" }}Developer — Officetracker{{ end }}
+
+{{ define "pagestyle" }}
 <style>
-    .create-token-section {
-        margin-bottom: 2rem;
+    .dev { max-width: 640px; }
+    .dev-section { margin-bottom: 40px; }
+    .dev-section h2 {
+        padding-bottom: 8px;
+        border-bottom: 1px solid var(--border);
+        margin-bottom: 6px;
     }
-    .token-form {
-        display: flex;
-        gap: 0.5rem;
-        margin-bottom: 1rem;
-    }
-    #token-name {
-        flex: 1;
-        padding: 0.5rem;
-        border: 1px solid #dee2e6;
-        border-radius: 4px;
-        background-color: #f8f9fa;
-        color: #495057;
-    }
-    #generate-token-btn {
-        padding: 10px;
-        background: #24292e;
-        color: white;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-    }
-    #generate-token-btn:hover {
-        background: #1c2025;
-    }
+    .section-desc { color: var(--text-2); font-size: 13.5px; margin: 6px 0 16px; }
+
+    .token-form { display: flex; gap: 8px; }
+    #token-name { flex: 1; min-width: 0; }
+
     #new-token-display {
-        margin-top: 1rem;
-        padding: 1rem;
-        background: #f8f9fa;
-        border: 1px solid #dee2e6;
-        border-radius: 4px;
+        margin-top: 14px;
+        border: 1px solid var(--border-strong);
+        border-radius: 9px;
+        padding: 14px 16px;
+        background: var(--bg-subtle);
     }
-    .token-warning {
-        margin-bottom: 0.5rem;
-    }
-    .token-value-container {
-        display: flex;
-        gap: 0.5rem;
-    }
+    .token-warning { font-size: 13px; color: var(--text-2); margin: 0 0 10px; }
+    .token-warning strong { color: var(--text); }
+    .token-value-container { display: flex; gap: 8px; }
     #new-token-value {
         flex: 1;
-        padding: 0.5rem;
-        background: white;
-        border: 1px solid #dee2e6;
-        border-radius: 4px;
-        font-family: monospace;
+        min-width: 0;
+        font-family: var(--mono);
+        font-size: 12.5px;
     }
-    #copy-token-btn {
-        padding: 10px;
-        background: #24292e;
-        color: white;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-    }
-    #copy-token-btn:hover {
-        background: #1c2025;
-    }
-    .tokens-table {
-        width: 100%;
-        border-collapse: collapse;
-    }
+
+    .tokens-table { width: 100%; border-collapse: collapse; font-size: 14px; }
     .tokens-table th {
-        background: #f4f4f4;
-        padding: 8px;
         text-align: left;
-        border: 1px solid #ddd;
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--text-3);
+        padding: 0 10px 8px 0;
+        border-bottom: 1px solid var(--border);
     }
     .tokens-table td {
-        padding: 8px;
-        border: 1px solid #ddd;
+        padding: 10px 10px 10px 0;
+        border-bottom: 1px solid var(--border);
+        color: var(--text-2);
     }
+    .tokens-table td:first-child { color: var(--text); }
+
     .revoke-btn {
-        padding: 6px 12px;
-        background: #24292e;
-        color: white;
-        border: none;
-        border-radius: 4px;
+        font: 500 12.5px var(--font);
+        color: var(--danger);
+        background: transparent;
+        border: 1px solid var(--border-strong);
+        border-radius: 7px;
+        padding: 5px 11px;
         cursor: pointer;
     }
-    .revoke-btn:hover {
-        background: #1c2025;
-    }
-    .no-tokens {
-        padding: 1rem;
+    .revoke-btn:hover { border-color: var(--danger); background: rgba(220, 38, 38, 0.05); }
+
+    .no-tokens, .error {
+        font-size: 13.5px;
+        color: var(--text-3);
+        border: 1px dashed var(--border-strong);
+        border-radius: 9px;
+        padding: 16px;
         text-align: center;
-        color: #666;
-        background: #f8f9fa;
-        border-radius: 4px;
     }
-    .error {
-        padding: 1rem;
-        background: #f8f9fa;
-        color: #495057;
-        border: 1px solid #dee2e6;
-        border-radius: 4px;
+    .error { color: var(--danger); }
+
+    .dev-docs { font-size: 13.5px; color: var(--text-2); }
+    .dev-docs code {
+        font-family: var(--mono);
+        font-size: 12.5px;
+        background: var(--bg-subtle);
+        border: 1px solid var(--border);
+        border-radius: 5px;
+        padding: 1px 5px;
     }
 </style>
+{{ end }}
 
-<p>
-    Manage your API tokens below. You can create multiple tokens for different applications.
-    Each token provides full API access, so keep them secure.
-</p>
+{{ define "content" }}
+<div class="dev">
+    <h1 style="margin-bottom: 6px;">API tokens</h1>
+    <p class="section-desc" style="margin-bottom: 32px;">
+        Tokens give full API access to your account — treat them like passwords.
+        Create one per application so you can revoke them independently.
+    </p>
 
-<!-- Token creation form -->
-<div class="create-token-section">
-    <h3>Create New Token</h3>
-    <div class="token-form">
-        <input type="text" id="token-name" placeholder="Token name (e.g., 'Mobile App', 'CI/CD')" maxlength="50">
-        <button id="generate-token-btn">Generate Token</button>
-    </div>
+    <section class="dev-section">
+        <h2>Create token</h2>
+        <p class="section-desc">Name it after where it will be used.</p>
 
-    <!-- Only shown when a new token is created -->
-    <div id="new-token-display" style="display: none;">
-        <div class="token-warning">
-            <strong>Important:</strong> Copy this token now. You won't be able to see it again!
+        <div class="token-form">
+            <input type="text" id="token-name" placeholder="e.g. CLI, automation" maxlength="50">
+            <button id="generate-token-btn" class="btn btn-primary" type="button">Generate</button>
         </div>
-        <div class="token-value-container">
-            <input type="text" id="new-token-value" disabled readonly>
-            <button id="copy-token-btn">Copy</button>
+
+        <div id="new-token-display" style="display: none;">
+            <p class="token-warning"><strong>Copy it now.</strong> This token is shown once and never again.</p>
+            <div class="token-value-container">
+                <input type="text" id="new-token-value" disabled readonly>
+                <button id="copy-token-btn" class="btn" type="button">Copy</button>
+            </div>
         </div>
-    </div>
-</div>
+    </section>
 
-<!-- Active tokens list -->
-<div class="tokens-list-section">
-    <h3>Active Tokens</h3>
-    <div id="tokens-list">
-        <!-- Populated by JavaScript -->
-    </div>
-</div>
+    <section class="dev-section">
+        <h2>Active tokens</h2>
+        <p class="section-desc">Revoking takes effect immediately.</p>
+        <div id="tokens-list"></div>
+    </section>
 
+    <section class="dev-section">
+        <h2>Usage</h2>
+        <p class="dev-docs">
+            Send the token as a bearer header — <code>Authorization: Bearer &lt;token&gt;</code> —
+            and read or write day states via <code>/api/v1/state/&#123;year&#125;/&#123;month&#125;/&#123;day&#125;</code>.
+        </p>
+    </section>
+</div>
+{{ end }}
+
+{{ define "pagescript" }}
 <script>{{ template "developer.js" . }}</script>
 {{ end }}

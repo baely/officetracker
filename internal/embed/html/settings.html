@@ -1,276 +1,389 @@
 {{ template "base.html" . }}
-{{ define "title" }}Settings{{ end }}
-{{ define "content" }}
-{{if .Auth0AuthURL}}
-<h3>Auth</h3>
-<p>
-    Click the button below to connect another social account. This link will expire after 10 minutes.
-</p>
-<p>
-    <a href="{{.Auth0AuthURL}}" class="github-btn" id="assoc-uri">
-        Connect additional social login with Auth0
-    </a>
-</p>
-<p>
-    The following social accounts are currently associated with your Officetracker account:
-    <ul>
-        {{range .LinkedAccounts}}
-        <li><strong>{{.ProviderDisplay}}</strong>: {{.Nickname}}</li>
-        {{end}}
-    </ul>
-</p>
-{{end}}
 
-<h3>Themes</h3>
-<p>
-    Select a visual theme for Officetracker.
-</p>
+{{ define "doctitle" }}Settings — Officetracker{{ end }}
 
-<div class="theme-selector">
-    <div class="theme-option">
-        <label for="theme-select">Select Theme:</label>
-        <select id="theme-select">
-            <option value="default">Default</option>
-            <option value="dark">Dark</option>
-            <option value="city-skyline">City Skyline</option>
-        </select>
-    </div>
-    
-    <div class="theme-option" id="weather-option" style="display: none;">
-        <div class="checkbox-wrapper">
-            <input type="checkbox" id="weather-enabled">
-            <label for="weather-enabled">Enable weather effects</label>
-        </div>
-    </div>
-    
-    <div class="theme-option" id="time-option" style="display: none;">
-        <div class="checkbox-wrapper">
-            <input type="checkbox" id="time-based-enabled">
-            <label for="time-based-enabled">Enable time-based background</label>
-        </div>
-    </div>
-</div>
-
-<h3>Schedule</h3>
-<p>
-    Select the days of the week you plan to attend the office on a recurring cycle.
-</p>
-
-<div id="schedule-calendar" class="schedule-container">
-    <table>
-        <tr>
-            <td class="schedule-day" data-day="monday" data-state="0">
-                <div class="day-header">Mon</div>
-            </td>
-            <td class="schedule-day" data-day="tuesday" data-state="0">
-                <div class="day-header">Tue</div>
-            </td>
-            <td class="schedule-day" data-day="wednesday" data-state="0">
-                <div class="day-header">Wed</div>
-            </td>
-            <td class="schedule-day" data-day="thursday" data-state="0">
-                <div class="day-header">Thu</div>
-            </td>
-            <td class="schedule-day" data-day="friday" data-state="0">
-                <div class="day-header">Fri</div>
-            </td>
-            <td class="schedule-day" data-day="saturday" data-state="0">
-                <div class="day-header">Sat</div>
-            </td>
-            <td class="schedule-day" data-day="sunday" data-state="0">
-                <div class="day-header">Sun</div>
-            </td>
-        </tr>
-    </table>
-</div>
-
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Server-provided theme preferences, if available
-        const serverTheme = "{{.ThemePreferences.Theme}}";
-        const serverWeatherEnabled = {{.ThemePreferences.WeatherEnabled}};
-        const serverTimeBasedEnabled = {{.ThemePreferences.TimeBasedEnabled}};
-        
-        // Server-provided schedule preferences
-        const serverSchedule = {
-            monday: {{.SchedulePreferences.Monday}},
-            tuesday: {{.SchedulePreferences.Tuesday}},
-            wednesday: {{.SchedulePreferences.Wednesday}},
-            thursday: {{.SchedulePreferences.Thursday}},
-            friday: {{.SchedulePreferences.Friday}},
-            saturday: {{.SchedulePreferences.Saturday}},
-            sunday: {{.SchedulePreferences.Sunday}}
-        };
-        
-        // State names mapping
-        const stateNames = {
-            0: "Untracked",
-            1: "Work from Home", 
-            2: "In office",
-            3: "Other"
-        };
-        
-        // Load current theme preferences, prioritizing server values if available
-        const currentTheme = serverTheme || localStorage.getItem('officetracker-theme') || 'default';
-        const weatherEnabled = (serverTheme !== "") ? serverWeatherEnabled : (localStorage.getItem('officetracker-weather-enabled') === 'true');
-        const timeBasedEnabled = (serverTheme !== "") ? serverTimeBasedEnabled : (localStorage.getItem('officetracker-time-based-enabled') === 'true');
-        
-        // Set form values
-        document.getElementById('theme-select').value = currentTheme;
-        document.getElementById('weather-enabled').checked = weatherEnabled;
-        document.getElementById('time-based-enabled').checked = timeBasedEnabled;
-        
-        // Show/hide options based on selected theme
-        toggleOptions(currentTheme);
-        
-        // Initialize schedule calendar
-        initializeScheduleCalendar();
-        
-        // Save settings function
-        function saveSettings() {
-            const theme = document.getElementById('theme-select').value;
-            const weatherEnabled = document.getElementById('weather-enabled').checked;
-            const timeBasedEnabled = document.getElementById('time-based-enabled').checked;
-            
-            // Save to localStorage
-            localStorage.setItem('officetracker-theme', theme);
-            localStorage.setItem('officetracker-weather-enabled', weatherEnabled);
-            localStorage.setItem('officetracker-time-based-enabled', timeBasedEnabled);
-            
-            // Apply theme immediately
-            applyTheme(theme, weatherEnabled, timeBasedEnabled);
-            
-            // Save to server without alerts
-            fetch('/api/v1/settings/theme', {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    data: {
-                        theme: theme,
-                        weather_enabled: weatherEnabled,
-                        time_based_enabled: timeBasedEnabled
-                    }
-                }),
-                credentials: "include"
-            })
-            .catch(error => {
-                console.error('Error saving theme settings:', error);
-            });
-        }
-        
-        // Save schedule preferences function
-        function saveScheduleSettings() {
-            const schedule = getCurrentSchedule();
-            
-            fetch('/api/v1/settings/schedule', {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    data: schedule
-                }),
-                credentials: "include"
-            })
-            .catch(error => {
-                console.error('Error saving schedule settings:', error);
-            });
-        }
-        
-        // Get current schedule state from DOM
-        function getCurrentSchedule() {
-            const schedule = {};
-            const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
-            
-            days.forEach(day => {
-                const dayElement = document.querySelector(`[data-day="${day}"]`);
-                schedule[day] = parseInt(dayElement.dataset.state);
-            });
-            
-            return schedule;
-        }
-        
-        // Cycle through states: Untracked -> Work from Home -> In office -> Other -> Untracked
-        function cycleScheduleState(dayElement, direction = 1) {
-            const currentState = parseInt(dayElement.dataset.state);
-            const nextState = (currentState + direction + 4) % 4;
-            
-            dayElement.dataset.state = nextState;
-        }
-        
-        // Initialize schedule calendar with server data
-        function initializeScheduleCalendar() {
-            const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
-            
-            days.forEach(day => {
-                const dayElement = document.querySelector(`[data-day="${day}"]`);
-                const state = serverSchedule[day] || 0;
-                
-                // Set initial state
-                dayElement.dataset.state = state;
-                
-                // Add click event listeners
-                dayElement.addEventListener('click', function() {
-                    cycleScheduleState(this, 1);
-                    saveScheduleSettings();
-                });
-                
-                dayElement.addEventListener('contextmenu', function(event) {
-                    event.preventDefault();
-                    cycleScheduleState(this, -1);
-                    saveScheduleSettings();
-                });
-            });
-        }
-        
-        // Event listener for theme change
-        document.getElementById('theme-select').addEventListener('change', function() {
-            toggleOptions(this.value);
-            saveSettings();
-        });
-        
-        // Event listeners for checkbox changes
-        document.getElementById('weather-enabled').addEventListener('change', saveSettings);
-        document.getElementById('time-based-enabled').addEventListener('change', saveSettings);
-    });
-    
-    function toggleOptions(theme) {
-        const weatherOption = document.getElementById('weather-option');
-        const timeOption = document.getElementById('time-option');
-        
-        if (theme === 'city-skyline') {
-            weatherOption.style.display = 'block';
-            timeOption.style.display = 'block';
-        } else {
-            weatherOption.style.display = 'none';
-            timeOption.style.display = 'none';
-        }
-    }
-</script>
-
+{{ define "pagestyle" }}
 <style>
-/* Fix schedule calendar vertical alignment by removing bottom margin from day headers */
-.schedule-day .day-header {
-    margin-bottom: 0;
-}
+    .settings { max-width: 680px; }
+    .settings-section { margin-bottom: 40px; }
+    .settings-section h2 {
+        padding-bottom: 8px;
+        border-bottom: 1px solid var(--border);
+        margin-bottom: 6px;
+    }
+    .section-desc { color: var(--text-2); font-size: 13.5px; margin: 6px 0 18px; }
+
+    /* theme cards */
+    .theme-cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 10px;
+    }
+    .theme-card {
+        position: relative;
+        border: 1px solid var(--border-strong);
+        border-radius: 9px;
+        padding: 12px;
+        cursor: pointer;
+        background: var(--surface);
+        transition: border-color 0.1s;
+    }
+    .theme-card:hover { border-color: var(--text-3); }
+    .theme-card input { position: absolute; opacity: 0; pointer-events: none; }
+    .theme-card.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+
+    .tp { height: 44px; border-radius: 5px; border: 1px solid var(--border); margin-bottom: 10px; position: relative; overflow: hidden; }
+    .tp::after {
+        content: "";
+        position: absolute;
+        left: 10px;
+        right: 30%;
+        top: 12px;
+        height: 5px;
+        border-radius: 3px;
+    }
+    .tp-default { background: #ffffff; }
+    .tp-default::after { background: #d4d4d8; box-shadow: 0 11px 0 0 #e8e8eb; }
+    .tp-dark { background: #161619; }
+    .tp-dark::after { background: #4a4a52; box-shadow: 0 11px 0 0 #2e2e34; }
+    .tp-skyline { background: linear-gradient(to bottom, #bfd9ee, #eef5fa); }
+    .tp-skyline::after {
+        background: #2f3b4c;
+        top: auto;
+        bottom: 0;
+        left: 8px;
+        right: 12px;
+        height: 16px;
+        border-radius: 2px 2px 0 0;
+    }
+
+    .theme-card .t-name { display: block; font-size: 13.5px; font-weight: 600; }
+    .theme-card .t-desc { display: block; font-size: 12px; color: var(--text-2); }
+
+    .skyline-extras {
+        margin-top: 14px;
+        display: flex;
+        gap: 24px;
+        flex-wrap: wrap;
+    }
+    .skyline-extras[hidden] { display: none; }
+
+    .switch { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13.5px; color: var(--text-2); }
+    .switch input { position: absolute; opacity: 0; pointer-events: none; }
+    .switch .track {
+        width: 32px;
+        height: 18px;
+        border-radius: 99px;
+        background: var(--border-strong);
+        position: relative;
+        transition: background 0.12s;
+        flex-shrink: 0;
+    }
+    .switch .track::after {
+        content: "";
+        position: absolute;
+        top: 2px;
+        left: 2px;
+        width: 14px;
+        height: 14px;
+        border-radius: 99px;
+        background: #fff;
+        transition: transform 0.12s;
+    }
+    .switch input:checked + .track { background: var(--accent); }
+    .switch input:checked + .track::after { transform: translateX(14px); }
+    .switch input:focus-visible + .track { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+    /* weekly schedule */
+    .sched-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 6px;
+        max-width: 560px;
+    }
+    .sched-day {
+        border: 1px solid var(--border);
+        border-radius: 7px;
+        background: var(--surface);
+        font-family: inherit;
+        padding: 10px 4px;
+        cursor: pointer;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+        min-height: 62px;
+        transition: border-color 0.1s, background 0.1s;
+    }
+    .sched-day:hover { border-color: var(--border-strong); }
+    .sched-day .sd-name { font-size: 11.5px; font-weight: 500; color: var(--text-2); }
+    .sched-day .dstamp { font-size: 11px; font-weight: 500; min-height: 1em; }
+    .sched-day[data-state="0"] .dstamp { visibility: hidden; }
+    .sched-day[data-state="1"] { background: var(--home-bg); border-color: transparent; }
+    .sched-day[data-state="1"] .dstamp { color: var(--home-text); }
+    .sched-day[data-state="2"] { background: var(--office-bg); border-color: transparent; }
+    .sched-day[data-state="2"] .dstamp { color: var(--office-text); }
+    .sched-day[data-state="3"] { background: var(--other-bg); border-color: transparent; }
+    .sched-day[data-state="3"] .dstamp { color: var(--other-text); }
+
+    .sched-hint { font-size: 12.5px; color: var(--text-3); margin: 10px 0 0; }
+
+    /* linked accounts */
+    .linked-list { list-style: none; margin: 0 0 16px; padding: 0; }
+    .linked-list li {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 9px 0;
+        border-bottom: 1px solid var(--border);
+        font-size: 14px;
+    }
+    .linked-list .provider {
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--text-2);
+        border: 1px solid var(--border-strong);
+        border-radius: 99px;
+        padding: 1px 9px;
+    }
+    .linked-list .nickname { color: var(--text-2); }
+    .linked-note { font-size: 12.5px; color: var(--text-3); margin-top: 8px; }
+
+    @media (max-width: 560px) {
+        .sched-grid { grid-template-columns: repeat(4, 1fr); }
+    }
 </style>
+{{ end }}
 
-<div class="legend">
-    <div class="legend-item">
-        <div class="legend-color present"></div>
-        <span>Work from Home</span>
-    </div>
-    <div class="legend-item">
-        <div class="legend-color not-present"></div>
-        <span>In office</span>
-    </div>
-    <div class="legend-item">
-        <div class="legend-color other"></div>
-        <span>Other (Untracked)</span>
-    </div>
+{{ define "content" }}
+<div class="settings">
+    <h1 style="margin-bottom: 28px;">Settings</h1>
+
+    <section class="settings-section">
+        <h2>Theme</h2>
+        <p class="section-desc">Applies immediately, everywhere.</p>
+
+        <div class="theme-cards" role="radiogroup" aria-label="Theme">
+            <label class="theme-card" data-theme="default">
+                <input type="radio" name="theme" value="default">
+                <span class="tp tp-default" aria-hidden="true"></span>
+                <span class="t-name">Light</span>
+                <span class="t-desc">Default</span>
+            </label>
+            <label class="theme-card" data-theme="dark">
+                <input type="radio" name="theme" value="dark">
+                <span class="tp tp-dark" aria-hidden="true"></span>
+                <span class="t-name">Dark</span>
+                <span class="t-desc">Low light</span>
+            </label>
+            <label class="theme-card" data-theme="city-skyline">
+                <input type="radio" name="theme" value="city-skyline">
+                <span class="tp tp-skyline" aria-hidden="true"></span>
+                <span class="t-name">City</span>
+                <span class="t-desc">Skyline backdrop</span>
+            </label>
+        </div>
+
+        <div class="skyline-extras" id="skyline-extras" hidden>
+            <label class="switch">
+                <input type="checkbox" id="weather-enabled">
+                <span class="track" aria-hidden="true"></span>
+                Weather effects
+            </label>
+            <label class="switch">
+                <input type="checkbox" id="time-based-enabled">
+                <span class="track" aria-hidden="true"></span>
+                Time-of-day sky
+            </label>
+        </div>
+    </section>
+
+    <section class="settings-section">
+        <h2>Weekly schedule</h2>
+        <p class="section-desc">
+            Set your usual week. Planned days show dashed on the calendar until you
+            confirm or change them.
+        </p>
+
+        <div class="sched-grid" id="schedule">
+            <button type="button" class="sched-day" data-day="monday" data-state="0"><span class="sd-name">Mon</span><span class="dstamp"></span></button>
+            <button type="button" class="sched-day" data-day="tuesday" data-state="0"><span class="sd-name">Tue</span><span class="dstamp"></span></button>
+            <button type="button" class="sched-day" data-day="wednesday" data-state="0"><span class="sd-name">Wed</span><span class="dstamp"></span></button>
+            <button type="button" class="sched-day" data-day="thursday" data-state="0"><span class="sd-name">Thu</span><span class="dstamp"></span></button>
+            <button type="button" class="sched-day" data-day="friday" data-state="0"><span class="sd-name">Fri</span><span class="dstamp"></span></button>
+            <button type="button" class="sched-day" data-day="saturday" data-state="0"><span class="sd-name">Sat</span><span class="dstamp"></span></button>
+            <button type="button" class="sched-day" data-day="sunday" data-state="0"><span class="sd-name">Sun</span><span class="dstamp"></span></button>
+        </div>
+        <p class="sched-hint">Click to cycle: blank &rarr; Home &rarr; Office &rarr; Other. Right-click steps back.</p>
+    </section>
+
+    {{if .Auth0AuthURL}}
+    <section class="settings-section">
+        <h2>Linked accounts</h2>
+        <p class="section-desc">Logins attached to this account.</p>
+
+        <ul class="linked-list">
+            {{range .LinkedAccounts}}
+            <li><span class="provider">{{.ProviderDisplay}}</span><span class="nickname">{{.Nickname}}</span></li>
+            {{end}}
+        </ul>
+
+        <a href="{{.Auth0AuthURL}}" class="btn" id="assoc-uri">Connect another login</a>
+        <p class="linked-note">The connect link expires after 10 minutes.</p>
+    </section>
+    {{end}}
 </div>
+{{ end }}
 
+{{ define "pagescript" }}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    // Server-provided preferences
+    var serverTheme = "{{.ThemePreferences.Theme}}";
+    var serverWeatherEnabled = {{.ThemePreferences.WeatherEnabled}};
+    var serverTimeBasedEnabled = {{.ThemePreferences.TimeBasedEnabled}};
+    var serverSchedule = {
+        monday: {{.SchedulePreferences.Monday}},
+        tuesday: {{.SchedulePreferences.Tuesday}},
+        wednesday: {{.SchedulePreferences.Wednesday}},
+        thursday: {{.SchedulePreferences.Thursday}},
+        friday: {{.SchedulePreferences.Friday}},
+        saturday: {{.SchedulePreferences.Saturday}},
+        sunday: {{.SchedulePreferences.Sunday}}
+    };
 
+    var STAMP_LABEL = ["", "Home", "Office", "Other"];
+    var STATE_NAME = ["Not planned", "Work from home", "In the office", "Other"];
+    var DAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
+
+    // ---------------- theme ----------------
+    var currentTheme = serverTheme || localStorage.getItem('officetracker-theme') || 'default';
+    var weatherEnabled = (serverTheme !== "") ? serverWeatherEnabled : (localStorage.getItem('officetracker-weather-enabled') === 'true');
+    var timeBasedEnabled = (serverTheme !== "") ? serverTimeBasedEnabled : (localStorage.getItem('officetracker-time-based-enabled') === 'true');
+
+    var weatherInput = document.getElementById('weather-enabled');
+    var timeInput = document.getElementById('time-based-enabled');
+    var extras = document.getElementById('skyline-extras');
+
+    weatherInput.checked = weatherEnabled;
+    timeInput.checked = timeBasedEnabled;
+
+    function markSelected(theme) {
+        document.querySelectorAll('.theme-card').forEach(function (card) {
+            var isIt = card.dataset.theme === theme;
+            card.classList.toggle('selected', isIt);
+            card.querySelector('input').checked = isIt;
+        });
+        extras.hidden = (theme !== 'city-skyline');
+    }
+
+    function saveThemeSettings() {
+        var theme = document.querySelector('.theme-card input:checked');
+        theme = theme ? theme.value : 'default';
+        var weather = weatherInput.checked;
+        var timeBased = timeInput.checked;
+
+        localStorage.setItem('officetracker-theme', theme);
+        localStorage.setItem('officetracker-weather-enabled', weather);
+        localStorage.setItem('officetracker-time-based-enabled', timeBased);
+
+        applyTheme(theme, weather, timeBased);
+
+        fetch('/api/v1/settings/theme', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                data: {
+                    theme: theme,
+                    weather_enabled: weather,
+                    time_based_enabled: timeBased
+                }
+            }),
+            credentials: "include"
+        }).then(function (r) {
+            if (!r.ok) throw new Error("save failed");
+            OT.saved();
+        }).catch(function () {
+            OT.error("Theme not saved — try again");
+        });
+    }
+
+    markSelected(currentTheme);
+
+    document.querySelectorAll('.theme-card input').forEach(function (input) {
+        input.addEventListener('change', function () {
+            markSelected(this.value);
+            saveThemeSettings();
+        });
+    });
+    weatherInput.addEventListener('change', saveThemeSettings);
+    timeInput.addEventListener('change', saveThemeSettings);
+
+    // ---------------- weekly schedule ----------------
+    function renderSchedDay(el) {
+        var st = parseInt(el.dataset.state, 10) || 0;
+        el.querySelector('.dstamp').textContent = STAMP_LABEL[st];
+        var name = el.querySelector('.sd-name').textContent;
+        el.setAttribute('aria-label', name + ': ' + STATE_NAME[st] + '. Press to change.');
+    }
+
+    function saveScheduleSettings() {
+        var schedule = {};
+        DAYS.forEach(function (day) {
+            var el = document.querySelector('[data-day="' + day + '"]');
+            schedule[day] = parseInt(el.dataset.state, 10) || 0;
+        });
+
+        fetch('/api/v1/settings/schedule', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ data: schedule }),
+            credentials: "include",
+            keepalive: true
+        }).then(function (r) {
+            if (!r.ok) throw new Error("save failed");
+            OT.saved();
+        }).catch(function () {
+            OT.error("Schedule not saved — try again");
+        });
+    }
+
+    // Debounced so rapid cycling sends one PUT with the final state
+    var schedTimer = null;
+    function queueScheduleSave() {
+        clearTimeout(schedTimer);
+        schedTimer = setTimeout(function () {
+            schedTimer = null;
+            saveScheduleSettings();
+        }, 350);
+    }
+
+    function cycleSchedDay(el, dir) {
+        var st = parseInt(el.dataset.state, 10) || 0;
+        el.dataset.state = (st + dir + 4) % 4;
+        renderSchedDay(el);
+        queueScheduleSave();
+    }
+
+    DAYS.forEach(function (day) {
+        var el = document.querySelector('[data-day="' + day + '"]');
+        el.dataset.state = serverSchedule[day] || 0;
+        renderSchedDay(el);
+
+        el.addEventListener('click', function () { cycleSchedDay(this, 1); });
+        el.addEventListener('contextmenu', function (e) {
+            e.preventDefault();
+            cycleSchedDay(this, -1);
+        });
+    });
+
+    window.addEventListener('pagehide', function () {
+        if (schedTimer !== null) {
+            clearTimeout(schedTimer);
+            schedTimer = null;
+            saveScheduleSettings();
+        }
+    });
+});
+</script>
 {{ end }}
