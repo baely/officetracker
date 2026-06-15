@@ -47,6 +47,8 @@ type Databaser interface {
 	SaveSecret(userID int, secret string, name string) error
 	ListActiveTokens(userID int) ([]TokenMetadata, error)
 	RevokeToken(userID int, tokenID int) error
+	// RevokeSecretByValue deactivates the secret with the given value.
+	RevokeSecretByValue(secret string) error
 
 	IsUserSuspended(userID int) (bool, error)
 }

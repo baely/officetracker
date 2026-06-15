@@ -59,6 +59,11 @@ func NewServer(cfg config.AppConfigurer, db database.Databaser, redis *database.
 
 	// API routes
 	r.Route("/api/v1", func(r chi.Router) {
+		// Handlers needing the auth service live here rather than apiRouter.
+		r.With(AllowedAuthMethods(auth.MethodSSO, auth.MethodSecret)).
+			Get("/account/link", s.handleAccountLinkURL)
+		r.With(AllowedAuthMethods(auth.MethodSSO, auth.MethodSecret, auth.MethodExcluded)).
+			Post("/auth/logout", s.handleLogoutToken)
 		apiRouter(s.v1)(r)
 	})
 
@@ -289,6 +294,53 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 		SchedulePreferences: settings.SchedulePreferences,
 		CalendarPreferences: settings.CalendarPreferences,
 	})
+}
+
+// handleAccountLinkURL returns an Auth0 account-linking URL for the signed-in
+// user (expires after 10 minutes).
+func (s *Server) handleAccountLinkURL(w http.ResponseWriter, r *http.Request) {
+	if s.auth == nil {
+		writeError(w, "account linking is not available", http.StatusNotImplemented)
+		return
+	}
+	userID, err := getUserID(r)
+	if err != nil || userID == 0 {
+		writeError(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	url, err := s.auth.GenerateAuth0AuthLink(userID)
+	if err != nil {
+		slog.Error(fmt.Sprintf("failed to generate account link url: %v", err))
+		writeError(w, internalErrorMsg, http.StatusInternalServerError)
+		return
+	}
+	b, err := json.Marshal(map[string]string{"url": url})
+	if err != nil {
+		writeError(w, internalErrorMsg, http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(b)
+}
+
+// handleLogoutToken revokes the API token presented on this request. No-op for
+// standalone and cookie/SSO sessions.
+func (s *Server) handleLogoutToken(w http.ResponseWriter, r *http.Request) {
+	cfg, ok := s.cfg.(config.IntegratedApp)
+	if !ok {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	secret, method := auth.GetAuth(cfg, r)
+	if method == auth.MethodSecret && secret != "" {
+		if err := s.db.RevokeSecretByValue(secret); err != nil {
+			slog.Error(fmt.Sprintf("failed to revoke token on logout: %v", err))
+			writeError(w, internalErrorMsg, http.StatusInternalServerError)
+			return
+		}
+		slog.Info("revoked token on logout")
+	}
+	w.WriteHeader(http.StatusOK)
 }
 
 func (s *Server) handleDeveloper(w http.ResponseWriter, r *http.Request) {
