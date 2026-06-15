@@ -58,6 +58,11 @@ func NewServer(cfg config.AppConfigurer, db database.Databaser, redis *database.
 
 	// API routes
 	r.Route("/api/v1", func(r chi.Router) {
+		// Generates an Auth0 account-linking URL for the signed-in user. Lives
+		// here (not in apiRouter) because it needs the auth/OIDC service. The
+		// path avoids the /settings mount so there's no routing conflict.
+		r.With(AllowedAuthMethods(auth.MethodSSO, auth.MethodSecret)).
+			Get("/account/link", s.handleAccountLinkURL)
 		apiRouter(s.v1)(r)
 	})
 
@@ -279,6 +284,34 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 		ThemePreferences:    settings.ThemePreferences,
 		SchedulePreferences: settings.SchedulePreferences,
 	})
+}
+
+// handleAccountLinkURL returns an Auth0 account-linking URL for the signed-in
+// user (used by the mobile app to connect an additional social login). The URL
+// expires after 10 minutes.
+func (s *Server) handleAccountLinkURL(w http.ResponseWriter, r *http.Request) {
+	if s.auth == nil {
+		writeError(w, "account linking is not available", http.StatusNotImplemented)
+		return
+	}
+	userID, err := getUserID(r)
+	if err != nil || userID == 0 {
+		writeError(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	url, err := s.auth.GenerateAuth0AuthLink(userID)
+	if err != nil {
+		slog.Error(fmt.Sprintf("failed to generate account link url: %v", err))
+		writeError(w, internalErrorMsg, http.StatusInternalServerError)
+		return
+	}
+	b, err := json.Marshal(map[string]string{"url": url})
+	if err != nil {
+		writeError(w, internalErrorMsg, http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(b)
 }
 
 func (s *Server) handleDeveloper(w http.ResponseWriter, r *http.Request) {
