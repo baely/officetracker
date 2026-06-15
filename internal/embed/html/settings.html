@@ -107,7 +107,7 @@
     </a>
     <ul class="account-list">
         {{range .LinkedAccounts}}
-        <li><strong>{{.ProviderDisplay}}</strong> &middot; {{.Nickname}}</li>
+        <li><strong>{{.ProviderDisplay}}</strong>{{if .Nickname}}: {{.Nickname}}{{end}}</li>
         {{else}}
         <li class="empty">No social accounts linked yet.</li>
         {{end}}
@@ -145,7 +145,7 @@
     <h3>Tracking year</h3>
     <p class="section-desc">
         Choose the month your tracking year starts on. The yearly summary and exported
-        reports are grouped into 12-month periods beginning on this month. Defaults to October.
+        reports are grouped into 12-month periods beginning on this month.
     </p>
 
     <div class="field-row">
