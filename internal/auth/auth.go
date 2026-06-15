@@ -18,6 +18,10 @@ type Auth struct {
 	auth0Cfg *config.Auth0
 	ghCfg    *config.Github
 
+	// nativeClientID is the audience expected on ID tokens minted by the mobile
+	// app's Native Auth0 application (see HandleNativeExchange).
+	nativeClientID string
+
 	db       database.Databaser
 	redis    *database.Redis
 	provider *oidc.Provider
@@ -41,9 +45,10 @@ func NewAuth(cfg config.AppConfigurer, db database.Databaser, redis *database.Re
 	}
 
 	return &Auth{
-		baseUri:  util.BaseUri(appCfg),
-		auth0Cfg: &appCfg.Auth0,
-		ghCfg:    &appCfg.Github,
+		baseUri:        util.BaseUri(appCfg),
+		auth0Cfg:       &appCfg.Auth0,
+		ghCfg:          &appCfg.Github,
+		nativeClientID: appCfg.Auth0.NativeClientID,
 
 		db:       db,
 		redis:    redis,

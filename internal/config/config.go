@@ -71,6 +71,10 @@ type Auth0 struct {
 	Domain       string `envconfig:"DOMAIN"`
 	ClientID     string `envconfig:"CLIENT_ID"`
 	ClientSecret string `envconfig:"CLIENT_SECRET"`
+	// NativeClientID is the client ID of the Native Auth0 application used by
+	// the mobile app. ID tokens it mints are verified against this audience by
+	// the /auth/native exchange endpoint.
+	NativeClientID string `envconfig:"NATIVE_CLIENT_ID"`
 }
 
 func LoadIntegratedApp() (IntegratedApp, error) {
