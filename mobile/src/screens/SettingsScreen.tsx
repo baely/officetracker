@@ -11,7 +11,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { Api, Settings, TokenInfo, Weekday } from '../api';
+import { Api, isUnauthorized, Settings, TokenInfo, Weekday } from '../api';
 import ScheduleEditor from '../components/ScheduleEditor';
 import { appearance, AttendanceState } from '../states';
 import { clearConnection, Connection } from '../storage';
@@ -21,6 +21,7 @@ interface Props {
   conn: Connection;
   onClose: () => void;
   onSignInAgain: () => void;
+  onUnauthorized: () => void;
   onDisconnect: () => void;
 }
 
@@ -39,9 +40,13 @@ export default function SettingsScreen({
   conn,
   onClose,
   onSignInAgain,
+  onUnauthorized,
   onDisconnect,
 }: Props) {
-  const api = useMemo(() => new Api(conn), [conn]);
+  const api = useMemo(
+    () => new Api(conn, onUnauthorized),
+    [conn, onUnauthorized],
+  );
 
   const [settings, setSettings] = useState<Settings | null>(null);
   const [tokens, setTokens] = useState<TokenInfo[]>([]);
@@ -82,6 +87,7 @@ export default function SettingsScreen({
     const schedule = { ...settings.schedule, [day]: next };
     setSettings({ ...settings, schedule });
     api.updateSchedule(schedule).catch((e: any) => {
+      if (isUnauthorized(e)) return;
       Alert.alert('Could not save schedule', e?.message ?? 'Please try again.');
       load(true);
     });
@@ -97,7 +103,9 @@ export default function SettingsScreen({
         'Complete the sign-in to link the account, then pull down here to refresh.',
       );
     } catch (e: any) {
-      Alert.alert('Could not start linking', e?.message ?? 'Please try again.');
+      if (!isUnauthorized(e)) {
+        Alert.alert('Could not start linking', e?.message ?? 'Please try again.');
+      }
     } finally {
       setAddingAccount(false);
     }
@@ -116,7 +124,9 @@ export default function SettingsScreen({
       setTokenName('');
       setTokens(await api.listTokens());
     } catch (e: any) {
-      Alert.alert('Could not create token', e?.message ?? 'Please try again.');
+      if (!isUnauthorized(e)) {
+        Alert.alert('Could not create token', e?.message ?? 'Please try again.');
+      }
     } finally {
       setCreating(false);
     }
@@ -136,7 +146,9 @@ export default function SettingsScreen({
               await api.revokeToken(token.tokenId);
               setTokens((ts) => ts.filter((t) => t.tokenId !== token.tokenId));
             } catch (e: any) {
-              Alert.alert('Could not revoke', e?.message ?? 'Please try again.');
+              if (!isUnauthorized(e)) {
+                Alert.alert('Could not revoke', e?.message ?? 'Please try again.');
+              }
             }
           },
         },
@@ -151,6 +163,9 @@ export default function SettingsScreen({
         text: 'Sign out',
         style: 'destructive',
         onPress: async () => {
+          // Revoke the token server-side first (best-effort), then drop it
+          // locally and return to login.
+          await api.logout();
           await clearConnection();
           onDisconnect();
         },
@@ -163,6 +178,8 @@ export default function SettingsScreen({
       style={styles.flex}
       contentContainerStyle={styles.content}
       keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="interactive"
+      automaticallyAdjustKeyboardInsets
       refreshControl={
         <RefreshControl
           refreshing={refreshing}

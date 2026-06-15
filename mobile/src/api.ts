@@ -68,6 +68,12 @@ export class ApiError extends Error {
   }
 }
 
+// True when an error means the stored token is no longer valid (expired or
+// revoked) — the app should sign out rather than keep retrying.
+export function isUnauthorized(e: unknown): boolean {
+  return e instanceof ApiError && (e.status === 401 || e.status === 403);
+}
+
 function normaliseBase(baseUrl: string): string {
   return baseUrl.replace(/\/+$/, '');
 }
@@ -102,7 +108,12 @@ export async function exchangeNativeToken(
 }
 
 export class Api {
-  constructor(private conn: Connection) {}
+  // onUnauthorized fires when the server rejects our token (401/403) so the app
+  // can sign out and return to login instead of getting stuck.
+  constructor(
+    private conn: Connection,
+    private onUnauthorized?: () => void,
+  ) {}
 
   private headers(json = false): Record<string, string> {
     const h: Record<string, string> = {};
@@ -125,7 +136,9 @@ export class Api {
       );
     }
     if (res.status === 401 || res.status === 403) {
-      throw new ApiError('Unauthorized. Check your API token.', res.status);
+      // Token expired or revoked — trigger a sign-out.
+      this.onUnauthorized?.();
+      throw new ApiError('Your session has expired. Please sign in again.', res.status);
     }
     if (!res.ok) {
       throw new ApiError(`Server returned ${res.status}.`, res.status);
@@ -265,5 +278,19 @@ export class Api {
       method: 'DELETE',
       headers: this.headers(),
     });
+  }
+
+  // Best-effort: asks the server to revoke the token we're authenticated with,
+  // so signing out doesn't leave it active. Errors are ignored (we're logging
+  // out regardless) and it deliberately doesn't trigger onUnauthorized.
+  async logout(): Promise<void> {
+    try {
+      await fetch(this.url('/api/v1/auth/logout'), {
+        method: 'POST',
+        headers: this.headers(),
+      });
+    } catch {
+      // ignore — sign-out proceeds locally either way
+    }
   }
 }

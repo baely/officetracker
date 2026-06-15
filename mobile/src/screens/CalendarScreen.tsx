@@ -11,7 +11,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { Api, MonthDays } from '../api';
+import { Api, isUnauthorized, MonthDays } from '../api';
 import Calendar from '../components/Calendar';
 import Legend from '../components/Legend';
 import Summary from '../components/Summary';
@@ -31,10 +31,18 @@ import { colors, fonts, radius, spacing } from '../theme';
 interface Props {
   conn: Connection;
   onOpenSettings: () => void;
+  onUnauthorized: () => void;
 }
 
-export default function CalendarScreen({ conn, onOpenSettings }: Props) {
-  const api = useMemo(() => new Api(conn), [conn]);
+export default function CalendarScreen({
+  conn,
+  onOpenSettings,
+  onUnauthorized,
+}: Props) {
+  const api = useMemo(
+    () => new Api(conn, onUnauthorized),
+    [conn, onUnauthorized],
+  );
 
   const [view, setView] = useState<ViewMonth>(thisMonth());
   const fy = fiscalYear(view.year, view.month);
@@ -115,7 +123,10 @@ export default function CalendarScreen({ conn, onOpenSettings }: Props) {
             month[day] = current;
             return { ...prev, [view.month]: month };
           });
-          Alert.alert('Could not save', e?.message ?? 'Please try again.');
+          // On 401/403 the app is already signing out; don't also alert.
+          if (!isUnauthorized(e)) {
+            Alert.alert('Could not save', e?.message ?? 'Please try again.');
+          }
         });
     },
     [api, days, view, fy],
@@ -126,7 +137,9 @@ export default function CalendarScreen({ conn, onOpenSettings }: Props) {
     if ((notes[view.month] ?? '') === trimmed) return;
     setNotes((prev) => ({ ...prev, [view.month]: trimmed }));
     api.putNote(view.year, view.month, trimmed).catch((e: any) => {
-      Alert.alert('Could not save note', e?.message ?? 'Please try again.');
+      if (!isUnauthorized(e)) {
+        Alert.alert('Could not save note', e?.message ?? 'Please try again.');
+      }
     });
   }, [api, noteText, notes, view]);
 
@@ -143,6 +156,8 @@ export default function CalendarScreen({ conn, onOpenSettings }: Props) {
       style={styles.flex}
       contentContainerStyle={styles.content}
       keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="interactive"
+      automaticallyAdjustKeyboardInsets
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
