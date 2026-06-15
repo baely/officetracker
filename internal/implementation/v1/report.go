@@ -2,16 +2,18 @@ package v1
 
 import (
 	"fmt"
-	"time"
 
+	"github.com/baely/officetracker/internal/util"
 	"github.com/baely/officetracker/pkg/model"
 )
 
 func (i *Service) GetReport(req model.GetReportRequest) (model.Response, error) {
-	var start, end time.Time
+	startMonth, err := i.trackingStartMonth(req.Meta.UserID)
+	if err != nil {
+		return model.Response{}, err
+	}
 
-	start = time.Date(req.Meta.Year-1, time.October, 1, 0, 0, 0, 0, time.Local)
-	end = time.Date(req.Meta.Year, time.October, 1, 0, 0, 0, 0, time.Local)
+	start, end := util.TrackingYearRange(req.Meta.Year, startMonth)
 
 	report, err := i.reporter.GeneratePDF(req.Meta.UserID, req.Name, start, end)
 	if err != nil {
@@ -26,10 +28,12 @@ func (i *Service) GetReport(req model.GetReportRequest) (model.Response, error) 
 }
 
 func (i *Service) GetReportCSV(req model.GetReportCSVRequest) (model.Response, error) {
-	var start, end time.Time
+	startMonth, err := i.trackingStartMonth(req.Meta.UserID)
+	if err != nil {
+		return model.Response{}, err
+	}
 
-	start = time.Date(req.Meta.Year-1, time.October, 1, 0, 0, 0, 0, time.Local)
-	end = time.Date(req.Meta.Year, time.October, 1, 0, 0, 0, 0, time.Local)
+	start, end := util.TrackingYearRange(req.Meta.Year, startMonth)
 
 	report, err := i.reporter.GenerateCSV(req.Meta.UserID, start, end)
 	if err != nil {

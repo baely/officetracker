@@ -11,6 +11,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 
 	"github.com/baely/officetracker/internal/config"
+	"github.com/baely/officetracker/internal/util"
 	"github.com/baely/officetracker/pkg/model"
 )
 
@@ -106,9 +107,11 @@ func (s *sqliteClient) GetMonth(_ int, month int, year int) (model.MonthState, e
 	return monthState, nil
 }
 
-func (s *sqliteClient) GetYear(_ int, year int) (model.YearState, error) {
-	q := `SELECT Day, Month, State FROM entries WHERE ((Year = ? AND Month > 9) OR (Year = ? AND Month <= 9));`
-	rows, err := s.db.Query(q, year-1, year)
+func (s *sqliteClient) GetYear(_ int, year int, startMonth int) (model.YearState, error) {
+	startMonth = util.NormaliseStartMonth(startMonth)
+	firstYear, secondYear := util.TrackingYearCalendarYears(year, startMonth)
+	q := `SELECT Day, Month, State FROM entries WHERE ((Year = ? AND Month >= ?) OR (Year = ? AND Month < ?));`
+	rows, err := s.db.Query(q, firstYear, startMonth, secondYear, startMonth)
 	if err != nil {
 		return model.YearState{}, err
 	}
@@ -151,9 +154,11 @@ func (s *sqliteClient) GetNote(_ int, month int, year int) (model.Note, error) {
 	return note, err
 }
 
-func (s *sqliteClient) GetNotes(_ int, year int) (map[int]model.Note, error) {
-	q := `SELECT Month, Notes FROM notes WHERE ((Year = ? AND Month > 9) OR (Year = ? AND Month <= 9));`
-	rows, err := s.db.Query(q, year-1, year)
+func (s *sqliteClient) GetNotes(_ int, year int, startMonth int) (map[int]model.Note, error) {
+	startMonth = util.NormaliseStartMonth(startMonth)
+	firstYear, secondYear := util.TrackingYearCalendarYears(year, startMonth)
+	q := `SELECT Month, Notes FROM notes WHERE ((Year = ? AND Month >= ?) OR (Year = ? AND Month < ?));`
+	rows, err := s.db.Query(q, firstYear, startMonth, secondYear, startMonth)
 	if err != nil {
 		return nil, err
 	}
@@ -408,6 +413,59 @@ func (s *sqliteClient) SaveSchedulePreferences(_ int, prefs model.SchedulePrefer
 		_, err = s.db.Exec(q, monday, tuesday, wednesday, thursday, friday, saturday, sunday)
 	}
 
+	return err
+}
+
+func (s *sqliteClient) GetCalendarPreferences(_ int) (model.CalendarPreferences, error) {
+	prefs := model.CalendarPreferences{TrackingYearStartMonth: model.DefaultTrackingYearStartMonth}
+
+	// Check if the preferences table exists; if not, return defaults.
+	q := `SELECT name FROM sqlite_master WHERE type='table' AND name='user_preferences';`
+	var tableName string
+	if err := s.db.QueryRow(q).Scan(&tableName); errors.Is(err, sql.ErrNoRows) {
+		return prefs, nil
+	}
+
+	// Make sure the column exists (ignore error if it already does).
+	s.db.Exec(`ALTER TABLE user_preferences ADD COLUMN tracking_year_start_month INTEGER DEFAULT 10;`)
+
+	q = `SELECT COALESCE(tracking_year_start_month, 10) FROM user_preferences LIMIT 1;`
+	var startMonth int
+	if err := s.db.QueryRow(q).Scan(&startMonth); err != nil {
+		// No row yet (or other read issue) - fall back to defaults.
+		return prefs, nil
+	}
+
+	prefs.TrackingYearStartMonth = util.NormaliseStartMonth(startMonth)
+	return prefs, nil
+}
+
+func (s *sqliteClient) SaveCalendarPreferences(_ int, prefs model.CalendarPreferences) error {
+	startMonth := util.NormaliseStartMonth(prefs.TrackingYearStartMonth)
+
+	// Make sure the table and column exist.
+	q := `CREATE TABLE IF NOT EXISTS user_preferences (
+        theme TEXT DEFAULT 'default',
+        weather_enabled INTEGER DEFAULT 0,
+        time_based_enabled INTEGER DEFAULT 0,
+        location TEXT DEFAULT NULL
+    );`
+	if _, err := s.db.Exec(q); err != nil {
+		return err
+	}
+	s.db.Exec(`ALTER TABLE user_preferences ADD COLUMN tracking_year_start_month INTEGER DEFAULT 10;`)
+
+	q = `SELECT COUNT(*) FROM user_preferences;`
+	var count int
+	if err := s.db.QueryRow(q).Scan(&count); err != nil {
+		return err
+	}
+
+	if count == 0 {
+		_, err := s.db.Exec(`INSERT INTO user_preferences (tracking_year_start_month) VALUES (?);`, startMonth)
+		return err
+	}
+	_, err := s.db.Exec(`UPDATE user_preferences SET tracking_year_start_month = ?;`, startMonth)
 	return err
 }
 

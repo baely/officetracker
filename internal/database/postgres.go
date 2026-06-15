@@ -13,6 +13,7 @@ import (
 	_ "github.com/lib/pq"
 
 	"github.com/baely/officetracker/internal/config"
+	"github.com/baely/officetracker/internal/util"
 	"github.com/baely/officetracker/pkg/model"
 )
 
@@ -103,13 +104,15 @@ func (p *postgres) GetMonth(userID int, month int, year int) (model.MonthState, 
 	return monthState, err
 }
 
-func (p *postgres) GetYear(userID int, year int) (model.YearState, error) {
-	q := `SELECT month, day, state FROM entries WHERE user_id = $1 AND ((year = $2 AND month > 9) OR (year = $3 AND month <= 9));`
+func (p *postgres) GetYear(userID int, year int, startMonth int) (model.YearState, error) {
+	startMonth = util.NormaliseStartMonth(startMonth)
+	firstYear, secondYear := util.TrackingYearCalendarYears(year, startMonth)
+	q := `SELECT month, day, state FROM entries WHERE user_id = $1 AND ((year = $2 AND month >= $4) OR (year = $3 AND month < $4));`
 	yearState := model.YearState{
 		Months: make(map[int]model.MonthState),
 	}
 	err := p.readOnlyTransaction(func(tx *sql.Tx) error {
-		rows, err := tx.Query(q, userID, year-1, year)
+		rows, err := tx.Query(q, userID, firstYear, secondYear, startMonth)
 		if err != nil {
 			return err
 		}
@@ -156,11 +159,13 @@ func (p *postgres) GetNote(userID int, month int, year int) (model.Note, error) 
 	return noteModel, err
 }
 
-func (p *postgres) GetNotes(userID int, year int) (map[int]model.Note, error) {
-	q := `SELECT month, notes FROM notes WHERE user_id = $1 AND ((year = $2 AND month > 9) OR (year = $3 AND month <= 9));`
+func (p *postgres) GetNotes(userID int, year int, startMonth int) (map[int]model.Note, error) {
+	startMonth = util.NormaliseStartMonth(startMonth)
+	firstYear, secondYear := util.TrackingYearCalendarYears(year, startMonth)
+	q := `SELECT month, notes FROM notes WHERE user_id = $1 AND ((year = $2 AND month >= $4) OR (year = $3 AND month < $4));`
 	notes := make(map[int]model.Note)
 	err := p.readOnlyTransaction(func(tx *sql.Tx) error {
-		rows, err := tx.Query(q, userID, year-1, year)
+		rows, err := tx.Query(q, userID, firstYear, secondYear, startMonth)
 		if err != nil {
 			return err
 		}
@@ -508,6 +513,42 @@ func (p *postgres) SaveSchedulePreferences(userID int, prefs model.SchedulePrefe
 	return p.readWriteTransaction(func(tx *sql.Tx) error {
 		_, err := tx.Exec(q, userID, int(prefs.Monday), int(prefs.Tuesday), int(prefs.Wednesday),
 			int(prefs.Thursday), int(prefs.Friday), int(prefs.Saturday), int(prefs.Sunday))
+		return err
+	})
+}
+
+func (p *postgres) GetCalendarPreferences(userID int) (model.CalendarPreferences, error) {
+	q := `SELECT tracking_year_start_month FROM user_preferences WHERE user_id = $1;`
+	prefs := model.CalendarPreferences{TrackingYearStartMonth: model.DefaultTrackingYearStartMonth}
+
+	err := p.readOnlyTransaction(func(tx *sql.Tx) error {
+		row := tx.QueryRow(q, userID)
+		var startMonth sql.NullInt64
+		err := row.Scan(&startMonth)
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		if startMonth.Valid {
+			prefs.TrackingYearStartMonth = util.NormaliseStartMonth(int(startMonth.Int64))
+		}
+		return nil
+	})
+
+	return prefs, err
+}
+
+func (p *postgres) SaveCalendarPreferences(userID int, prefs model.CalendarPreferences) error {
+	startMonth := util.NormaliseStartMonth(prefs.TrackingYearStartMonth)
+	q := `INSERT INTO user_preferences (user_id, tracking_year_start_month)
+		  VALUES ($1, $2)
+		  ON CONFLICT (user_id)
+		  DO UPDATE SET tracking_year_start_month = $2;`
+
+	return p.readWriteTransaction(func(tx *sql.Tx) error {
+		_, err := tx.Exec(q, userID, startMonth)
 		return err
 	})
 }

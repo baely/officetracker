@@ -4,8 +4,19 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/baely/officetracker/internal/util"
 	"github.com/baely/officetracker/pkg/model"
 )
+
+// trackingStartMonth returns the user's configured tracking-year start month (1-12),
+// falling back to the default when unset.
+func (i *Service) trackingStartMonth(userID int) (int, error) {
+	prefs, err := i.db.GetCalendarPreferences(userID)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get calendar preferences: %w", err)
+	}
+	return util.NormaliseStartMonth(prefs.TrackingYearStartMonth), nil
+}
 
 func (i *Service) GetDay(req model.GetDayRequest) (model.GetDayResponse, error) {
 	state, err := i.db.GetDay(req.Meta.UserID, req.Meta.Day, req.Meta.Month, req.Meta.Year)
@@ -52,7 +63,12 @@ func (i *Service) PutMonth(req model.PutMonthRequest) (model.PutMonthResponse, e
 }
 
 func (i *Service) GetYear(req model.GetYearRequest) (model.GetYearResponse, error) {
-	state, err := i.db.GetYear(req.Meta.UserID, req.Meta.Year)
+	startMonth, err := i.trackingStartMonth(req.Meta.UserID)
+	if err != nil {
+		return model.GetYearResponse{}, err
+	}
+
+	state, err := i.db.GetYear(req.Meta.UserID, req.Meta.Year, startMonth)
 	if err != nil {
 		err = fmt.Errorf("failed to get year: %w", err)
 		return model.GetYearResponse{}, err
@@ -66,7 +82,7 @@ func (i *Service) GetYear(req model.GetYearRequest) (model.GetYearResponse, erro
 	}
 
 	// Merge schedule preferences with actual state
-	mergedState := i.mergeScheduleWithYear(state, schedulePrefs, req.Meta.Year)
+	mergedState := i.mergeScheduleWithYear(state, schedulePrefs, req.Meta.Year, startMonth)
 
 	return model.GetYearResponse{
 		Data: mergedState,
@@ -96,7 +112,12 @@ func (i *Service) PutNote(req model.PutNoteRequest) (model.PutNoteResponse, erro
 }
 
 func (i *Service) GetNotes(req model.GetNotesRequest) (model.GetNotesResponse, error) {
-	notes, err := i.db.GetNotes(req.Meta.UserID, req.Meta.Year)
+	startMonth, err := i.trackingStartMonth(req.Meta.UserID)
+	if err != nil {
+		return model.GetNotesResponse{}, err
+	}
+
+	notes, err := i.db.GetNotes(req.Meta.UserID, req.Meta.Year, startMonth)
 	if err != nil {
 		err = fmt.Errorf("failed to get notes: %w", err)
 		return model.GetNotesResponse{}, err
@@ -108,7 +129,10 @@ func (i *Service) GetNotes(req model.GetNotesRequest) (model.GetNotesResponse, e
 }
 
 // mergeScheduleWithYear merges schedule preferences with actual state data for a year
-func (i *Service) mergeScheduleWithYear(yearState model.YearState, schedulePrefs model.SchedulePreferences, year int) model.YearState {
+func (i *Service) mergeScheduleWithYear(yearState model.YearState, schedulePrefs model.SchedulePreferences, year int, startMonth int) model.YearState {
+	startMonth = util.NormaliseStartMonth(startMonth)
+	firstYear, secondYear := util.TrackingYearCalendarYears(year, startMonth)
+
 	// Create a map for day of week to schedule state
 	dayOfWeekToState := map[time.Weekday]model.State{
 		time.Sunday:    schedulePrefs.Sunday,
@@ -122,12 +146,12 @@ func (i *Service) mergeScheduleWithYear(yearState model.YearState, schedulePrefs
 
 	// Process each month
 	for month := 1; month <= 12; month++ {
-		// Determine which year this month belongs to (academic year logic)
+		// Determine which calendar year this month belongs to within the tracking year
 		var monthYear int
-		if month <= 9 {
-			monthYear = year
+		if month >= startMonth {
+			monthYear = firstYear
 		} else {
-			monthYear = year - 1
+			monthYear = secondYear
 		}
 
 		// Initialize month if it doesn't exist

@@ -18,8 +18,9 @@ type basePage struct {
 
 type formPage struct {
 	basePage
-	YearlyState template.JS
-	YearlyNotes template.JS
+	YearlyState        template.JS
+	YearlyNotes        template.JS
+	TrackingStartMonth int
 }
 
 func serveForm(w http.ResponseWriter, r *http.Request, page formPage) {
@@ -61,6 +62,7 @@ type settingsPage struct {
 	Auth0AuthURL        string
 	ThemePreferences    model.ThemePreferences
 	SchedulePreferences model.SchedulePreferences
+	CalendarPreferences model.CalendarPreferences
 }
 
 func serveSettings(w http.ResponseWriter, r *http.Request, page settingsPage) {

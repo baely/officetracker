@@ -19,6 +19,7 @@ import (
 	"github.com/baely/officetracker/internal/embed"
 	v1 "github.com/baely/officetracker/internal/implementation/v1"
 	"github.com/baely/officetracker/internal/report"
+	"github.com/baely/officetracker/internal/util"
 	"github.com/baely/officetracker/pkg/model"
 )
 
@@ -176,9 +177,16 @@ func (s *Server) handleForm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if month > 9 {
-		year++
+	calendarPrefs, err := s.db.GetCalendarPreferences(userID)
+	if err != nil {
+		err = fmt.Errorf("failed to get calendar preferences: %w", err)
+		errorPage(w, r, err, internalErrorMsg, http.StatusInternalServerError)
+		return
 	}
+	startMonth := util.NormaliseStartMonth(calendarPrefs.TrackingYearStartMonth)
+
+	// Translate the displayed calendar month/year into its tracking-year label.
+	year = util.TrackingYear(month, year, startMonth)
 
 	yearlyData, err := s.v1.GetYear(model.GetYearRequest{
 		Meta: model.GetYearRequestMeta{
@@ -219,8 +227,9 @@ func (s *Server) handleForm(w http.ResponseWriter, r *http.Request) {
 	yearlyNotesStr := string(yearlyNotesByte)
 
 	serveForm(w, r, formPage{
-		YearlyState: template.JS(yearlyDataStr),
-		YearlyNotes: template.JS(yearlyNotesStr),
+		YearlyState:        template.JS(yearlyDataStr),
+		YearlyNotes:        template.JS(yearlyNotesStr),
+		TrackingStartMonth: startMonth,
 	})
 }
 
@@ -287,6 +296,7 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 		Auth0AuthURL:        authURL,
 		ThemePreferences:    settings.ThemePreferences,
 		SchedulePreferences: settings.SchedulePreferences,
+		CalendarPreferences: settings.CalendarPreferences,
 	})
 }
 
