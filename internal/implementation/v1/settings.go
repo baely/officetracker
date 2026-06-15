@@ -4,6 +4,7 @@ import (
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 
+	"github.com/baely/officetracker/internal/util"
 	"github.com/baely/officetracker/pkg/model"
 )
 
@@ -46,10 +47,17 @@ func (i *Service) GetSettings(req model.GetSettingsRequest) (model.GetSettingsRe
 		return model.GetSettingsResponse{}, err
 	}
 
+	calendarPrefs, err := i.db.GetCalendarPreferences(req.Meta.UserID)
+	if err != nil {
+		return model.GetSettingsResponse{}, err
+	}
+	calendarPrefs.TrackingYearStartMonth = util.NormaliseStartMonth(calendarPrefs.TrackingYearStartMonth)
+
 	return model.GetSettingsResponse{
 		LinkedAccounts:      linkedAccounts,
 		ThemePreferences:    themePrefs,
 		SchedulePreferences: schedulePrefs,
+		CalendarPreferences: calendarPrefs,
 	}, nil
 }
 
@@ -61,4 +69,10 @@ func (i *Service) UpdateThemePreferences(req model.UpdateThemePreferencesRequest
 func (i *Service) UpdateSchedulePreferences(req model.UpdateSchedulePreferencesRequest) (model.UpdateSchedulePreferencesResponse, error) {
 	err := i.db.SaveSchedulePreferences(req.Meta.UserID, req.Data)
 	return model.UpdateSchedulePreferencesResponse{}, err
+}
+
+func (i *Service) UpdateCalendarPreferences(req model.UpdateCalendarPreferencesRequest) (model.UpdateCalendarPreferencesResponse, error) {
+	req.Data.TrackingYearStartMonth = util.NormaliseStartMonth(req.Data.TrackingYearStartMonth)
+	err := i.db.SaveCalendarPreferences(req.Meta.UserID, req.Data)
+	return model.UpdateCalendarPreferencesResponse{}, err
 }
