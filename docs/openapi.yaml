@@ -1,10 +1,10 @@
 openapi: 3.0.3
 info:
-  title: OfficeTracker API
+  title: Officetracker API
   description: API for tracking office attendance and managing user settings
   version: 1.0.0
   contact:
-    name: OfficeTracker
+    name: Officetracker
     url: https://github.com/baely/officetracker
 
 servers:
