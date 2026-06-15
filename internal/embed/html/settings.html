@@ -1,65 +1,155 @@
 {{ template "base.html" . }}
 {{ define "title" }}Settings{{ end }}
 {{ define "content" }}
+
+<style>
+    .settings-section {
+        border: 1px solid #e6e8eb;
+        border-radius: 10px;
+        padding: 20px 24px;
+        margin: 20px 0;
+    }
+
+    .settings-section h3 {
+        margin: 0 0 4px;
+        font-size: 1.05rem;
+    }
+
+    .settings-section .section-desc {
+        margin: 0 0 16px;
+        color: #6b7280;
+        font-size: 0.875rem;
+        line-height: 1.5;
+    }
+
+    .settings-section > *:last-child {
+        margin-bottom: 0;
+    }
+
+    /* Label + control rows */
+    .field-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 12px 0;
+    }
+
+    .field-row + .field-row {
+        border-top: 1px solid #f0f1f3;
+    }
+
+    .field-row label {
+        margin: 0;
+        font-size: 0.95rem;
+    }
+
+    .field-row select {
+        padding: 8px 10px;
+        border-radius: 6px;
+        border: 1px solid #dee2e6;
+        background-color: #fff;
+        color: #495057;
+        font-size: 0.95rem;
+        min-width: 170px;
+    }
+
+    .field-row input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+        margin: 0;
+        cursor: pointer;
+    }
+
+    /* Connected accounts */
+    .account-list {
+        list-style: none;
+        margin: 16px 0 0;
+        padding: 0;
+    }
+
+    .account-list li {
+        padding: 8px 0;
+        font-size: 0.95rem;
+    }
+
+    .account-list li + li {
+        border-top: 1px solid #f0f1f3;
+    }
+
+    .account-list .empty {
+        color: #6b7280;
+    }
+
+    /* Schedule calendar tweaks */
+    .schedule-container {
+        margin: 0 0 16px;
+    }
+
+    .schedule-day .day-header {
+        margin-bottom: 0;
+    }
+
+    .legend {
+        justify-content: flex-start;
+        margin: 0;
+    }
+</style>
+
 {{if .Auth0AuthURL}}
-<h3>Auth</h3>
-<p>
-    Click the button below to connect another social account. This link will expire after 10 minutes.
-</p>
-<p>
-    <a href="{{.Auth0AuthURL}}" class="github-btn" id="assoc-uri">
-        Connect additional social login with Auth0
+<div class="settings-section">
+    <h3>Connected accounts</h3>
+    <p class="section-desc">
+        Link an additional social login to your account. Connection links expire after 10 minutes.
+    </p>
+    <a href="{{.Auth0AuthURL}}" class="github-btn login-btn" id="assoc-uri">
+        Connect a social login
     </a>
-</p>
-<p>
-    The following social accounts are currently associated with your Officetracker account:
-    <ul>
+    <ul class="account-list">
         {{range .LinkedAccounts}}
-        <li><strong>{{.ProviderDisplay}}</strong>: {{.Nickname}}</li>
+        <li><strong>{{.ProviderDisplay}}</strong> &middot; {{.Nickname}}</li>
+        {{else}}
+        <li class="empty">No social accounts linked yet.</li>
         {{end}}
     </ul>
-</p>
+</div>
 {{end}}
 
-<h3>Themes</h3>
-<p>
-    Select a visual theme for Officetracker.
-</p>
+<div class="settings-section">
+    <h3>Appearance</h3>
+    <p class="section-desc">
+        Choose a visual theme for Officetracker.
+    </p>
 
-<div class="theme-selector">
-    <div class="theme-option">
-        <label for="theme-select">Select Theme:</label>
+    <div class="field-row">
+        <label for="theme-select">Theme</label>
         <select id="theme-select">
             <option value="default">Default</option>
             <option value="dark">Dark</option>
             <option value="city-skyline">City Skyline</option>
         </select>
     </div>
-    
-    <div class="theme-option" id="weather-option" style="display: none;">
-        <div class="checkbox-wrapper">
-            <input type="checkbox" id="weather-enabled">
-            <label for="weather-enabled">Enable weather effects</label>
-        </div>
+
+    <div class="field-row" id="weather-option" style="display: none;">
+        <label for="weather-enabled">Weather effects</label>
+        <input type="checkbox" id="weather-enabled">
     </div>
-    
-    <div class="theme-option" id="time-option" style="display: none;">
-        <div class="checkbox-wrapper">
-            <input type="checkbox" id="time-based-enabled">
-            <label for="time-based-enabled">Enable time-based background</label>
-        </div>
+
+    <div class="field-row" id="time-option" style="display: none;">
+        <label for="time-based-enabled">Time-based background</label>
+        <input type="checkbox" id="time-based-enabled">
     </div>
 </div>
 
-<h3>Tracking Year</h3>
-<p>
-    Choose the month your tracking year starts on. The yearly summary and exported
-    reports are grouped into 12-month periods beginning on this month. Defaults to October.
-</p>
+<div class="settings-section">
+    <h3>Tracking year</h3>
+    <p class="section-desc">
+        Choose the month your tracking year starts on. The yearly summary and exported
+        reports are grouped into 12-month periods beginning on this month. Defaults to October.
+    </p>
 
-<div class="theme-selector">
-    <div class="theme-option">
-        <label for="year-start-month">Year starts in:</label>
+    <div class="field-row">
+        <label for="year-start-month">Year starts in</label>
         <select id="year-start-month">
             <option value="1">January</option>
             <option value="2">February</option>
@@ -77,37 +167,55 @@
     </div>
 </div>
 
-<h3>Schedule</h3>
-<p>
-    Select the days of the week you plan to attend the office on a recurring cycle.
-</p>
+<div class="settings-section">
+    <h3>Weekly schedule</h3>
+    <p class="section-desc">
+        Set the days you usually attend the office on a recurring cycle.
+        Click a day to cycle its state forward, right-click to go back.
+    </p>
 
-<div id="schedule-calendar" class="schedule-container">
-    <table>
-        <tr>
-            <td class="schedule-day" data-day="monday" data-state="0">
-                <div class="day-header">Mon</div>
-            </td>
-            <td class="schedule-day" data-day="tuesday" data-state="0">
-                <div class="day-header">Tue</div>
-            </td>
-            <td class="schedule-day" data-day="wednesday" data-state="0">
-                <div class="day-header">Wed</div>
-            </td>
-            <td class="schedule-day" data-day="thursday" data-state="0">
-                <div class="day-header">Thu</div>
-            </td>
-            <td class="schedule-day" data-day="friday" data-state="0">
-                <div class="day-header">Fri</div>
-            </td>
-            <td class="schedule-day" data-day="saturday" data-state="0">
-                <div class="day-header">Sat</div>
-            </td>
-            <td class="schedule-day" data-day="sunday" data-state="0">
-                <div class="day-header">Sun</div>
-            </td>
-        </tr>
-    </table>
+    <div id="schedule-calendar" class="schedule-container">
+        <table>
+            <tr>
+                <td class="schedule-day" data-day="monday" data-state="0">
+                    <div class="day-header">Mon</div>
+                </td>
+                <td class="schedule-day" data-day="tuesday" data-state="0">
+                    <div class="day-header">Tue</div>
+                </td>
+                <td class="schedule-day" data-day="wednesday" data-state="0">
+                    <div class="day-header">Wed</div>
+                </td>
+                <td class="schedule-day" data-day="thursday" data-state="0">
+                    <div class="day-header">Thu</div>
+                </td>
+                <td class="schedule-day" data-day="friday" data-state="0">
+                    <div class="day-header">Fri</div>
+                </td>
+                <td class="schedule-day" data-day="saturday" data-state="0">
+                    <div class="day-header">Sat</div>
+                </td>
+                <td class="schedule-day" data-day="sunday" data-state="0">
+                    <div class="day-header">Sun</div>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="legend">
+        <div class="legend-item">
+            <div class="legend-color present"></div>
+            <span>Work from Home</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color not-present"></div>
+            <span>In office</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color other"></div>
+            <span>Other (Untracked)</span>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -116,7 +224,7 @@
         const serverTheme = "{{.ThemePreferences.Theme}}";
         const serverWeatherEnabled = {{.ThemePreferences.WeatherEnabled}};
         const serverTimeBasedEnabled = {{.ThemePreferences.TimeBasedEnabled}};
-        
+
         // Server-provided schedule preferences
         const serverSchedule = {
             monday: {{.SchedulePreferences.Monday}},
@@ -127,7 +235,7 @@
             saturday: {{.SchedulePreferences.Saturday}},
             sunday: {{.SchedulePreferences.Sunday}}
         };
-        
+
         // Server-provided tracking-year start month (1-12)
         const serverTrackingStartMonth = {{.CalendarPreferences.TrackingYearStartMonth}} || 10;
 
@@ -138,40 +246,40 @@
             2: "In office",
             3: "Other"
         };
-        
+
         // Load current theme preferences, prioritizing server values if available
         const currentTheme = serverTheme || localStorage.getItem('officetracker-theme') || 'default';
         const weatherEnabled = (serverTheme !== "") ? serverWeatherEnabled : (localStorage.getItem('officetracker-weather-enabled') === 'true');
         const timeBasedEnabled = (serverTheme !== "") ? serverTimeBasedEnabled : (localStorage.getItem('officetracker-time-based-enabled') === 'true');
-        
+
         // Set form values
         document.getElementById('theme-select').value = currentTheme;
         document.getElementById('weather-enabled').checked = weatherEnabled;
         document.getElementById('time-based-enabled').checked = timeBasedEnabled;
-        
+
         // Show/hide options based on selected theme
         toggleOptions(currentTheme);
-        
+
         // Initialize schedule calendar
         initializeScheduleCalendar();
 
         // Initialize tracking-year start month
         initializeYearStartMonth();
-        
+
         // Save settings function
         function saveSettings() {
             const theme = document.getElementById('theme-select').value;
             const weatherEnabled = document.getElementById('weather-enabled').checked;
             const timeBasedEnabled = document.getElementById('time-based-enabled').checked;
-            
+
             // Save to localStorage
             localStorage.setItem('officetracker-theme', theme);
             localStorage.setItem('officetracker-weather-enabled', weatherEnabled);
             localStorage.setItem('officetracker-time-based-enabled', timeBasedEnabled);
-            
+
             // Apply theme immediately
             applyTheme(theme, weatherEnabled, timeBasedEnabled);
-            
+
             // Save to server without alerts
             fetch('/api/v1/settings/theme', {
                 method: 'PUT',
@@ -191,11 +299,11 @@
                 console.error('Error saving theme settings:', error);
             });
         }
-        
+
         // Save schedule preferences function
         function saveScheduleSettings() {
             const schedule = getCurrentSchedule();
-            
+
             fetch('/api/v1/settings/schedule', {
                 method: 'PUT',
                 headers: {
@@ -210,45 +318,45 @@
                 console.error('Error saving schedule settings:', error);
             });
         }
-        
+
         // Get current schedule state from DOM
         function getCurrentSchedule() {
             const schedule = {};
             const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
-            
+
             days.forEach(day => {
                 const dayElement = document.querySelector(`[data-day="${day}"]`);
                 schedule[day] = parseInt(dayElement.dataset.state);
             });
-            
+
             return schedule;
         }
-        
+
         // Cycle through states: Untracked -> Work from Home -> In office -> Other -> Untracked
         function cycleScheduleState(dayElement, direction = 1) {
             const currentState = parseInt(dayElement.dataset.state);
             const nextState = (currentState + direction + 4) % 4;
-            
+
             dayElement.dataset.state = nextState;
         }
-        
+
         // Initialize schedule calendar with server data
         function initializeScheduleCalendar() {
             const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
-            
+
             days.forEach(day => {
                 const dayElement = document.querySelector(`[data-day="${day}"]`);
                 const state = serverSchedule[day] || 0;
-                
+
                 // Set initial state
                 dayElement.dataset.state = state;
-                
+
                 // Add click event listeners
                 dayElement.addEventListener('click', function() {
                     cycleScheduleState(this, 1);
                     saveScheduleSettings();
                 });
-                
+
                 dayElement.addEventListener('contextmenu', function(event) {
                     event.preventDefault();
                     cycleScheduleState(this, -1);
@@ -256,7 +364,7 @@
                 });
             });
         }
-        
+
         // Initialize tracking-year start month selector with server data
         function initializeYearStartMonth() {
             const select = document.getElementById('year-start-month');
@@ -287,47 +395,20 @@
             toggleOptions(this.value);
             saveSettings();
         });
-        
+
         // Event listeners for checkbox changes
         document.getElementById('weather-enabled').addEventListener('change', saveSettings);
         document.getElementById('time-based-enabled').addEventListener('change', saveSettings);
     });
-    
+
     function toggleOptions(theme) {
         const weatherOption = document.getElementById('weather-option');
         const timeOption = document.getElementById('time-option');
-        
-        if (theme === 'city-skyline') {
-            weatherOption.style.display = 'block';
-            timeOption.style.display = 'block';
-        } else {
-            weatherOption.style.display = 'none';
-            timeOption.style.display = 'none';
-        }
+        const display = (theme === 'city-skyline') ? 'flex' : 'none';
+
+        weatherOption.style.display = display;
+        timeOption.style.display = display;
     }
 </script>
-
-<style>
-/* Fix schedule calendar vertical alignment by removing bottom margin from day headers */
-.schedule-day .day-header {
-    margin-bottom: 0;
-}
-</style>
-
-<div class="legend">
-    <div class="legend-item">
-        <div class="legend-color present"></div>
-        <span>Work from Home</span>
-    </div>
-    <div class="legend-item">
-        <div class="legend-color not-present"></div>
-        <span>In office</span>
-    </div>
-    <div class="legend-item">
-        <div class="legend-color other"></div>
-        <span>Other (Untracked)</span>
-    </div>
-</div>
-
 
 {{ end }}
