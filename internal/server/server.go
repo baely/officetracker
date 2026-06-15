@@ -63,6 +63,10 @@ func NewServer(cfg config.AppConfigurer, db database.Databaser, redis *database.
 		// path avoids the /settings mount so there's no routing conflict.
 		r.With(AllowedAuthMethods(auth.MethodSSO, auth.MethodSecret)).
 			Get("/account/link", s.handleAccountLinkURL)
+		// Revokes the API token presented on this request (used by the mobile
+		// app on sign-out so the token isn't left active server-side).
+		r.With(AllowedAuthMethods(auth.MethodSSO, auth.MethodSecret, auth.MethodExcluded)).
+			Post("/auth/logout", s.handleLogoutToken)
 		apiRouter(s.v1)(r)
 	})
 
@@ -312,6 +316,27 @@ func (s *Server) handleAccountLinkURL(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(b)
+}
+
+// handleLogoutToken revokes the API token used to authenticate this request so
+// the client can sign out without leaving an active token server-side. It's a
+// no-op for standalone (no secrets) and cookie/SSO sessions.
+func (s *Server) handleLogoutToken(w http.ResponseWriter, r *http.Request) {
+	cfg, ok := s.cfg.(config.IntegratedApp)
+	if !ok {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	secret, method := auth.GetAuth(cfg, r)
+	if method == auth.MethodSecret && secret != "" {
+		if err := s.db.RevokeSecretByValue(secret); err != nil {
+			slog.Error(fmt.Sprintf("failed to revoke token on logout: %v", err))
+			writeError(w, internalErrorMsg, http.StatusInternalServerError)
+			return
+		}
+		slog.Info("revoked token on logout")
+	}
+	w.WriteHeader(http.StatusOK)
 }
 
 func (s *Server) handleDeveloper(w http.ResponseWriter, r *http.Request) {

@@ -235,6 +235,14 @@ func (p *postgres) RevokeToken(userID int, tokenID int) error {
 	})
 }
 
+func (p *postgres) RevokeSecretByValue(secret string) error {
+	q := `UPDATE secrets SET active = false WHERE secret = $1 AND active = true;`
+	return p.readWriteTransaction(func(tx *sql.Tx) error {
+		_, err := tx.Exec(q, secret)
+		return err
+	})
+}
+
 func (p *postgres) GetUserByGHID(ghID string) (int, error) {
 	q := `SELECT user_id FROM gh_users WHERE gh_id = $1;`
 	var id int

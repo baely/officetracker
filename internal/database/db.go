@@ -45,6 +45,9 @@ type Databaser interface {
 	SaveSecret(userID int, secret string, name string) error
 	ListActiveTokens(userID int) ([]TokenMetadata, error)
 	RevokeToken(userID int, tokenID int) error
+	// RevokeSecretByValue deactivates the secret matching the given value, used
+	// to revoke the token a client is currently signing out with.
+	RevokeSecretByValue(secret string) error
 
 	IsUserSuspended(userID int) (bool, error)
 }

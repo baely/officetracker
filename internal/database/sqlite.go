@@ -191,6 +191,11 @@ func (s *sqliteClient) RevokeToken(userID int, tokenID int) error {
 	return nil
 }
 
+func (s *sqliteClient) RevokeSecretByValue(secret string) error {
+	// Standalone mode doesn't use secrets
+	return nil
+}
+
 func (s *sqliteClient) GetUserByGHID(_ string) (int, error) {
 	// All users in standalone mode have ID 1
 	return 1, nil
