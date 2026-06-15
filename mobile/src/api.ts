@@ -80,22 +80,26 @@ function normaliseBase(baseUrl: string): string {
   return baseUrl.replace(/\/+$/, '');
 }
 
+// fetch wrapper that turns a network failure into a friendly ApiError.
+async function rawFetch(url: string, init?: RequestInit): Promise<Response> {
+  try {
+    return await fetch(url, init);
+  } catch {
+    throw new ApiError('Could not reach the server. Check your connection.');
+  }
+}
+
 // Exchanges an Auth0 ID token (obtained natively via react-native-auth0) for a
 // long-lived Office Tracker API token. See the server's /auth/native handler.
 export async function exchangeNativeToken(
   baseUrl: string,
   idToken: string,
 ): Promise<string> {
-  let res: Response;
-  try {
-    res = await fetch(`${normaliseBase(baseUrl)}/auth/native`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id_token: idToken }),
-    });
-  } catch {
-    throw new ApiError('Could not reach the server. Check your connection.');
-  }
+  const res = await rawFetch(`${normaliseBase(baseUrl)}/auth/native`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id_token: idToken }),
+  });
   if (res.status === 401 || res.status === 403) {
     throw new ApiError('Sign in was rejected by the server.', res.status);
   }
@@ -128,14 +132,7 @@ export class Api {
   }
 
   private async request(path: string, init?: RequestInit): Promise<Response> {
-    let res: Response;
-    try {
-      res = await fetch(this.url(path), init);
-    } catch (e) {
-      throw new ApiError(
-        'Could not reach the server. Check the URL and your connection.',
-      );
-    }
+    const res = await rawFetch(this.url(path), init);
     if (res.status === 401 || res.status === 403) {
       // Token expired or revoked — trigger a sign-out.
       this.onUnauthorized?.();

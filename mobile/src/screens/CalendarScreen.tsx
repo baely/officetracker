@@ -60,6 +60,13 @@ export default function CalendarScreen({
   // Local, possibly-unsaved note text for the current month.
   const [noteText, setNoteText] = useState('');
 
+  // Live refs so optimistic callbacks read current state (not a stale closure)
+  // and a late refetch can confirm we're still on the same tracking year.
+  const fyRef = useRef(fy);
+  fyRef.current = fy;
+  const yearDataRef = useRef(yearData);
+  yearDataRef.current = yearData;
+
   // Best-effort fetch of the start month. Plain Api (no onUnauthorized) so an
   // older server that 401s /settings just keeps the default instead of logging out.
   useEffect(() => {
@@ -114,8 +121,11 @@ export default function CalendarScreen({
 
   const onCycle = useCallback(
     (day: number, direction: 1 | -1) => {
-      const current = days[day] ?? AttendanceState.Untracked;
+      // Read the live value so rapid taps don't cycle/revert from a stale closure.
+      const current =
+        yearDataRef.current[view.month]?.[day] ?? AttendanceState.Untracked;
       const next = cycleState(current, direction);
+      const targetFy = fy;
 
       // Optimistic update.
       setYearData((prev) => {
@@ -127,13 +137,16 @@ export default function CalendarScreen({
       api
         .putDay(view.year, view.month, day, next)
         .then(() => {
-          // Clearing a day may reveal a server-computed scheduled state; refetch.
+          // Clearing a day may reveal a server-computed scheduled state; refetch,
+          // but only apply it if we haven't since navigated to another year.
           if (next === AttendanceState.Untracked) {
-            return api.getYear(fy).then(setYearData);
+            return api.getYear(targetFy).then((data) => {
+              if (fyRef.current === targetFy) setYearData(data);
+            });
           }
         })
         .catch((e: any) => {
-          // Revert on failure.
+          // Revert just this day on failure.
           setYearData((prev) => {
             const month = { ...(prev[view.month] ?? {}) };
             month[day] = current;
@@ -145,27 +158,42 @@ export default function CalendarScreen({
           }
         });
     },
-    [api, days, view, fy],
+    [api, view, fy],
   );
 
   const saveNote = useCallback(() => {
-    const trimmed = noteText;
-    if ((notes[view.month] ?? '') === trimmed) return;
-    setNotes((prev) => ({ ...prev, [view.month]: trimmed }));
-    api.putNote(view.year, view.month, trimmed).catch((e: any) => {
-      if (!isUnauthorized(e)) {
-        Alert.alert('Could not save note', e?.message ?? 'Please try again.');
-      }
+    const text = noteText;
+    const prev = notes[view.month] ?? '';
+    if (prev === text) return;
+    setNotes((n) => ({ ...n, [view.month]: text }));
+    api.putNote(view.year, view.month, text).catch((e: any) => {
+      if (isUnauthorized(e)) return;
+      setNotes((n) => ({ ...n, [view.month]: prev })); // revert on failure
+      Alert.alert('Could not save note', e?.message ?? 'Please try again.');
     });
   }, [api, noteText, notes, view]);
 
-  const go = (delta: number) => setView((v) => addMonths(v, delta));
-  const goToday = () => setView(thisMonth());
+  // Save any pending note before leaving the current month/screen.
+  const go = (delta: number) => {
+    saveNote();
+    setView((v) => addMonths(v, delta));
+  };
+  const goToday = () => {
+    saveNote();
+    setView(thisMonth());
+  };
+  const openSettings = () => {
+    saveNote();
+    onOpenSettings();
+  };
 
-  const month = monthStats(days);
-  const year = yearStats(yearData);
-  const isThisMonth =
-    view.year === thisMonth().year && view.month === thisMonth().month;
+  const month = useMemo(
+    () => monthStats(yearData[view.month] ?? {}),
+    [yearData, view.month],
+  );
+  const year = useMemo(() => yearStats(yearData), [yearData]);
+  const today = thisMonth();
+  const isThisMonth = view.year === today.year && view.month === today.month;
 
   return (
     <ScrollView
@@ -192,7 +220,7 @@ export default function CalendarScreen({
           <Text style={styles.wordmark}>Officetracker</Text>
         </View>
         <Pressable
-          onPress={onOpenSettings}
+          onPress={openSettings}
           hitSlop={10}
           style={({ pressed }) => [styles.gear, pressed && styles.pressed]}
         >

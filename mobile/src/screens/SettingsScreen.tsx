@@ -12,9 +12,10 @@ import {
   View,
 } from 'react-native';
 import { Api, isUnauthorized, Settings, TokenInfo, Weekday } from '../api';
+import Legend from '../components/Legend';
 import ScheduleEditor from '../components/ScheduleEditor';
 import { MONTH_NAMES } from '../dates';
-import { appearance, AttendanceState } from '../states';
+import { AttendanceState } from '../states';
 import { clearConnection, Connection } from '../storage';
 import { colors, radius, spacing } from '../theme';
 
@@ -25,12 +26,6 @@ interface Props {
   onUnauthorized: () => void;
   onDisconnect: () => void;
 }
-
-const SCHEDULE_LEGEND = [
-  AttendanceState.WorkFromHome,
-  AttendanceState.Office,
-  AttendanceState.Other,
-];
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
@@ -258,18 +253,8 @@ export default function SettingsScreen({
                 onChange={cycleSchedule}
               />
             )}
-            <View style={styles.legend}>
-              {SCHEDULE_LEGEND.map((s) => {
-                const look = appearance(s);
-                return (
-                  <View key={s} style={styles.legendItem}>
-                    <View
-                      style={[styles.legendSwatch, { backgroundColor: look.bg }]}
-                    />
-                    <Text style={styles.legendLabel}>{look.label}</Text>
-                  </View>
-                );
-              })}
+            <View style={styles.legendWrap}>
+              <Legend showPlanned={false} />
             </View>
           </View>
 
@@ -455,15 +440,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   buttonText: { fontSize: 15, fontWeight: '600', color: colors.text },
-  legend: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: spacing.lg,
-    marginTop: spacing.lg,
-  },
-  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  legendSwatch: { width: 12, height: 12, borderRadius: 3 },
-  legendLabel: { fontSize: 12, color: colors.textMuted },
+  legendWrap: { marginTop: spacing.lg },
   tokenRow: {
     flexDirection: 'row',
     alignItems: 'center',

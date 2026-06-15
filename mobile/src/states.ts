@@ -41,10 +41,6 @@ export function cycleState(
   return CYCLE[next];
 }
 
-export function isScheduled(state: AttendanceState): boolean {
-  return state >= AttendanceState.ScheduledWorkFromHome;
-}
-
 // Whether a state counts as "present in the office" for compliance reporting.
 export function isOffice(state: AttendanceState): boolean {
   return (

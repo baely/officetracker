@@ -9,7 +9,7 @@ const ITEMS = [
   AttendanceState.Other,
 ];
 
-function Legend() {
+function Legend({ showPlanned = true }: { showPlanned?: boolean }) {
   return (
     <View style={styles.row}>
       {ITEMS.map((s) => {
@@ -21,10 +21,12 @@ function Legend() {
           </View>
         );
       })}
-      <View style={styles.item}>
-        <View style={[styles.swatch, styles.scheduledSwatch]} />
-        <Text style={styles.label}>Planned</Text>
-      </View>
+      {showPlanned && (
+        <View style={styles.item}>
+          <View style={[styles.swatch, styles.scheduledSwatch]} />
+          <Text style={styles.label}>Planned</Text>
+        </View>
+      )}
     </View>
   );
 }
