@@ -1,11 +1,6 @@
-// Date helpers shared with the web client / server (see internal/util/trackingyear.go
-// and internal/implementation/v1/state.go).
-//
-// The server groups data into a "tracking year": 12 consecutive months starting
-// at a per-user configurable start month (default October). A tracking year is
-// labelled by the calendar year in which it ends. The /state/{year} and
-// /note/{year} endpoints are keyed by that label, so the app must compute it with
-// the same start month the server uses.
+// Date helpers. The server groups data into a per-user "tracking year": 12 months
+// from a configurable start month (default October), labelled by the year it ends.
+// /state/{year} and /note/{year} are keyed by that label (mirrors util.TrackingYear).
 
 export const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',

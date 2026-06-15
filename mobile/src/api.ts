@@ -110,8 +110,7 @@ export async function exchangeNativeToken(
 }
 
 export class Api {
-  // onUnauthorized fires when the server rejects our token (401/403) so the app
-  // can sign out and return to login instead of getting stuck.
+  // onUnauthorized fires on a 401/403 so the app can sign out.
   constructor(
     private conn: Connection,
     private onUnauthorized?: () => void,
@@ -153,8 +152,8 @@ export class Api {
     await this.request('/api/v1/health/check');
   }
 
-  // Fetches a whole fiscal year of attendance (with scheduled days merged in by
-  // the server) and flattens it to month -> day -> state.
+  // A tracking year of attendance (scheduled days merged in by the server),
+  // flattened to month -> day -> state.
   async getYear(fiscalYear: number): Promise<Record<number, MonthDays>> {
     const res = await this.request(`/api/v1/state/${fiscalYear}`, {
       headers: this.headers(),
@@ -292,9 +291,8 @@ export class Api {
     });
   }
 
-  // Best-effort: asks the server to revoke the token we're authenticated with,
-  // so signing out doesn't leave it active. Errors are ignored (we're logging
-  // out regardless) and it deliberately doesn't trigger onUnauthorized.
+  // Best-effort revoke of the current token on sign-out. Plain fetch so it never
+  // triggers onUnauthorized; errors are ignored.
   async logout(): Promise<void> {
     try {
       await fetch(this.url('/api/v1/auth/logout'), {
@@ -302,7 +300,7 @@ export class Api {
         headers: this.headers(),
       });
     } catch {
-      // ignore — sign-out proceeds locally either way
+      // sign-out proceeds locally regardless
     }
   }
 }

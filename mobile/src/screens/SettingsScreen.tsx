@@ -175,9 +175,7 @@ export default function SettingsScreen({
         text: 'Sign out',
         style: 'destructive',
         onPress: async () => {
-          // Revoke the token server-side first (best-effort), then drop it
-          // locally and return to login.
-          await api.logout();
+          await api.logout(); // best-effort server-side revoke
           await clearConnection();
           onDisconnect();
         },

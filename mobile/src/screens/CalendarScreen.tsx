@@ -46,11 +46,10 @@ export default function CalendarScreen({
   );
 
   const [view, setView] = useState<ViewMonth>(thisMonth());
-  // The user's tracking-year start month (Jan–Sep vs Oct–Dec grouping etc.).
   const [startMonth, setStartMonth] = useState(DEFAULT_TRACKING_YEAR_START_MONTH);
   const fy = trackingYear(view.year, view.month, startMonth);
 
-  // Attendance for the loaded tracking year, keyed month (1-12) -> day -> state.
+  // Loaded tracking year, keyed month (1-12) -> day -> state.
   const [yearData, setYearData] = useState<Record<number, MonthDays>>({});
   const [notes, setNotes] = useState<Record<number, string>>({});
   const [loadedFy, setLoadedFy] = useState<number | null>(null);
@@ -61,10 +60,8 @@ export default function CalendarScreen({
   // Local, possibly-unsaved note text for the current month.
   const [noteText, setNoteText] = useState('');
 
-  // Best-effort fetch of the tracking-year start month. Uses a client WITHOUT
-  // the onUnauthorized hook: on a server that doesn't expose /settings to token
-  // auth yet, this 404/401s harmlessly and we keep the October default rather
-  // than signing the user out.
+  // Best-effort fetch of the start month. Plain Api (no onUnauthorized) so an
+  // older server that 401s /settings just keeps the default instead of logging out.
   useEffect(() => {
     let cancelled = false;
     new Api(conn)
@@ -130,8 +127,7 @@ export default function CalendarScreen({
       api
         .putDay(view.year, view.month, day, next)
         .then(() => {
-          // Clearing a day can reveal a scheduled (planned) state computed by
-          // the server, so refetch the year to pick it up.
+          // Clearing a day may reveal a server-computed scheduled state; refetch.
           if (next === AttendanceState.Untracked) {
             return api.getYear(fy).then(setYearData);
           }

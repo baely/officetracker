@@ -36,8 +36,8 @@ requires Android Studio. Alternatively build a dev client in the cloud with
 `eas build --profile development`.
 
 After the first dev build, you can iterate with just `npx expo start` (it loads
-into the installed dev client). The `w` web preview won't work — the Auth0
-native module isn't available there.
+into the installed dev client). This is an iOS/Android-only app — there's no web
+target (Auth0's native module isn't available there).
 
 ### Signing in
 

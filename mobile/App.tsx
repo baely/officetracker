@@ -27,8 +27,7 @@ export default function App() {
     });
   }, []);
 
-  // Called when the server rejects our token (expired or revoked): wipe the
-  // saved session and return to login instead of leaving the app stuck.
+  // On a rejected token (401/403): drop the session and return to login.
   const handleUnauthorized = useCallback(() => {
     if (signingOut.current) return;
     signingOut.current = true;

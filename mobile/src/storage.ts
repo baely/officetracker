@@ -3,10 +3,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const KEY = 'officetracker.connection';
 
 export interface Connection {
-  // Base URL of the Office Tracker server, e.g. https://officetracker.com.au
   baseUrl: string;
-  // API token (the "officetracker:..." secret) minted during sign-in and sent
-  // as `Authorization: Bearer <token>`. Empty only for servers that need no auth.
+  // API token sent as `Authorization: Bearer <token>` (empty if the server needs no auth).
   token: string;
 }
 

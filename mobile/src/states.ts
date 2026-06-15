@@ -4,9 +4,7 @@ export enum AttendanceState {
   WorkFromHome = 1,
   Office = 2,
   Other = 3,
-  // "Scheduled" variants are projected from the user's weekly schedule by the
-  // server (see mergeScheduleWithYear). They are shown lighter and are treated
-  // as Untracked when the user starts tapping a day.
+  // Projected from the user's weekly schedule by the server; shown lighter.
   ScheduledWorkFromHome = 4,
   ScheduledOffice = 5,
   ScheduledOther = 6,
@@ -26,7 +24,6 @@ function baseState(state: AttendanceState): AttendanceState {
     case AttendanceState.ScheduledWorkFromHome:
     case AttendanceState.ScheduledOffice:
     case AttendanceState.ScheduledOther:
-      // Scheduled days behave like Untracked when the user taps them.
       return AttendanceState.Untracked;
     default:
       return state;
@@ -68,16 +65,13 @@ export function isWorkDay(state: AttendanceState): boolean {
 export interface StateAppearance {
   label: string;
   short: string;
-  // Background fill for a day cell.
   bg: string;
-  // Text colour for the day number drawn on top of the fill.
   fg: string;
-  // True for "scheduled" (projected) states, which render with a dashed border.
+  // Scheduled/projected state — rendered with a dashed border.
   scheduled: boolean;
 }
 
-// Exact colours from the web app (internal/embed/html/bases/base.html).
-// Note the web's mapping: Work-from-home is green, Office is red, Other is blue.
+// Exact web colours (base.html). Note: home=green, office=red, other=blue.
 const HOME = '#4CAF50'; // .present
 const OFFICE = '#F44336'; // .not-present
 const OTHER = '#2196F3'; // .other
