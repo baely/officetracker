@@ -1,0 +1,32 @@
+{
+  "expo": {
+    "name": "Officetracker",
+    "slug": "officetracker",
+    "owner": "baelys-team",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "officetracker",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.baely.officetracker"
+    },
+    "plugins": [
+      [
+        "react-native-auth0",
+        {
+          "domain": "auth.officetracker.com.au",
+          "customScheme": "officetracker"
+        }
+      ],
+      "expo-font"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "0e7b9d1a-463f-40c8-9c78-d56d4ad3cfbb"
+      }
+    }
+  }
+}
