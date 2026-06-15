@@ -1,7 +1,8 @@
 // The Office Tracker server the app talks to by default. Advanced users can
-// point at another instance (e.g. https://beta.officetracker.com.au) from the
-// login screen.
-export const DEFAULT_BASE_URL = 'https://officetracker.com.au';
+// point at another instance from the login screen.
+// NOTE: temporarily pointed at beta for testing the native-auth backend.
+// Switch back to https://officetracker.com.au before a production release.
+export const DEFAULT_BASE_URL = 'https://beta.officetracker.com.au';
 
 // Auth0 configuration for the Native application (react-native-auth0). The
 // domain is the tenant's custom domain; the client ID is public.

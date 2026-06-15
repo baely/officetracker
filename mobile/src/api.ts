@@ -15,6 +15,49 @@ interface NotesPayload {
 // month (1-12) -> day (1-31) -> state
 export type MonthDays = Record<number, AttendanceState>;
 
+export const WEEKDAYS_LOWER = [
+  'monday',
+  'tuesday',
+  'wednesday',
+  'thursday',
+  'friday',
+  'saturday',
+  'sunday',
+] as const;
+export type Weekday = (typeof WEEKDAYS_LOWER)[number];
+
+// A recurring weekly plan: each weekday maps to a base state (0-3).
+export type SchedulePreferences = Record<Weekday, AttendanceState>;
+
+export interface LinkedAccount {
+  provider: string;
+  providerDisplay: string;
+  nickname: string;
+}
+
+export interface Settings {
+  linkedAccounts: LinkedAccount[];
+  schedule: SchedulePreferences;
+}
+
+export interface TokenInfo {
+  tokenId: number;
+  name: string;
+  createdAt: string;
+}
+
+function emptySchedule(): SchedulePreferences {
+  return {
+    monday: AttendanceState.Untracked,
+    tuesday: AttendanceState.Untracked,
+    wednesday: AttendanceState.Untracked,
+    thursday: AttendanceState.Untracked,
+    friday: AttendanceState.Untracked,
+    saturday: AttendanceState.Untracked,
+    sunday: AttendanceState.Untracked,
+  };
+}
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -146,6 +189,81 @@ export class Api {
       method: 'PUT',
       headers: this.headers(true),
       body: JSON.stringify({ data: { note } }),
+    });
+  }
+
+  // ---- Settings: linked accounts + recurring schedule ----
+
+  async getSettings(): Promise<Settings> {
+    const res = await this.request('/api/v1/settings/', {
+      headers: this.headers(),
+    });
+    const p = (await res.json()) as {
+      linked_accounts?: { provider: string; provider_display: string; nickname: string }[];
+      schedule_preferences?: Partial<Record<Weekday, number>>;
+    };
+    const sp = p.schedule_preferences ?? {};
+    const schedule = emptySchedule();
+    for (const day of WEEKDAYS_LOWER) {
+      schedule[day] = (sp[day] ?? 0) as AttendanceState;
+    }
+    const linkedAccounts = (p.linked_accounts ?? []).map((a) => ({
+      provider: a.provider,
+      providerDisplay: a.provider_display,
+      nickname: a.nickname,
+    }));
+    return { linkedAccounts, schedule };
+  }
+
+  async updateSchedule(schedule: SchedulePreferences): Promise<void> {
+    await this.request('/api/v1/settings/schedule', {
+      method: 'PUT',
+      headers: this.headers(true),
+      body: JSON.stringify({ data: schedule }),
+    });
+  }
+
+  // Returns an Auth0 URL to link an additional social account (expires in 10m).
+  async getAccountLinkUrl(): Promise<string> {
+    const res = await this.request('/api/v1/account/link', {
+      headers: this.headers(),
+    });
+    const p = (await res.json()) as { url?: string };
+    if (!p.url) throw new ApiError('Server did not return a link URL.');
+    return p.url;
+  }
+
+  // ---- Developer tokens ----
+
+  async listTokens(): Promise<TokenInfo[]> {
+    const res = await this.request('/api/v1/developer/tokens', {
+      headers: this.headers(),
+    });
+    const p = (await res.json()) as {
+      tokens?: { token_id: number; name: string; created_at: string }[];
+    };
+    return (p.tokens ?? []).map((t) => ({
+      tokenId: t.token_id,
+      name: t.name,
+      createdAt: t.created_at,
+    }));
+  }
+
+  async createToken(name: string): Promise<string> {
+    const res = await this.request('/api/v1/developer/secret', {
+      method: 'POST',
+      headers: this.headers(true),
+      body: JSON.stringify({ data: { name } }),
+    });
+    const p = (await res.json()) as { secret?: string };
+    if (!p.secret) throw new ApiError('Server did not return a token.');
+    return p.secret;
+  }
+
+  async revokeToken(tokenId: number): Promise<void> {
+    await this.request(`/api/v1/developer/tokens/${tokenId}`, {
+      method: 'DELETE',
+      headers: this.headers(),
     });
   }
 }

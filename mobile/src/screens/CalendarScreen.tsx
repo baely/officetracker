@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ActivityIndicator,
   Alert,
+  Image,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -25,7 +26,7 @@ import {
 import { monthStats, yearStats } from '../stats';
 import { AttendanceState, cycleState } from '../states';
 import { Connection } from '../storage';
-import { colors, radius, spacing } from '../theme';
+import { colors, fonts, radius, spacing } from '../theme';
 
 interface Props {
   conn: Connection;
@@ -150,10 +151,14 @@ export default function CalendarScreen({ conn, onOpenSettings }: Props) {
         />
       }
     >
-      <View style={styles.header}>
-        <View style={styles.titleBlock}>
-          <Text style={styles.month}>{MONTH_NAMES[view.month - 1]}</Text>
-          <Text style={styles.year}>{view.year}</Text>
+      <View style={styles.brandBar}>
+        <View style={styles.brandLeft}>
+          <Image
+            source={require('../../assets/office-building.png')}
+            style={styles.brandIcon}
+            resizeMode="contain"
+          />
+          <Text style={styles.wordmark}>Officetracker</Text>
         </View>
         <Pressable
           onPress={onOpenSettings}
@@ -162,6 +167,11 @@ export default function CalendarScreen({ conn, onOpenSettings }: Props) {
         >
           <Text style={styles.gearText}>⚙</Text>
         </Pressable>
+      </View>
+
+      <View style={styles.titleBlock}>
+        <Text style={styles.month}>{MONTH_NAMES[view.month - 1]}</Text>
+        <Text style={styles.year}>{view.year}</Text>
       </View>
 
       <View style={styles.nav}>
@@ -249,15 +259,30 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     paddingBottom: spacing.xl * 2,
   },
-  header: {
+  brandBar: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  brandLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  brandIcon: {
+    width: 26,
+    height: 26,
+  },
+  wordmark: {
+    fontSize: 20,
+    fontFamily: fonts.wordmark,
+    color: colors.accent,
   },
   titleBlock: {
     flexDirection: 'row',
     alignItems: 'baseline',
     gap: spacing.sm,
+    marginTop: spacing.lg,
   },
   month: {
     fontSize: 26,

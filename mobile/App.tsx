@@ -1,3 +1,4 @@
+import { Calistoga_400Regular, useFonts } from '@expo-google-fonts/calistoga';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
@@ -15,6 +16,7 @@ type Screen = 'loading' | 'login' | 'relogin' | 'calendar' | 'settings';
 export default function App() {
   const [screen, setScreen] = useState<Screen>('loading');
   const [conn, setConn] = useState<Connection | null>(null);
+  const [fontsLoaded] = useFonts({ Calistoga_400Regular });
 
   useEffect(() => {
     loadConnection().then((c) => {
@@ -23,14 +25,14 @@ export default function App() {
     });
   }, []);
 
-  let body: React.ReactNode = null;
-  switch (screen) {
+  // Hold on the spinner until both the saved session and the brand font are ready.
+  let body: React.ReactNode = (
+    <View style={styles.center}>
+      <ActivityIndicator color={colors.textMuted} />
+    </View>
+  );
+  switch (fontsLoaded ? screen : 'loading') {
     case 'loading':
-      body = (
-        <View style={styles.center}>
-          <ActivityIndicator color={colors.textMuted} />
-        </View>
-      );
       break;
     case 'login':
     case 'relogin':

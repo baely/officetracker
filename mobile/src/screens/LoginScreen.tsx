@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   Pressable,
   StyleSheet,
   Text,
@@ -11,7 +12,7 @@ import { useAuth0 } from 'react-native-auth0';
 import { exchangeNativeToken } from '../api';
 import { AUTH0_SCHEME, DEFAULT_BASE_URL } from '../config';
 import { Connection, saveConnection } from '../storage';
-import { colors, radius, spacing } from '../theme';
+import { colors, fonts, radius, spacing } from '../theme';
 
 interface Props {
   initialBaseUrl?: string;
@@ -30,7 +31,7 @@ export default function LoginScreen({
   onConnected,
   onCancel,
 }: Props) {
-  const { authorize, clearSession } = useAuth0();
+  const { authorize } = useAuth0();
   const [baseUrl, setBaseUrl] = useState(initialBaseUrl ?? DEFAULT_BASE_URL);
   const [advanced, setAdvanced] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -55,11 +56,6 @@ export default function LoginScreen({
       const token = await exchangeNativeToken(normalised, credentials.idToken);
       const conn: Connection = { baseUrl: normalised, token };
       await saveConnection(conn);
-
-      // The Auth0 session itself isn't needed after exchange; drop it so the
-      // next sign-in always re-prompts cleanly.
-      clearSession({}, { customScheme: AUTH0_SCHEME }).catch(() => {});
-
       onConnected(conn);
     } catch (e: any) {
       setError(e?.message ?? 'Sign in failed. Please try again.');
@@ -71,10 +67,12 @@ export default function LoginScreen({
     <View style={styles.flex}>
       <View style={styles.content}>
         <View style={styles.brand}>
-          <View style={styles.logo}>
-            <Text style={styles.logoMark}>OT</Text>
-          </View>
-          <Text style={styles.title}>Office Tracker</Text>
+          <Image
+            source={require('../../assets/office-building.png')}
+            style={styles.logo}
+            resizeMode="contain"
+          />
+          <Text style={styles.title}>Officetracker</Text>
           <Text style={styles.subtitle}>
             Log your office attendance and track RTO compliance.
           </Text>
@@ -136,7 +134,7 @@ export default function LoginScreen({
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: colors.bg },
+  flex: { flex: 1, backgroundColor: colors.brandTint },
   content: {
     flex: 1,
     padding: spacing.xl,
@@ -148,24 +146,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   logo: {
-    width: 72,
-    height: 72,
-    borderRadius: radius.lg,
-    backgroundColor: colors.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.lg,
-  },
-  logoMark: {
-    color: '#ffffff',
-    fontSize: 28,
-    fontWeight: '700',
-    letterSpacing: 1,
+    width: 96,
+    height: 96,
+    marginBottom: spacing.md,
   },
   title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: colors.text,
+    fontSize: 32,
+    fontFamily: fonts.wordmark,
+    color: colors.accent,
   },
   subtitle: {
     marginTop: spacing.sm,

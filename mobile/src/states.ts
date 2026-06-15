@@ -76,26 +76,34 @@ export interface StateAppearance {
   scheduled: boolean;
 }
 
-const OFFICE = '#16a34a';
-const WFH = '#2563eb';
-const OTHER = '#d97706';
+// Exact colours from the web app (internal/embed/html/bases/base.html).
+// Note the web's mapping: Work-from-home is green, Office is red, Other is blue.
+const HOME = '#4CAF50'; // .present
+const OFFICE = '#F44336'; // .not-present
+const OTHER = '#2196F3'; // .other
+const HOME_PLANNED = '#C8E6C9'; // .scheduled-home
+const OFFICE_PLANNED = '#FFCDD2'; // .scheduled-office
+const OTHER_PLANNED = '#BBDEFB'; // .scheduled-other
+
+// The web renders dark day numbers on the coloured cells (no colour override).
+const DAY_TEXT = '#1f2937';
 
 export function appearance(state: AttendanceState): StateAppearance {
   switch (state) {
     case AttendanceState.WorkFromHome:
-      return { label: 'Home', short: 'WFH', bg: WFH, fg: '#ffffff', scheduled: false };
+      return { label: 'Home', short: 'WFH', bg: HOME, fg: DAY_TEXT, scheduled: false };
     case AttendanceState.Office:
-      return { label: 'Office', short: 'Office', bg: OFFICE, fg: '#ffffff', scheduled: false };
+      return { label: 'Office', short: 'Office', bg: OFFICE, fg: DAY_TEXT, scheduled: false };
     case AttendanceState.Other:
-      return { label: 'Other', short: 'Other', bg: OTHER, fg: '#ffffff', scheduled: false };
+      return { label: 'Other', short: 'Other', bg: OTHER, fg: DAY_TEXT, scheduled: false };
     case AttendanceState.ScheduledWorkFromHome:
-      return { label: 'Home (planned)', short: 'WFH', bg: '#dbeafe', fg: '#1e3a8a', scheduled: true };
+      return { label: 'Home (planned)', short: 'WFH', bg: HOME_PLANNED, fg: DAY_TEXT, scheduled: true };
     case AttendanceState.ScheduledOffice:
-      return { label: 'Office (planned)', short: 'Office', bg: '#dcfce7', fg: '#14532d', scheduled: true };
+      return { label: 'Office (planned)', short: 'Office', bg: OFFICE_PLANNED, fg: DAY_TEXT, scheduled: true };
     case AttendanceState.ScheduledOther:
-      return { label: 'Other (planned)', short: 'Other', bg: '#fef3c7', fg: '#78350f', scheduled: true };
+      return { label: 'Other (planned)', short: 'Other', bg: OTHER_PLANNED, fg: DAY_TEXT, scheduled: true };
     case AttendanceState.Untracked:
     default:
-      return { label: 'Untracked', short: '—', bg: 'transparent', fg: '#1f2937', scheduled: false };
+      return { label: 'Untracked', short: '—', bg: 'transparent', fg: DAY_TEXT, scheduled: false };
   }
 }
