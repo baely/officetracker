@@ -38,6 +38,8 @@ export interface LinkedAccount {
 export interface Settings {
   linkedAccounts: LinkedAccount[];
   schedule: SchedulePreferences;
+  // Month (1-12) the tracking year starts on (default October = 10).
+  trackingYearStartMonth: number;
 }
 
 export interface TokenInfo {
@@ -214,6 +216,7 @@ export class Api {
     const p = (await res.json()) as {
       linked_accounts?: { provider: string; provider_display: string; nickname: string }[];
       schedule_preferences?: Partial<Record<Weekday, number>>;
+      calendar_preferences?: { tracking_year_start_month?: number };
     };
     const sp = p.schedule_preferences ?? {};
     const schedule = emptySchedule();
@@ -225,7 +228,8 @@ export class Api {
       providerDisplay: a.provider_display,
       nickname: a.nickname,
     }));
-    return { linkedAccounts, schedule };
+    const startMonth = p.calendar_preferences?.tracking_year_start_month ?? 10;
+    return { linkedAccounts, schedule, trackingYearStartMonth: startMonth };
   }
 
   async updateSchedule(schedule: SchedulePreferences): Promise<void> {
@@ -233,6 +237,14 @@ export class Api {
       method: 'PUT',
       headers: this.headers(true),
       body: JSON.stringify({ data: schedule }),
+    });
+  }
+
+  async updateTrackingYearStartMonth(startMonth: number): Promise<void> {
+    await this.request('/api/v1/settings/calendar', {
+      method: 'PUT',
+      headers: this.headers(true),
+      body: JSON.stringify({ data: { tracking_year_start_month: startMonth } }),
     });
   }
 

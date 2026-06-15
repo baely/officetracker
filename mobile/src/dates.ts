@@ -1,9 +1,11 @@
-// Date helpers shared with the web client (see internal/embed/html/bases/form.js
+// Date helpers shared with the web client / server (see internal/util/trackingyear.go
 // and internal/implementation/v1/state.go).
 //
-// The server groups data into a fiscal year: calendar months Jan–Sep belong to
-// fiscal year Y, while Oct–Dec belong to fiscal year Y+1. The /state/{year} and
-// /note/{year} endpoints are keyed by that fiscal year.
+// The server groups data into a "tracking year": 12 consecutive months starting
+// at a per-user configurable start month (default October). A tracking year is
+// labelled by the calendar year in which it ends. The /state/{year} and
+// /note/{year} endpoints are keyed by that label, so the app must compute it with
+// the same start month the server uses.
 
 export const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -12,9 +14,25 @@ export const MONTH_NAMES = [
 
 export const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-// month is 1-12. Returns the fiscal year that contains this calendar month.
-export function fiscalYear(year: number, month: number): number {
-  return month <= 9 ? year : year + 1;
+// Matches model.DefaultTrackingYearStartMonth (October).
+export const DEFAULT_TRACKING_YEAR_START_MONTH = 10;
+
+export function normaliseStartMonth(startMonth: number): number {
+  return startMonth >= 1 && startMonth <= 12
+    ? startMonth
+    : DEFAULT_TRACKING_YEAR_START_MONTH;
+}
+
+// month is 1-12. Returns the tracking-year label that contains this calendar
+// month, given the user's start month. Mirrors util.TrackingYear in Go.
+export function trackingYear(
+  year: number,
+  month: number,
+  startMonth: number = DEFAULT_TRACKING_YEAR_START_MONTH,
+): number {
+  const sm = normaliseStartMonth(startMonth);
+  if (sm === 1) return year;
+  return month >= sm ? year + 1 : year;
 }
 
 export interface ViewMonth {

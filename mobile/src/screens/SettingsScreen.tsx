@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { Api, isUnauthorized, Settings, TokenInfo, Weekday } from '../api';
 import ScheduleEditor from '../components/ScheduleEditor';
+import { MONTH_NAMES } from '../dates';
 import { appearance, AttendanceState } from '../states';
 import { clearConnection, Connection } from '../storage';
 import { colors, radius, spacing } from '../theme';
@@ -90,6 +91,17 @@ export default function SettingsScreen({
       if (isUnauthorized(e)) return;
       Alert.alert('Could not save schedule', e?.message ?? 'Please try again.');
       load(true);
+    });
+  }
+
+  function setTrackingStart(month: number) {
+    if (!settings || month === settings.trackingYearStartMonth) return;
+    const prev = settings.trackingYearStartMonth;
+    setSettings({ ...settings, trackingYearStartMonth: month });
+    api.updateTrackingYearStartMonth(month).catch((e: any) => {
+      if (isUnauthorized(e)) return;
+      setSettings((s) => (s ? { ...s, trackingYearStartMonth: prev } : s));
+      Alert.alert('Could not save', e?.message ?? 'Please try again.');
     });
   }
 
@@ -263,6 +275,42 @@ export default function SettingsScreen({
             </View>
           </View>
 
+          {/* Tracking year */}
+          <Text style={styles.sectionLabel}>Tracking year</Text>
+          <Text style={styles.hint}>
+            The month your reporting year starts on. Attendance is grouped into a
+            12-month cycle from here.
+          </Text>
+          <View style={styles.card}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.monthRow}
+              keyboardShouldPersistTaps="handled"
+            >
+              {MONTH_NAMES.map((name, i) => {
+                const month = i + 1;
+                const selected = settings?.trackingYearStartMonth === month;
+                return (
+                  <Pressable
+                    key={month}
+                    onPress={() => setTrackingStart(month)}
+                    style={[styles.monthChip, selected && styles.monthChipSelected]}
+                  >
+                    <Text
+                      style={[
+                        styles.monthChipText,
+                        selected && styles.monthChipTextSelected,
+                      ]}
+                    >
+                      {name.slice(0, 3)}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </View>
+
           {/* Developer tokens */}
           <Text style={styles.sectionLabel}>Developer tokens</Text>
           <Text style={styles.hint}>
@@ -359,6 +407,20 @@ const styles = StyleSheet.create({
   },
   title: { fontSize: 24, fontWeight: '700', color: colors.text },
   done: { fontSize: 16, fontWeight: '600', color: colors.accent },
+  monthRow: { gap: spacing.sm, paddingVertical: 2 },
+  monthChip: {
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  monthChipSelected: {
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
+  },
+  monthChipText: { fontSize: 14, fontWeight: '600', color: colors.textMuted },
+  monthChipTextSelected: { color: '#ffffff' },
   loading: { paddingVertical: spacing.xl * 2 },
   errorText: { color: colors.danger, marginBottom: spacing.md },
   sectionLabel: {

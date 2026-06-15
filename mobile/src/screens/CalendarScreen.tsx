@@ -17,10 +17,11 @@ import Legend from '../components/Legend';
 import Summary from '../components/Summary';
 import {
   addMonths,
-  fiscalYear,
+  DEFAULT_TRACKING_YEAR_START_MONTH,
   formatMonthYear,
   MONTH_NAMES,
   thisMonth,
+  trackingYear,
   ViewMonth,
 } from '../dates';
 import { monthStats, yearStats } from '../stats';
@@ -45,9 +46,11 @@ export default function CalendarScreen({
   );
 
   const [view, setView] = useState<ViewMonth>(thisMonth());
-  const fy = fiscalYear(view.year, view.month);
+  // The user's tracking-year start month (Jan–Sep vs Oct–Dec grouping etc.).
+  const [startMonth, setStartMonth] = useState(DEFAULT_TRACKING_YEAR_START_MONTH);
+  const fy = trackingYear(view.year, view.month, startMonth);
 
-  // Attendance for the loaded fiscal year, keyed month (1-12) -> day -> state.
+  // Attendance for the loaded tracking year, keyed month (1-12) -> day -> state.
   const [yearData, setYearData] = useState<Record<number, MonthDays>>({});
   const [notes, setNotes] = useState<Record<number, string>>({});
   const [loadedFy, setLoadedFy] = useState<number | null>(null);
@@ -57,6 +60,23 @@ export default function CalendarScreen({
 
   // Local, possibly-unsaved note text for the current month.
   const [noteText, setNoteText] = useState('');
+
+  // Best-effort fetch of the tracking-year start month. Uses a client WITHOUT
+  // the onUnauthorized hook: on a server that doesn't expose /settings to token
+  // auth yet, this 404/401s harmlessly and we keep the October default rather
+  // than signing the user out.
+  useEffect(() => {
+    let cancelled = false;
+    new Api(conn)
+      .getSettings()
+      .then((s) => {
+        if (!cancelled) setStartMonth(s.trackingYearStartMonth);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [conn]);
 
   const load = useCallback(
     async (targetFy: number, isRefresh = false) => {
