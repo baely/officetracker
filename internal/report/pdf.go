@@ -96,8 +96,11 @@ func (p *PDF) addCoverPage() {
 		nameStr = p.name + " - "
 	}
 
+	// p.end is exclusive (first day after the period); the year of the last day
+	// is the tracking-year label.
+	trackingYear := p.end.AddDate(0, 0, -1).Year()
 	p.SetFont("Arial", "I", 24)
-	p.Cell(40, 10, fmt.Sprintf("%sBank Financial Year %d", nameStr, p.end.Year()))
+	p.Cell(40, 10, fmt.Sprintf("%sTracking Year %d", nameStr, trackingYear))
 	p.Ln(30)
 
 	p.addSummaryTable()

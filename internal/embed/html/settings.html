@@ -51,6 +51,32 @@
     </div>
 </div>
 
+<h3>Tracking Year</h3>
+<p>
+    Choose the month your tracking year starts on. The yearly summary and exported
+    reports are grouped into 12-month periods beginning on this month. Defaults to October.
+</p>
+
+<div class="theme-selector">
+    <div class="theme-option">
+        <label for="year-start-month">Year starts in:</label>
+        <select id="year-start-month">
+            <option value="1">January</option>
+            <option value="2">February</option>
+            <option value="3">March</option>
+            <option value="4">April</option>
+            <option value="5">May</option>
+            <option value="6">June</option>
+            <option value="7">July</option>
+            <option value="8">August</option>
+            <option value="9">September</option>
+            <option value="10">October</option>
+            <option value="11">November</option>
+            <option value="12">December</option>
+        </select>
+    </div>
+</div>
+
 <h3>Schedule</h3>
 <p>
     Select the days of the week you plan to attend the office on a recurring cycle.
@@ -102,10 +128,13 @@
             sunday: {{.SchedulePreferences.Sunday}}
         };
         
+        // Server-provided tracking-year start month (1-12)
+        const serverTrackingStartMonth = {{.CalendarPreferences.TrackingYearStartMonth}} || 10;
+
         // State names mapping
         const stateNames = {
             0: "Untracked",
-            1: "Work from Home", 
+            1: "Work from Home",
             2: "In office",
             3: "Other"
         };
@@ -125,6 +154,9 @@
         
         // Initialize schedule calendar
         initializeScheduleCalendar();
+
+        // Initialize tracking-year start month
+        initializeYearStartMonth();
         
         // Save settings function
         function saveSettings() {
@@ -225,6 +257,31 @@
             });
         }
         
+        // Initialize tracking-year start month selector with server data
+        function initializeYearStartMonth() {
+            const select = document.getElementById('year-start-month');
+            select.value = String(serverTrackingStartMonth);
+
+            select.addEventListener('change', function() {
+                const startMonth = parseInt(this.value, 10);
+                fetch('/api/v1/settings/calendar', {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        data: {
+                            tracking_year_start_month: startMonth
+                        }
+                    }),
+                    credentials: "include"
+                })
+                .catch(error => {
+                    console.error('Error saving tracking year settings:', error);
+                });
+            });
+        }
+
         // Event listener for theme change
         document.getElementById('theme-select').addEventListener('change', function() {
             toggleOptions(this.value);

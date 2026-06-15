@@ -28,3 +28,7 @@ type YearState struct {
 type Note struct {
 	Note string `json:"note"`
 }
+
+// DefaultTrackingYearStartMonth is the month (1-12) a tracking year starts on by
+// default. October matches the original hardcoded behaviour.
+const DefaultTrackingYearStartMonth = 10
