@@ -16,6 +16,9 @@
         "ITSAppUsesNonExemptEncryption": false
       }
     },
+    "android": {
+      "package": "com.baely.officetracker"
+    },
     "plugins": [
       [
         "react-native-auth0",
