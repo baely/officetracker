@@ -14,10 +14,19 @@ import {
 import { Api, isUnauthorized, Settings, TokenInfo, Weekday } from '../api';
 import Header from '../components/Header';
 import Legend from '../components/Legend';
+import LocationPicker, { Coord } from '../components/LocationPicker';
 import ScheduleEditor from '../components/ScheduleEditor';
 import { MONTH_NAMES } from '../dates';
+import { disableWorkTracking, enableWorkTracking } from '../location';
 import { AttendanceState } from '../states';
-import { clearConnection, Connection } from '../storage';
+import {
+  cacheStartMonth,
+  clearConnection,
+  Connection,
+  DEFAULT_WORK_RADIUS,
+  loadWorkLocation,
+  WorkLocation,
+} from '../storage';
 import { colors, radius, spacing } from '../theme';
 
 interface Props {
@@ -54,6 +63,13 @@ export default function SettingsScreen({
   const [newSecret, setNewSecret] = useState<string | null>(null);
   const [addingAccount, setAddingAccount] = useState(false);
 
+  const [workLocation, setWorkLocation] = useState<WorkLocation | null>(null);
+  const [pickerVisible, setPickerVisible] = useState(false);
+
+  useEffect(() => {
+    loadWorkLocation().then(setWorkLocation);
+  }, []);
+
   const load = useCallback(
     async (isRefresh = false) => {
       if (isRefresh) setRefreshing(true);
@@ -63,6 +79,8 @@ export default function SettingsScreen({
         const [s, t] = await Promise.all([api.getSettings(), api.listTokens()]);
         setSettings(s);
         setTokens(t);
+        // Cache for the background geofence task, which can't fetch settings.
+        cacheStartMonth(s.trackingYearStartMonth);
       } catch (e: any) {
         setError(e?.message ?? 'Failed to load settings.');
       } finally {
@@ -97,6 +115,42 @@ export default function SettingsScreen({
       setSettings((s) => (s ? { ...s, trackingYearStartMonth: prev } : s));
       Alert.alert('Could not save', e?.message ?? 'Please try again.');
     });
+  }
+
+  async function pickWorkLocation(coord: Coord, label?: string) {
+    setPickerVisible(false);
+    const loc: WorkLocation = {
+      latitude: coord.latitude,
+      longitude: coord.longitude,
+      radius: DEFAULT_WORK_RADIUS,
+      label,
+    };
+    setWorkLocation(loc);
+    const background = await enableWorkTracking(loc);
+    if (!background) {
+      Alert.alert(
+        'Work location saved',
+        'To mark office days while the app is closed, allow "Always" location access for Officetracker in your device settings.',
+      );
+    }
+  }
+
+  function removeWorkLocation() {
+    Alert.alert(
+      'Remove work location',
+      'Stop automatically marking office days when you arrive at work?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            await disableWorkTracking();
+            setWorkLocation(null);
+          },
+        },
+      ],
+    );
   }
 
   async function addAccount() {
@@ -178,23 +232,25 @@ export default function SettingsScreen({
   }
 
   return (
-    <ScrollView
-      style={styles.flex}
-      contentContainerStyle={styles.content}
-      keyboardShouldPersistTaps="handled"
-      keyboardDismissMode="interactive"
-      automaticallyAdjustKeyboardInsets
-      refreshControl={
-        <RefreshControl
-          refreshing={refreshing}
-          onRefresh={() => load(true)}
-          tintColor={colors.textMuted}
-        />
-      }
-    >
+    <View style={styles.screen}>
+      {/* Fixed nav bar — pull-to-refresh only scrolls the content below it. */}
       <Header rightLabel="Done" onRightPress={onClose} />
 
-      <View style={styles.body}>
+      <ScrollView
+        style={styles.flex}
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+        automaticallyAdjustKeyboardInsets
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => load(true)}
+            tintColor={colors.textMuted}
+          />
+        }
+      >
+        <View style={styles.body}>
       <Text style={styles.screenTitle}>Settings</Text>
 
       {loading ? (
@@ -291,6 +347,51 @@ export default function SettingsScreen({
             </ScrollView>
           </View>
 
+          {/* Work location */}
+          <Text style={styles.sectionLabel}>Work location</Text>
+          <Text style={styles.hint}>
+            When you arrive here, Officetracker marks the day as an office day —
+            unless you've already set it. Days you've planned or set yourself are
+            left alone.
+          </Text>
+          <View style={styles.card}>
+            {workLocation ? (
+              <>
+                <Text style={styles.fieldLabel}>Work location</Text>
+                <Text style={styles.fieldValue}>
+                  {workLocation.label ||
+                    `${workLocation.latitude.toFixed(5)}, ${workLocation.longitude.toFixed(5)}`}
+                </Text>
+                <View style={styles.workActions}>
+                  <Pressable
+                    style={styles.workBtn}
+                    onPress={() => setPickerVisible(true)}
+                  >
+                    <Text style={styles.buttonText}>Change</Text>
+                  </Pressable>
+                  <Pressable
+                    style={[styles.workBtn, styles.workBtnDanger]}
+                    onPress={removeWorkLocation}
+                  >
+                    <Text style={[styles.buttonText, styles.dangerText]}>
+                      Remove
+                    </Text>
+                  </Pressable>
+                </View>
+              </>
+            ) : (
+              <>
+                <Text style={styles.muted}>No work location set.</Text>
+                <Pressable
+                  style={styles.button}
+                  onPress={() => setPickerVisible(true)}
+                >
+                  <Text style={styles.buttonText}>Set work location</Text>
+                </Pressable>
+              </>
+            )}
+          </View>
+
           {/* Developer tokens */}
           <Text style={styles.sectionLabel}>Developer tokens</Text>
           <Text style={styles.hint}>
@@ -362,12 +463,21 @@ export default function SettingsScreen({
           </Pressable>
         </>
       )}
-      </View>
-    </ScrollView>
+        </View>
+      </ScrollView>
+
+      <LocationPicker
+        visible={pickerVisible}
+        initial={workLocation}
+        onClose={() => setPickerVisible(false)}
+        onSelect={pickWorkLocation}
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.surface },
   flex: { flex: 1, backgroundColor: colors.surface },
   content: { paddingBottom: spacing.xl * 2 },
   body: { padding: spacing.lg },
@@ -426,6 +536,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   buttonText: { fontSize: 15, fontWeight: '600', color: colors.text },
+  workActions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
+  workBtn: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    paddingVertical: spacing.md,
+    alignItems: 'center',
+  },
+  workBtnDanger: { borderColor: '#fecaca' },
   legendWrap: { marginTop: spacing.lg },
   tokenRow: {
     flexDirection: 'row',
