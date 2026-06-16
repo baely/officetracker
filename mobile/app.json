@@ -11,7 +11,10 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.baely.officetracker"
+      "bundleIdentifier": "com.baely.officetracker",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "plugins": [
       [
