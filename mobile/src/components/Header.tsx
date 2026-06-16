@@ -1,5 +1,5 @@
-import React from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useRef } from 'react';
+import { Alert, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors, fonts, spacing } from '../theme';
 
 interface Props {
@@ -12,6 +12,27 @@ interface Props {
 // (internal/embed/html/bases/base.html): the office-building icon, the
 // "Officetracker" wordmark in Calistoga, and a slash-prefixed nav link.
 export default function Header({ rightLabel, onRightPress }: Props) {
+  // iykyk: seven quick taps on the wordmark asks the source of truth.
+  const taps = useRef(0);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const askTheSourceOfTruth = async () => {
+    taps.current += 1;
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => (taps.current = 0), 1500);
+    if (taps.current < 7) return;
+    taps.current = 0;
+
+    const title = 'Is Bailey Butler in the office today?';
+    try {
+      const res = await fetch('https://isbaileybutlerintheoffice.today/raw');
+      const answer = (await res.text()).trim().toLowerCase();
+      Alert.alert(title, answer === 'yes' ? 'Yes.' : 'No.');
+    } catch {
+      Alert.alert(title, 'Unreachable. Assume no.');
+    }
+  };
+
   return (
     <View style={styles.nav}>
       <View style={styles.brand}>
@@ -20,7 +41,9 @@ export default function Header({ rightLabel, onRightPress }: Props) {
           style={styles.icon}
           resizeMode="contain"
         />
-        <Text style={styles.wordmark}>Officetracker</Text>
+        <Pressable onPress={askTheSourceOfTruth} hitSlop={6}>
+          <Text style={styles.wordmark}>Officetracker</Text>
+        </Pressable>
       </View>
       {rightLabel && (
         <Pressable
