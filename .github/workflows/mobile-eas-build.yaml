@@ -1,11 +1,15 @@
 name: EAS Build
 
-# Manually triggers a cloud build of the mobile app on Expo Application Services.
-# The build runs on EAS infrastructure (not the GitHub runner); --no-wait queues
-# it and returns, so check progress at https://expo.dev. Requires an EXPO_TOKEN
-# repo secret (an Expo access token for the baelys-team account).
+# Builds the mobile app on Expo Application Services (EAS). Runs on every push
+# to mobile-dev (ios + preview by default), and can be triggered manually with
+# a chosen platform/profile and optional store submit. The build runs on EAS
+# infrastructure (not the GitHub runner); --no-wait queues it and returns, so
+# check progress at https://expo.dev. Requires an EXPO_TOKEN repo secret (an
+# Expo access token for the baelys-team account).
 
 on:
+  push:
+    branches: [mobile-dev]
   workflow_dispatch:
     inputs:
       platform:
@@ -53,8 +57,8 @@ jobs:
       - name: Build on EAS
         run: |
           eas build \
-            --platform ${{ inputs.platform }} \
-            --profile ${{ inputs.profile }} \
+            --platform ${{ inputs.platform || 'ios' }} \
+            --profile ${{ inputs.profile || 'preview' }} \
             --non-interactive \
             --no-wait \
             ${{ inputs.submit && '--auto-submit' || '' }}
