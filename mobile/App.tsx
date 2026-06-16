@@ -1,10 +1,14 @@
 import { Calistoga_400Regular, useFonts } from '@expo-google-fonts/calistoga';
 import { StatusBar } from 'expo-status-bar';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Alert, AppState, StyleSheet, View } from 'react-native';
 import { Auth0Provider } from 'react-native-auth0';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { AUTH0_CLIENT_ID, AUTH0_DOMAIN } from './src/config';
+// Importing this registers the background geofence task (TaskManager.defineTask),
+// which must happen at module load so it's available when iOS/Android relaunch
+// the app for a location event.
+import { checkProximityNow, syncWorkGeofence } from './src/location';
 import CalendarScreen from './src/screens/CalendarScreen';
 import LoginScreen from './src/screens/LoginScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
@@ -25,6 +29,19 @@ export default function App() {
       setConn(c);
       setScreen(c ? 'calendar' : 'login');
     });
+  }, []);
+
+  // Resume work-location tracking after a restart, and catch the case where the
+  // app opens while already at work (a geofence only fires on a crossing). Both
+  // only read existing permissions — they never prompt — so they're safe to run
+  // every launch. The work logic no-ops when no location/connection is stored.
+  useEffect(() => {
+    syncWorkGeofence();
+    checkProximityNow();
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') checkProximityNow();
+    });
+    return () => sub.remove();
   }, []);
 
   // On a rejected token (401/403): drop the session and return to login.

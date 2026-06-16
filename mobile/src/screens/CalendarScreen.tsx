@@ -15,7 +15,9 @@ import { Api, isUnauthorized, MonthDays } from '../api';
 import Calendar from '../components/Calendar';
 import Header from '../components/Header';
 import Legend from '../components/Legend';
+import LocationPicker, { Coord } from '../components/LocationPicker';
 import Summary, { SummaryRow } from '../components/Summary';
+import WorkLocationBanner from '../components/WorkLocationBanner';
 import {
   addMonths,
   calendarYearForMonth,
@@ -27,9 +29,17 @@ import {
   trackingYear,
   ViewMonth,
 } from '../dates';
+import { enableWorkTracking } from '../location';
 import { monthStats, yearStats } from '../stats';
 import { AttendanceState, cycleState } from '../states';
-import { Connection } from '../storage';
+import {
+  cacheStartMonth,
+  Connection,
+  DEFAULT_WORK_RADIUS,
+  dismissWorkBanner,
+  isWorkBannerDismissed,
+  loadWorkLocation,
+} from '../storage';
 import { colors, radius, spacing } from '../theme';
 
 interface Props {
@@ -63,6 +73,48 @@ export default function CalendarScreen({
   // Local, possibly-unsaved note text for the current month.
   const [noteText, setNoteText] = useState('');
 
+  // Work-location prompt + picker.
+  const [showBanner, setShowBanner] = useState(false);
+  const [pickerVisible, setPickerVisible] = useState(false);
+
+  // Show the banner only when no work location is set and it wasn't dismissed.
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([loadWorkLocation(), isWorkBannerDismissed()]).then(
+      ([loc, dismissed]) => {
+        if (!cancelled) setShowBanner(!loc && !dismissed);
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const onPickLocation = useCallback(
+    async (coord: Coord, label?: string) => {
+      setPickerVisible(false);
+      setShowBanner(false);
+      const background = await enableWorkTracking({
+        latitude: coord.latitude,
+        longitude: coord.longitude,
+        radius: DEFAULT_WORK_RADIUS,
+        label,
+      });
+      if (!background) {
+        Alert.alert(
+          'Work location saved',
+          'To mark office days while the app is closed, allow "Always" location access for Officetracker in your device settings.',
+        );
+      }
+    },
+    [],
+  );
+
+  const dismissBanner = useCallback(() => {
+    setShowBanner(false);
+    dismissWorkBanner();
+  }, []);
+
   // Live refs so optimistic callbacks read current state (not a stale closure)
   // and a late refetch can confirm we're still on the same tracking year.
   const fyRef = useRef(fy);
@@ -78,6 +130,8 @@ export default function CalendarScreen({
       .getSettings()
       .then((s) => {
         if (!cancelled) setStartMonth(s.trackingYearStartMonth);
+        // Cache for the background geofence task, which can't fetch settings.
+        cacheStartMonth(s.trackingYearStartMonth);
       })
       .catch(() => {});
     return () => {
@@ -228,23 +282,31 @@ export default function CalendarScreen({
   ).current;
 
   return (
-    <ScrollView
-      style={styles.flex}
-      contentContainerStyle={styles.content}
-      keyboardShouldPersistTaps="handled"
-      keyboardDismissMode="interactive"
-      automaticallyAdjustKeyboardInsets
-      refreshControl={
-        <RefreshControl
-          refreshing={refreshing}
-          onRefresh={() => load(fy, true)}
-          tintColor={colors.textMuted}
-        />
-      }
-    >
+    <View style={styles.screen}>
+      {/* Fixed nav bar — pull-to-refresh only scrolls the content below it. */}
       <Header rightLabel="Settings" onRightPress={openSettings} />
 
-      <View style={styles.body}>
+      <ScrollView
+        style={styles.flex}
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+        automaticallyAdjustKeyboardInsets
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => load(fy, true)}
+            tintColor={colors.textMuted}
+          />
+        }
+      >
+        <View style={styles.body}>
+        {showBanner && (
+          <WorkLocationBanner
+            onPress={() => setPickerVisible(true)}
+            onDismiss={dismissBanner}
+          />
+        )}
       <View style={styles.calendarNav}>
         <Pressable
           onPress={() => go(-1)}
@@ -317,12 +379,20 @@ export default function CalendarScreen({
           </View>
         </>
       )}
-      </View>
-    </ScrollView>
+        </View>
+      </ScrollView>
+
+      <LocationPicker
+        visible={pickerVisible}
+        onClose={() => setPickerVisible(false)}
+        onSelect={onPickLocation}
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.surface },
   flex: { flex: 1, backgroundColor: colors.surface },
   content: {
     paddingBottom: spacing.xl * 2,

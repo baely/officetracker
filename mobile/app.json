@@ -13,11 +13,21 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.baely.officetracker",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSLocationWhenInUseUsageDescription": "Officetracker uses your location to detect when you arrive at work so it can mark the day as an office day.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Officetracker checks for arrival at your work location in the background so it can automatically mark office days, even when the app is closed.",
+        "UIBackgroundModes": ["location"]
       }
     },
     "android": {
-      "package": "com.baely.officetracker"
+      "package": "com.baely.officetracker",
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_LOCATION"
+      ]
     },
     "plugins": [
       [
@@ -27,7 +37,16 @@
           "customScheme": "officetracker"
         }
       ],
-      "expo-font"
+      "expo-font",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Officetracker checks for arrival at your work location in the background so it can automatically mark office days, even when the app is closed.",
+          "locationWhenInUsePermission": "Officetracker uses your location to detect when you arrive at work so it can mark the day as an office day.",
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true
+        }
+      ]
     ],
     "extra": {
       "eas": {
