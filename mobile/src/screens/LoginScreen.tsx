@@ -46,8 +46,16 @@ export default function LoginScreen({
     setBusy(true);
     try {
       const credentials = await authorize(
-        { scope: 'openid profile email' },
-        { customScheme: AUTH0_SCHEME },
+        // Always show a fresh login screen instead of silently reusing a cached
+        // Auth0 session. prompt=login asks the server to re-prompt, and
+        // ephemeralSession runs the iOS web flow in a private session that
+        // doesn't share Safari's cookies — so no SSO session lingers after a
+        // sign-out and signing back in actually asks for credentials.
+        {
+          scope: 'openid profile email',
+          additionalParameters: { prompt: 'login' },
+        },
+        { customScheme: AUTH0_SCHEME, ephemeralSession: true },
       );
       if (!credentials?.idToken) {
         // User cancelled the Auth0 prompt.

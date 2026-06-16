@@ -11,7 +11,7 @@ import SettingsScreen from './src/screens/SettingsScreen';
 import { clearConnection, Connection, loadConnection } from './src/storage';
 import { colors } from './src/theme';
 
-type Screen = 'loading' | 'login' | 'relogin' | 'calendar' | 'settings';
+type Screen = 'loading' | 'login' | 'calendar' | 'settings';
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>('loading');
@@ -56,15 +56,8 @@ export default function App() {
     case 'loading':
       break;
     case 'login':
-    case 'relogin':
       body = (
-        <LoginScreen
-          initialBaseUrl={conn?.baseUrl}
-          onConnected={onConnected}
-          onCancel={
-            screen === 'relogin' ? () => setScreen('settings') : undefined
-          }
-        />
+        <LoginScreen initialBaseUrl={conn?.baseUrl} onConnected={onConnected} />
       );
       break;
     case 'calendar':
@@ -81,7 +74,6 @@ export default function App() {
         <SettingsScreen
           conn={conn}
           onClose={() => setScreen('calendar')}
-          onSignInAgain={() => setScreen('relogin')}
           onUnauthorized={handleUnauthorized}
           onDisconnect={() => {
             setConn(null);

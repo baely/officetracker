@@ -23,7 +23,6 @@ import { colors, radius, spacing } from '../theme';
 interface Props {
   conn: Connection;
   onClose: () => void;
-  onSignInAgain: () => void;
   onUnauthorized: () => void;
   onDisconnect: () => void;
 }
@@ -36,7 +35,6 @@ function formatDate(iso: string): string {
 export default function SettingsScreen({
   conn,
   onClose,
-  onSignInAgain,
   onUnauthorized,
   onDisconnect,
 }: Props) {
@@ -358,16 +356,6 @@ export default function SettingsScreen({
               </Pressable>
             </View>
           )}
-
-          {/* Connection */}
-          <Text style={styles.sectionLabel}>Connection</Text>
-          <View style={styles.card}>
-            <Text style={styles.fieldLabel}>Server</Text>
-            <Text style={styles.fieldValue}>{conn.baseUrl}</Text>
-          </View>
-          <Pressable style={styles.button} onPress={onSignInAgain}>
-            <Text style={styles.buttonText}>Sign in again</Text>
-          </Pressable>
 
           <Pressable style={[styles.button, styles.danger]} onPress={signOut}>
             <Text style={[styles.buttonText, styles.dangerText]}>Sign out</Text>
