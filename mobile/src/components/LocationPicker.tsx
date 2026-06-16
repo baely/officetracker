@@ -11,7 +11,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import MapView, { MapPressEvent, Marker, MarkerDragStartEndEvent } from 'react-native-maps';
 import { WebView } from 'react-native-webview';
 import { colors, radius, spacing } from '../theme';
@@ -210,6 +210,9 @@ export default function LocationPicker({
       onRequestClose={onClose}
       presentationStyle="fullScreen"
     >
+      {/* A fresh provider so safe-area insets are measured for the modal's own
+          native container — the app-root provider reports 0 inside a Modal. */}
+      <SafeAreaProvider>
       <SafeAreaView style={styles.flex} edges={['top', 'left', 'right']}>
         <View style={styles.header}>
           <Pressable onPress={onClose} hitSlop={10}>
@@ -302,6 +305,7 @@ export default function LocationPicker({
           </Pressable>
         </View>
       </SafeAreaView>
+      </SafeAreaProvider>
     </Modal>
   );
 }
