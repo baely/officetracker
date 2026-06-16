@@ -4,6 +4,7 @@ import {
   ActivityIndicator,
   Alert,
   Modal,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -11,6 +12,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import MapView, { MapPressEvent, Marker, MarkerDragStartEndEvent } from 'react-native-maps';
 import { WebView } from 'react-native-webview';
 import { colors, radius, spacing } from '../theme';
 
@@ -30,8 +32,12 @@ interface Props {
 // Sensible fallback centre (Sydney) when we can't get a current position.
 const FALLBACK: Coord = { latitude: -33.8688, longitude: 151.2093 };
 
-// A self-contained Leaflet map (OpenStreetMap tiles, no API key). Tapping the
-// map or dragging the pin posts the coordinate back to React Native.
+// ~1km span — a comfortable zoom for picking a building.
+const DELTA = 0.01;
+
+// Android falls back to a self-contained Leaflet map (OpenStreetMap tiles, no
+// API key). iOS uses a native MapView (Apple Maps), which needs no key either.
+// Tapping the map or dragging the pin posts the coordinate back.
 function leafletHtml(c: Coord): string {
   return `<!DOCTYPE html><html><head>
 <meta charset="utf-8"/>
@@ -79,6 +85,7 @@ export default function LocationPicker({
   onSelect,
 }: Props) {
   const webRef = useRef<WebView>(null);
+  const mapRef = useRef<MapView>(null);
   const [center, setCenter] = useState<Coord | null>(null);
   const [coord, setCoord] = useState<Coord | null>(null);
   const [address, setAddress] = useState('');
@@ -130,9 +137,13 @@ export default function LocationPicker({
     };
   }, [visible, initial]);
 
-  const html = useMemo(() => (center ? leafletHtml(center) : ''), [center]);
+  // Android-only: Leaflet HTML for the WebView.
+  const html = useMemo(
+    () => (center && Platform.OS !== 'ios' ? leafletHtml(center) : ''),
+    [center],
+  );
 
-  const onMessage = useCallback((e: { nativeEvent: { data: string } }) => {
+  const onWebMessage = useCallback((e: { nativeEvent: { data: string } }) => {
     try {
       const m = JSON.parse(e.nativeEvent.data) as { lat: number; lng: number };
       if (typeof m.lat === 'number' && typeof m.lng === 'number') {
@@ -142,6 +153,20 @@ export default function LocationPicker({
       // ignore malformed messages
     }
   }, []);
+
+  // Move the visible map to a coordinate (after an address search).
+  function recenter(c: Coord) {
+    if (Platform.OS === 'ios') {
+      mapRef.current?.animateToRegion(
+        { ...c, latitudeDelta: DELTA, longitudeDelta: DELTA },
+        350,
+      );
+    } else {
+      webRef.current?.injectJavaScript(
+        `window.setLocation(${c.latitude}, ${c.longitude}); true;`,
+      );
+    }
+  }
 
   async function searchAddress() {
     const q = address.trim();
@@ -154,10 +179,9 @@ export default function LocationPicker({
         return;
       }
       const r = results[0];
-      setCoord({ latitude: r.latitude, longitude: r.longitude });
-      webRef.current?.injectJavaScript(
-        `window.setLocation(${r.latitude}, ${r.longitude}); true;`,
-      );
+      const c = { latitude: r.latitude, longitude: r.longitude };
+      setCoord(c);
+      recenter(c);
     } catch {
       Alert.alert('Search failed', 'Could not look up that address.');
     } finally {
@@ -220,21 +244,44 @@ export default function LocationPicker({
         </View>
 
         <View style={styles.mapWrap}>
-          {center ? (
-            <WebView
-              ref={webRef}
-              originWhitelist={['*']}
-              source={{ html }}
-              onMessage={onMessage}
-              style={styles.map}
-              // Leaflet handles its own gestures; let the map own touches.
-              scrollEnabled={false}
-            />
-          ) : (
+          {!center ? (
             <View style={styles.mapLoading}>
               <ActivityIndicator color={colors.textMuted} />
               <Text style={styles.hint}>Finding your location…</Text>
             </View>
+          ) : Platform.OS === 'ios' ? (
+            <MapView
+              ref={mapRef}
+              style={styles.map}
+              initialRegion={{
+                latitude: center.latitude,
+                longitude: center.longitude,
+                latitudeDelta: DELTA,
+                longitudeDelta: DELTA,
+              }}
+              onPress={(e: MapPressEvent) =>
+                setCoord(e.nativeEvent.coordinate)
+              }
+            >
+              {coord && (
+                <Marker
+                  draggable
+                  coordinate={coord}
+                  onDragEnd={(e: MarkerDragStartEndEvent) =>
+                    setCoord(e.nativeEvent.coordinate)
+                  }
+                />
+              )}
+            </MapView>
+          ) : (
+            <WebView
+              ref={webRef}
+              originWhitelist={['*']}
+              source={{ html }}
+              onMessage={onWebMessage}
+              style={styles.map}
+              scrollEnabled={false}
+            />
           )}
         </View>
 
