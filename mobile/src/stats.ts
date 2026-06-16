@@ -42,5 +42,6 @@ export function yearStats(year: Record<number, MonthDays>): Stats {
 }
 
 export function formatPercent(percent: number): string {
-  return `${percent.toFixed(1)}%`;
+  // Two decimals to match the web summary table.
+  return `${percent.toFixed(2)}%`;
 }

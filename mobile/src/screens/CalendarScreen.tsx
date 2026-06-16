@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ActivityIndicator,
   Alert,
-  Image,
+  PanResponder,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -13,21 +13,24 @@ import {
 } from 'react-native';
 import { Api, isUnauthorized, MonthDays } from '../api';
 import Calendar from '../components/Calendar';
+import Header from '../components/Header';
 import Legend from '../components/Legend';
-import Summary from '../components/Summary';
+import Summary, { SummaryRow } from '../components/Summary';
 import {
   addMonths,
+  calendarYearForMonth,
   DEFAULT_TRACKING_YEAR_START_MONTH,
   formatMonthYear,
   MONTH_NAMES,
   thisMonth,
+  trackingMonthOrder,
   trackingYear,
   ViewMonth,
 } from '../dates';
 import { monthStats, yearStats } from '../stats';
 import { AttendanceState, cycleState } from '../states';
 import { Connection } from '../storage';
-import { colors, fonts, radius, spacing } from '../theme';
+import { colors, radius, spacing } from '../theme';
 
 interface Props {
   conn: Connection;
@@ -187,13 +190,42 @@ export default function CalendarScreen({
     onOpenSettings();
   };
 
-  const month = useMemo(
-    () => monthStats(yearData[view.month] ?? {}),
-    [yearData, view.month],
-  );
   const year = useMemo(() => yearStats(yearData), [yearData]);
-  const today = thisMonth();
-  const isThisMonth = view.year === today.year && view.month === today.month;
+
+  // One row per tracked month, ordered start-month-first, mirroring the web
+  // summary table.
+  const summaryRows = useMemo<SummaryRow[]>(() => {
+    return Object.keys(yearData)
+      .map(Number)
+      .map((m) => {
+        const s = monthStats(yearData[m] ?? {});
+        const calYear = calendarYearForMonth(m, fy, startMonth);
+        return { label: `${MONTH_NAMES[m - 1]} ${calYear}`, ...s, month: m };
+      })
+      .filter((r) => r.total > 0)
+      .sort(
+        (a, b) =>
+          trackingMonthOrder(a.month, startMonth) -
+          trackingMonthOrder(b.month, startMonth),
+      );
+  }, [yearData, fy, startMonth]);
+
+  // Swipe the calendar left/right to change months. Built once; reads the
+  // latest navigation handler through a ref to avoid a stale closure.
+  const goRef = useRef(go);
+  goRef.current = go;
+  const monthSwipe = useRef(
+    PanResponder.create({
+      // Only claim clearly-horizontal drags so day taps and vertical scroll
+      // keep working.
+      onMoveShouldSetPanResponder: (_e, g) =>
+        Math.abs(g.dx) > 20 && Math.abs(g.dx) > Math.abs(g.dy) * 1.5,
+      onPanResponderRelease: (_e, g) => {
+        if (g.dx <= -50) goRef.current(1); // swipe left → next month
+        else if (g.dx >= 50) goRef.current(-1); // swipe right → previous month
+      },
+    }),
+  ).current;
 
   return (
     <ScrollView
@@ -210,30 +242,10 @@ export default function CalendarScreen({
         />
       }
     >
-      <View style={styles.brandBar}>
-        <View style={styles.brandLeft}>
-          <Image
-            source={require('../../assets/office-building.png')}
-            style={styles.brandIcon}
-            resizeMode="contain"
-          />
-          <Text style={styles.wordmark}>Officetracker</Text>
-        </View>
-        <Pressable
-          onPress={openSettings}
-          hitSlop={10}
-          style={({ pressed }) => [styles.gear, pressed && styles.pressed]}
-        >
-          <Text style={styles.gearText}>⚙</Text>
-        </Pressable>
-      </View>
+      <Header rightLabel="Settings" onRightPress={openSettings} />
 
-      <View style={styles.titleBlock}>
-        <Text style={styles.month}>{MONTH_NAMES[view.month - 1]}</Text>
-        <Text style={styles.year}>{view.year}</Text>
-      </View>
-
-      <View style={styles.nav}>
+      <View style={styles.body}>
+      <View style={styles.calendarNav}>
         <Pressable
           onPress={() => go(-1)}
           style={({ pressed }) => [styles.navBtn, pressed && styles.pressed]}
@@ -241,14 +253,9 @@ export default function CalendarScreen({
         >
           <Text style={styles.navText}>‹</Text>
         </Pressable>
-        <Pressable
-          onPress={goToday}
-          style={({ pressed }) => [styles.todayBtn, pressed && styles.pressed]}
-        >
-          <Text
-            style={[styles.todayBtnText, isThisMonth && styles.todayBtnTextActive]}
-          >
-            Today
+        <Pressable onPress={goToday} hitSlop={8}>
+          <Text style={styles.monthYear}>
+            {MONTH_NAMES[view.month - 1]} {view.year}
           </Text>
         </Pressable>
         <Pressable
@@ -273,28 +280,25 @@ export default function CalendarScreen({
         </View>
       ) : (
         <>
-          <Calendar
-            year={view.year}
-            month={view.month}
-            days={days}
-            onCycle={onCycle}
-          />
+          <View {...monthSwipe.panHandlers}>
+            <Calendar
+              year={view.year}
+              month={view.month}
+              days={days}
+              onCycle={onCycle}
+            />
+          </View>
 
-          <Text style={styles.tip}>Tap to cycle · long-press to go back</Text>
+          <Text style={styles.tip}>
+            Tap a day to cycle through home, office and other; long-press to go
+            back.
+          </Text>
           <View style={styles.legendWrap}>
             <Legend />
           </View>
 
           <View style={styles.section}>
-            <Summary
-              monthLabel={MONTH_NAMES[view.month - 1]}
-              month={month}
-              year={year}
-            />
-          </View>
-
-          <View style={styles.section}>
-            <Text style={styles.sectionLabel}>Notes</Text>
+            <Text style={styles.heading}>Notes</Text>
             <TextInput
               style={styles.notes}
               value={noteText}
@@ -306,66 +310,35 @@ export default function CalendarScreen({
               textAlignVertical="top"
             />
           </View>
+
+          <View style={styles.section}>
+            <Text style={styles.heading}>Summary</Text>
+            <Summary rows={summaryRows} total={year} />
+          </View>
         </>
       )}
+      </View>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: colors.bg },
+  flex: { flex: 1, backgroundColor: colors.surface },
   content: {
-    padding: spacing.lg,
     paddingBottom: spacing.xl * 2,
   },
-  brandBar: {
+  body: {
+    padding: spacing.lg,
+  },
+  calendarNav: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-  },
-  brandLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  brandIcon: {
-    width: 26,
-    height: 26,
-  },
-  wordmark: {
-    fontSize: 20,
-    fontFamily: fonts.wordmark,
-    color: colors.accent,
-  },
-  titleBlock: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: spacing.sm,
     marginTop: spacing.lg,
-  },
-  month: {
-    fontSize: 26,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  year: {
-    fontSize: 26,
-    fontWeight: '300',
-    color: colors.textFaint,
-  },
-  gear: {
-    padding: spacing.xs,
-  },
-  gearText: {
-    fontSize: 22,
-    color: colors.textMuted,
-  },
-  nav: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: spacing.md,
-    marginBottom: spacing.lg,
+    marginBottom: spacing.md,
+    // Match the 3px padding inside each day cell so the arrows line up with the
+    // Monday and Sunday columns below.
+    paddingHorizontal: 3,
   },
   navBtn: {
     width: 44,
@@ -375,22 +348,16 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: radius.md,
+    backgroundColor: colors.cellBg,
   },
   navText: {
     fontSize: 22,
     color: colors.text,
     lineHeight: 24,
   },
-  todayBtn: {
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.lg,
-  },
-  todayBtnText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.textMuted,
-  },
-  todayBtnTextActive: {
+  monthYear: {
+    fontSize: 22,
+    fontWeight: '700',
     color: colors.text,
   },
   pressed: { opacity: 0.6 },
@@ -422,6 +389,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 12,
     color: colors.textFaint,
+    lineHeight: 17,
   },
   legendWrap: {
     marginTop: spacing.md,
@@ -429,13 +397,11 @@ const styles = StyleSheet.create({
   section: {
     marginTop: spacing.xl,
   },
-  sectionLabel: {
-    fontSize: 13,
-    fontWeight: '600',
+  heading: {
+    fontSize: 18,
+    fontWeight: '700',
     color: colors.text,
     marginBottom: spacing.sm,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
   },
   notes: {
     minHeight: 96,

@@ -12,6 +12,7 @@ import {
   View,
 } from 'react-native';
 import { Api, isUnauthorized, Settings, TokenInfo, Weekday } from '../api';
+import Header from '../components/Header';
 import Legend from '../components/Legend';
 import ScheduleEditor from '../components/ScheduleEditor';
 import { MONTH_NAMES } from '../dates';
@@ -193,12 +194,10 @@ export default function SettingsScreen({
         />
       }
     >
-      <View style={styles.header}>
-        <Text style={styles.title}>Settings</Text>
-        <Pressable onPress={onClose} hitSlop={10}>
-          <Text style={styles.done}>Done</Text>
-        </Pressable>
-      </View>
+      <Header rightLabel="Done" onRightPress={onClose} />
+
+      <View style={styles.body}>
+      <Text style={styles.screenTitle}>Settings</Text>
 
       {loading ? (
         <View style={styles.loading}>
@@ -375,21 +374,21 @@ export default function SettingsScreen({
           </Pressable>
         </>
       )}
+      </View>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: colors.bg },
-  content: { padding: spacing.lg, paddingBottom: spacing.xl * 2 },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: spacing.sm,
+  flex: { flex: 1, backgroundColor: colors.surface },
+  content: { paddingBottom: spacing.xl * 2 },
+  body: { padding: spacing.lg },
+  screenTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: colors.text,
+    marginTop: spacing.sm,
   },
-  title: { fontSize: 24, fontWeight: '700', color: colors.text },
-  done: { fontSize: 16, fontWeight: '600', color: colors.accent },
   monthRow: { gap: spacing.sm, paddingVertical: 2 },
   monthChip: {
     paddingVertical: spacing.sm,
@@ -407,25 +406,24 @@ const styles = StyleSheet.create({
   loading: { paddingVertical: spacing.xl * 2 },
   errorText: { color: colors.danger, marginBottom: spacing.md },
   sectionLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.textMuted,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    fontSize: 17,
+    fontWeight: '700',
+    color: colors.text,
     marginTop: spacing.xl,
     marginBottom: spacing.sm,
   },
   hint: {
-    fontSize: 12,
+    fontSize: 13,
     color: colors.textFaint,
-    lineHeight: 17,
+    lineHeight: 18,
     marginBottom: spacing.sm,
   },
   card: {
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: radius.lg,
+    borderRadius: 10,
     padding: spacing.lg,
+    backgroundColor: colors.surface,
   },
   fieldLabel: { fontSize: 12, color: colors.textMuted, marginBottom: 2 },
   fieldValue: { fontSize: 15, color: colors.text },

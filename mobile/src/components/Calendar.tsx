@@ -52,14 +52,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     marginBottom: spacing.xs,
   },
+  // Plain text per column, centred so it still lines up with the day columns.
   weekday: {
     flex: 1,
     textAlign: 'center',
     fontSize: 12,
-    fontWeight: '600',
-    color: colors.textFaint,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    fontWeight: '700',
+    color: colors.textMuted,
+    paddingVertical: spacing.xs,
   },
   week: {
     flexDirection: 'row',

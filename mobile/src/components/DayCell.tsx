@@ -33,7 +33,11 @@ function DayCell({ day, state, isToday, onPress, onLongPress }: Props) {
           pressed && styles.pressed,
         ]}
       >
-        <Text style={[styles.dayNum, { color: look.fg }]}>{day}</Text>
+        <Text
+          style={[styles.dayNum, { color: look.fg }, isToday && styles.todayNum]}
+        >
+          {day}
+        </Text>
       </Pressable>
     </View>
   );
@@ -43,7 +47,7 @@ const styles = StyleSheet.create({
   cell: {
     flex: 1,
     aspectRatio: 1,
-    padding: 2,
+    padding: 3,
   },
   day: {
     flex: 1,
@@ -52,13 +56,14 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.border,
+    backgroundColor: colors.surface, // untracked days are white, like the web
   },
   scheduled: {
     borderStyle: 'dashed',
     borderColor: colors.borderStrong,
   },
   today: {
-    borderWidth: 2,
+    borderWidth: 3,
     borderColor: colors.todayRing,
   },
   pressed: {
@@ -67,6 +72,9 @@ const styles = StyleSheet.create({
   dayNum: {
     fontSize: 15,
     fontWeight: '500',
+  },
+  todayNum: {
+    fontWeight: '700',
   },
 });
 

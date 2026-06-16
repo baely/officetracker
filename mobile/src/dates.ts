@@ -30,6 +30,28 @@ export function trackingYear(
   return month >= sm ? year + 1 : year;
 }
 
+// calendarYearForMonth maps a 1-indexed calendar month to the calendar year it
+// falls in within the tracking year labelled fy (mirrors form.js / util.Go).
+export function calendarYearForMonth(
+  month: number,
+  fy: number,
+  startMonth: number = DEFAULT_TRACKING_YEAR_START_MONTH,
+): number {
+  const sm = normaliseStartMonth(startMonth);
+  if (sm === 1) return fy;
+  return month >= sm ? fy - 1 : fy;
+}
+
+// trackingMonthOrder returns a month's position (0-11) within the tracking year,
+// so summary rows read start-month-first (mirrors form.js).
+export function trackingMonthOrder(
+  month: number,
+  startMonth: number = DEFAULT_TRACKING_YEAR_START_MONTH,
+): number {
+  const sm = normaliseStartMonth(startMonth);
+  return (month - sm + 12) % 12;
+}
+
 export interface ViewMonth {
   year: number; // calendar year
   month: number; // 1-12
