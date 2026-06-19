@@ -235,13 +235,6 @@ export default function LoginScreen({
                   editable={!busy}
                 />
               )}
-
-              {anonymous && (
-                <Text style={styles.hint}>
-                  This server doesn&apos;t require sign in — it&apos;s a
-                  read-only demo.
-                </Text>
-              )}
             </View>
           ) : (
             <Pressable
@@ -357,12 +350,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: colors.text,
     backgroundColor: colors.fieldBg,
-  },
-  hint: {
-    marginTop: spacing.xs,
-    fontSize: 12,
-    color: colors.textFaint,
-    lineHeight: 17,
   },
   cancel: {
     marginTop: spacing.md,
