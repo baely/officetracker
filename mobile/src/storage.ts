@@ -6,6 +6,9 @@ export interface Connection {
   baseUrl: string;
   // API token sent as `Authorization: Bearer <token>` (empty if the server needs no auth).
   token: string;
+  // True when the server advertised itself as read-only (see /api/v1/meta). The
+  // app then hides every write affordance and refuses mutating requests.
+  readOnly: boolean;
 }
 
 export async function loadConnection(): Promise<Connection | null> {
@@ -14,7 +17,12 @@ export async function loadConnection(): Promise<Connection | null> {
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Connection;
     if (!parsed.baseUrl) return null;
-    return { baseUrl: parsed.baseUrl, token: parsed.token ?? '' };
+    return {
+      baseUrl: parsed.baseUrl,
+      token: parsed.token ?? '',
+      // Older saved connections predate this flag — default to writable.
+      readOnly: parsed.readOnly ?? false,
+    };
   } catch {
     return null;
   }

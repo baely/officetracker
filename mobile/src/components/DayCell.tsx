@@ -9,9 +9,11 @@ interface Props {
   isToday: boolean;
   onPress: () => void;
   onLongPress: () => void;
+  // Display-only: render the day without responding to taps (read-only server).
+  disabled?: boolean;
 }
 
-function DayCell({ day, state, isToday, onPress, onLongPress }: Props) {
+function DayCell({ day, state, isToday, onPress, onLongPress, disabled }: Props) {
   if (day === null) {
     return <View style={styles.cell} />;
   }
@@ -25,12 +27,13 @@ function DayCell({ day, state, isToday, onPress, onLongPress }: Props) {
         onPress={onPress}
         onLongPress={onLongPress}
         delayLongPress={250}
+        disabled={disabled}
         style={({ pressed }) => [
           styles.day,
           filled && { backgroundColor: look.bg },
           look.scheduled && styles.scheduled,
           isToday && styles.today,
-          pressed && styles.pressed,
+          pressed && !disabled && styles.pressed,
         ]}
       >
         <Text

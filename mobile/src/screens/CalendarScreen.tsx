@@ -58,6 +58,9 @@ export default function CalendarScreen({
     [conn, onUnauthorized],
   );
 
+  // Read-only servers (e.g. the public demo) can be browsed but never written to.
+  const readOnly = conn.readOnly;
+
   const [view, setView] = useState<ViewMonth>(thisMonth());
   const [startMonth, setStartMonth] = useState(DEFAULT_TRACKING_YEAR_START_MONTH);
   const fy = trackingYear(view.year, view.month, startMonth);
@@ -178,6 +181,7 @@ export default function CalendarScreen({
 
   const onCycle = useCallback(
     (day: number, direction: 1 | -1) => {
+      if (readOnly) return;
       // Read the live value so rapid taps don't cycle/revert from a stale closure.
       const current =
         yearDataRef.current[view.month]?.[day] ?? AttendanceState.Untracked;
@@ -215,10 +219,11 @@ export default function CalendarScreen({
           }
         });
     },
-    [api, view, fy],
+    [api, view, fy, readOnly],
   );
 
   const saveNote = useCallback(() => {
+    if (readOnly) return;
     const text = noteText;
     const prev = notes[view.month] ?? '';
     if (prev === text) return;
@@ -228,7 +233,7 @@ export default function CalendarScreen({
       setNotes((n) => ({ ...n, [view.month]: prev })); // revert on failure
       Alert.alert('Could not save note', e?.message ?? 'Please try again.');
     });
-  }, [api, noteText, notes, view]);
+  }, [api, noteText, notes, view, readOnly]);
 
   // Save any pending note before leaving the current month/screen.
   const go = (delta: number) => {
@@ -301,7 +306,7 @@ export default function CalendarScreen({
         }
       >
         <View style={styles.body}>
-        {showBanner && (
+        {showBanner && !readOnly && (
           <WorkLocationBanner
             onPress={() => setPickerVisible(true)}
             onDismiss={dismissBanner}
@@ -348,30 +353,40 @@ export default function CalendarScreen({
               month={view.month}
               days={days}
               onCycle={onCycle}
+              readOnly={readOnly}
             />
           </View>
 
           <Text style={styles.tip}>
-            Tap a day to cycle through home, office and other; long-press to go
-            back.
+            {readOnly
+              ? 'This is a read-only demo — attendance is shown but cannot be edited.'
+              : 'Tap a day to cycle through home, office and other; long-press to go back.'}
           </Text>
           <View style={styles.legendWrap}>
             <Legend />
           </View>
 
-          <View style={styles.section}>
-            <Text style={styles.heading}>Notes</Text>
-            <TextInput
-              style={styles.notes}
-              value={noteText}
-              onChangeText={setNoteText}
-              onBlur={saveNote}
-              placeholder={`Notes for ${formatMonthYear(view)}…`}
-              placeholderTextColor={colors.textFaint}
-              multiline
-              textAlignVertical="top"
-            />
-          </View>
+          {(!readOnly || noteText) && (
+            <View style={styles.section}>
+              <Text style={styles.heading}>Notes</Text>
+              {readOnly ? (
+                <Text style={[styles.notes, styles.notesReadOnly]}>
+                  {noteText}
+                </Text>
+              ) : (
+                <TextInput
+                  style={styles.notes}
+                  value={noteText}
+                  onChangeText={setNoteText}
+                  onBlur={saveNote}
+                  placeholder={`Notes for ${formatMonthYear(view)}…`}
+                  placeholderTextColor={colors.textFaint}
+                  multiline
+                  textAlignVertical="top"
+                />
+              )}
+            </View>
+          )}
 
           <View style={styles.section}>
             <Text style={styles.heading}>Summary</Text>
@@ -483,5 +498,8 @@ const styles = StyleSheet.create({
     color: colors.text,
     backgroundColor: colors.fieldBg,
     lineHeight: 21,
+  },
+  notesReadOnly: {
+    color: colors.textMuted,
   },
 });

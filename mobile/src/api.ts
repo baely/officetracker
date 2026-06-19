@@ -89,6 +89,39 @@ async function rawFetch(url: string, init?: RequestInit): Promise<Response> {
   }
 }
 
+// How a server expects clients to authenticate. 'none' means the server serves
+// anonymous requests with no token (e.g. a public demo instance).
+export type ServerAuth = 'auth0' | 'none';
+
+export interface ServerMeta {
+  // Authentication scheme the server expects.
+  auth: ServerAuth;
+  // When true the server rejects all writes; the app locks its UI to read-only.
+  readOnly: boolean;
+}
+
+// Probes a server's capabilities via GET /api/v1/meta. Servers that predate the
+// endpoint (or that can't be reached) fall back to the historical default —
+// Auth0 sign-in and a writable instance — so existing instances keep working.
+export async function fetchServerMeta(baseUrl: string): Promise<ServerMeta> {
+  try {
+    const res = await rawFetch(`${normaliseBase(baseUrl)}/api/v1/meta`);
+    if (!res.ok) return { auth: 'auth0', readOnly: false };
+    const body = (await res.json()) as {
+      auth?: string;
+      // Accept both the Go snake_case wire form and a camelCase fallback.
+      read_only?: boolean;
+      readOnly?: boolean;
+    };
+    return {
+      auth: body.auth === 'none' ? 'none' : 'auth0',
+      readOnly: !!(body.read_only ?? body.readOnly),
+    };
+  } catch {
+    return { auth: 'auth0', readOnly: false };
+  }
+}
+
 // Exchanges an Auth0 ID token (obtained natively via react-native-auth0) for a
 // long-lived Office Tracker API token. See the server's /auth/native handler.
 export async function exchangeNativeToken(
@@ -132,6 +165,12 @@ export class Api {
   }
 
   private async request(path: string, init?: RequestInit): Promise<Response> {
+    // Defence in depth: the UI hides writes on a read-only server, but never let
+    // a mutating request leave the device regardless of which code path calls in.
+    const method = (init?.method ?? 'GET').toUpperCase();
+    if (this.conn.readOnly && method !== 'GET') {
+      throw new ApiError('This server is read-only.', 405);
+    }
     const res = await rawFetch(this.url(path), init);
     if (res.status === 401 || res.status === 403) {
       // Token expired or revoked — trigger a sign-out.
