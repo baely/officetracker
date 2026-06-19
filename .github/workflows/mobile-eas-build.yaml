@@ -1,12 +1,16 @@
 name: EAS Build
 
 # Builds the mobile app on Expo Application Services (EAS). Every push to
-# mobile-dev builds the ios production profile and auto-submits it to App Store
-# Connect (TestFlight). Can also be triggered manually with a chosen
-# platform/profile and an optional submit toggle. The build runs on EAS
-# infrastructure (not the GitHub runner); --no-wait queues it and returns, so
-# check progress at https://expo.dev. Requires an EXPO_TOKEN repo secret (an
-# Expo access token for the baelys-team account).
+# mobile-dev builds the production profile for both platforms and auto-submits
+# them: iOS to App Store Connect (TestFlight) and Android to the Play Store
+# internal track (eas.json -> submit.production.android.track). Can also be
+# triggered manually with a chosen platform/profile and an optional submit
+# toggle. The build runs on EAS infrastructure (not the GitHub runner);
+# --no-wait queues it and returns, so check progress at https://expo.dev.
+# Requires an EXPO_TOKEN repo secret (an Expo access token for the baelys-team
+# account). Store submission uses credentials saved in EAS: the App Store
+# Connect API key and the Google Play service account key (run `eas credentials`
+# once per platform to upload them).
 
 on:
   push:
@@ -58,7 +62,7 @@ jobs:
       - name: Build on EAS
         run: |
           eas build \
-            --platform ${{ inputs.platform || 'ios' }} \
+            --platform ${{ inputs.platform || 'all' }} \
             --profile ${{ inputs.profile || 'production' }} \
             --non-interactive \
             --no-wait \
