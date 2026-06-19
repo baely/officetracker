@@ -1,77 +1,121 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { formatPercent, Stats } from '../stats';
-import { colors, radius, spacing } from '../theme';
+import { colors, spacing } from '../theme';
 
-interface Props {
-  monthLabel: string;
-  month: Stats;
-  year: Stats;
+// One row per tracking-year month, mirroring the web summary table.
+export interface SummaryRow {
+  label: string; // e.g. "October 2025"
+  office: number;
+  total: number;
+  percent: number;
 }
 
-function Cell({ value, label }: { value: string; label: string }) {
+interface Props {
+  rows: SummaryRow[];
+  total: Stats; // aggregate, for the headline
+}
+
+// Column flex weights: a wide month column, three equal numeric columns.
+const COLS = [2, 1, 1, 1];
+
+function Row({
+  cells,
+  header,
+  last,
+}: {
+  cells: string[];
+  header?: boolean;
+  last?: boolean;
+}) {
   return (
-    <View style={styles.statCell}>
-      <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
+    <View style={[styles.row, last && styles.rowLast]}>
+      {cells.map((c, i) => (
+        <View
+          key={i}
+          style={[
+            styles.cell,
+            { flex: COLS[i] },
+            i < cells.length - 1 && styles.cellDivider,
+            header && styles.headerCell,
+          ]}
+        >
+          <Text style={[styles.cellText, header && styles.headerText]}>{c}</Text>
+        </View>
+      ))}
     </View>
   );
 }
 
-function Summary({ monthLabel, month, year }: Props) {
+function Summary({ rows, total }: Props) {
   return (
-    <View style={styles.card}>
-      <View style={styles.row}>
-        <Cell value={`${month.office}/${month.total}`} label={`${monthLabel} office days`} />
-        <View style={styles.divider} />
-        <Cell value={formatPercent(month.percent)} label="this month" />
-      </View>
-      <View style={styles.hr} />
-      <View style={styles.row}>
-        <Cell value={`${year.office}/${year.total}`} label="office days this year" />
-        <View style={styles.divider} />
-        <Cell value={formatPercent(year.percent)} label="year to date" />
+    <View>
+      <Text style={styles.headline}>
+        Present in office for {total.office} out of {total.total} days. (
+        {formatPercent(total.percent)})
+      </Text>
+      <View style={styles.table}>
+        <Row header cells={['Month', 'Present', 'Total', 'Percent']} />
+        {rows.length === 0 ? (
+          <Row last cells={['No tracked days yet.', '', '', '']} />
+        ) : (
+          rows.map((r, i) => (
+            <Row
+              key={r.label}
+              last={i === rows.length - 1}
+              cells={[
+                r.label,
+                String(r.office),
+                String(r.total),
+                formatPercent(r.percent),
+              ]}
+            />
+          ))
+        )}
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
+  headline: {
+    fontSize: 15,
+    color: colors.text,
+    marginBottom: spacing.md,
+    lineHeight: 21,
+  },
+  table: {
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: radius.lg,
-    padding: spacing.lg,
-    backgroundColor: colors.surface,
+    overflow: 'hidden',
   },
   row: {
     flexDirection: 'row',
-    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
-  statCell: {
-    flex: 1,
-    alignItems: 'center',
+  rowLast: {
+    borderBottomWidth: 0,
   },
-  statValue: {
-    fontSize: 24,
+  cell: {
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    justifyContent: 'center',
+  },
+  cellDivider: {
+    borderRightWidth: 1,
+    borderRightColor: colors.border,
+  },
+  headerCell: {
+    backgroundColor: colors.tableHeaderBg,
+  },
+  cellText: {
+    fontSize: 13,
+    color: colors.textMuted,
+  },
+  headerText: {
     fontWeight: '700',
     color: colors.text,
-  },
-  statLabel: {
-    marginTop: 2,
-    fontSize: 12,
-    color: colors.textMuted,
-    textAlign: 'center',
-  },
-  divider: {
-    width: 1,
-    alignSelf: 'stretch',
-    backgroundColor: colors.border,
-  },
-  hr: {
-    height: 1,
-    backgroundColor: colors.border,
-    marginVertical: spacing.md,
   },
 });
 

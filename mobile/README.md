@@ -48,8 +48,32 @@ calls. The token shows up on the server's Developer page as
 
 By default it connects to `https://officetracker.com.au`. Tap **Use a different
 server** on the login screen to point at another instance (e.g.
-`https://beta.officetracker.com.au`) — note it still authenticates against the
-same Auth0 tenant.
+`https://beta.officetracker.com.au`) — for an Auth0-backed instance it still
+authenticates against the same Auth0 tenant.
+
+### Server capabilities (`/api/v1/meta`)
+
+When connecting, the app probes `GET /api/v1/meta` to learn how to talk to the
+server. The response is JSON:
+
+```json
+{ "auth": "auth0", "read_only": false }
+```
+
+- `auth`: `"auth0"` (default) means do the Auth0 sign-in + `POST /auth/native`
+  token exchange described above. `"none"` means the server is **anonymous** —
+  the app skips Auth0 entirely and connects with no token (the **Sign in**
+  button becomes **Continue**).
+- `read_only`: when `true`, the app locks the whole UI to **read-only** —
+  attendance days and notes can be browsed but not edited, the work-location
+  prompt is hidden, and the account / work-location / developer-token sections of
+  Settings are hidden (sign-out becomes **Disconnect**). Mutating requests are
+  also refused client-side as a safeguard.
+
+Servers that don't implement `/api/v1/meta` (HTTP 404, or unreachable) fall back
+to the historical default — `auth0` and writable — so existing instances keep
+working unchanged. A public demo instance ("demotracker") would serve
+`{ "auth": "none", "read_only": true }`.
 
 ## Auth0 configuration
 

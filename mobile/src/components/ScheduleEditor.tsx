@@ -17,9 +17,11 @@ const LABELS: Record<Weekday, string> = {
 interface Props {
   schedule: SchedulePreferences;
   onChange: (day: Weekday, next: AttendanceState) => void;
+  // Display-only: render the schedule without responding to taps (read-only server).
+  disabled?: boolean;
 }
 
-export default function ScheduleEditor({ schedule, onChange }: Props) {
+export default function ScheduleEditor({ schedule, onChange, disabled }: Props) {
   return (
     <View style={styles.row}>
       {WEEKDAYS_LOWER.map((day) => {
@@ -33,10 +35,11 @@ export default function ScheduleEditor({ schedule, onChange }: Props) {
               onPress={() => onChange(day, cycleState(state, 1))}
               onLongPress={() => onChange(day, cycleState(state, -1))}
               delayLongPress={250}
+              disabled={disabled}
               style={({ pressed }) => [
                 styles.cell,
                 filled && { backgroundColor: look.bg },
-                pressed && styles.pressed,
+                pressed && !disabled && styles.pressed,
               ]}
             />
           </View>

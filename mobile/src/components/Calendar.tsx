@@ -11,9 +11,11 @@ interface Props {
   month: number; // 1-12
   days: MonthDays;
   onCycle: (day: number, direction: 1 | -1) => void;
+  // Display-only: render days without responding to taps (read-only server).
+  readOnly?: boolean;
 }
 
-function Calendar({ year, month, days, onCycle }: Props) {
+function Calendar({ year, month, days, onCycle, readOnly }: Props) {
   const weeks = monthGrid(year, month);
 
   return (
@@ -39,6 +41,7 @@ function Calendar({ year, month, days, onCycle }: Props) {
               }
               onPress={() => cell.day != null && onCycle(cell.day, 1)}
               onLongPress={() => cell.day != null && onCycle(cell.day, -1)}
+              disabled={readOnly}
             />
           ))}
         </View>
@@ -52,14 +55,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     marginBottom: spacing.xs,
   },
+  // Plain text per column, centred so it still lines up with the day columns.
   weekday: {
     flex: 1,
     textAlign: 'center',
     fontSize: 12,
-    fontWeight: '600',
-    color: colors.textFaint,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    fontWeight: '700',
+    color: colors.textMuted,
+    paddingVertical: spacing.xs,
   },
   week: {
     flexDirection: 'row',

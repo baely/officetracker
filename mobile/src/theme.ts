@@ -1,18 +1,29 @@
-// Flat design tokens, using the Officetracker brand palette
-// (see internal/embed/html/hero.html + bases/base.html).
+// Design tokens mirroring the Officetracker web app so the two clients feel
+// like one product. Values are taken straight from the web stylesheet
+// (internal/embed/html/bases/base.html + static/themes.css): an off-white page,
+// a white content card, a pale-cyan nav bar, square-ish borders and a charcoal
+// brand accent.
 export const colors = {
-  bg: '#ffffff',
-  surface: '#ffffff',
-  border: '#e5e7eb',
-  borderStrong: '#d1d5db',
-  text: '#384346', // brand slate (hero body text)
-  textMuted: '#526064', // brand muted slate
-  textFaint: '#9ca3af',
-  accent: '#24292e', // brand charcoal (primary buttons / wordmark)
-  brandTint: '#eef8f6', // brand mint (hero background)
-  danger: '#dc2626',
-  fieldBg: '#f9fafb',
-  todayRing: '#FFC107', // amber, matches the web app's "today" border
+  // Page + surfaces
+  bg: '#f7f8f8', // web body background
+  surface: '#ffffff', // white content card (web <main>)
+  navBg: '#ddeeee', // web nav bar (`#dee`)
+  border: '#dee2e6', // web border colour, used everywhere
+  borderStrong: '#adb5bd', // dashed "planned" outlines
+  cellBg: '#f8f9fa', // web weekday-header / day background
+  fieldBg: '#f8f9fa', // inputs + notes textarea
+  tableHeaderBg: '#f4f4f4', // web summary table header
+
+  // Text
+  text: '#212529', // headings / primary text
+  textMuted: '#495057', // web secondary text colour
+  textFaint: '#6c757d', // faint labels, hints, footer
+
+  // Brand + status
+  accent: '#24292e', // brand charcoal (buttons / wordmark)
+  brandTint: '#eef8f6', // hero mint (login background)
+  danger: '#F44336', // web red (.not-present)
+  todayRing: '#FFC107', // web "today" amber border
 };
 
 // "Officetracker" wordmark font (Google Calistoga), loaded at runtime in App.tsx.
@@ -28,8 +39,9 @@ export const spacing = {
   xl: 24,
 };
 
+// The web app uses a consistent 4px corner radius; keep it subtle and flat.
 export const radius = {
-  sm: 6,
-  md: 8,
-  lg: 12,
+  sm: 4,
+  md: 4,
+  lg: 6,
 };

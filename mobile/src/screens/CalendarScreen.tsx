@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ActivityIndicator,
   Alert,
-  Image,
+  PanResponder,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -13,21 +13,34 @@ import {
 } from 'react-native';
 import { Api, isUnauthorized, MonthDays } from '../api';
 import Calendar from '../components/Calendar';
+import Header from '../components/Header';
 import Legend from '../components/Legend';
-import Summary from '../components/Summary';
+import LocationPicker, { Coord } from '../components/LocationPicker';
+import Summary, { SummaryRow } from '../components/Summary';
+import WorkLocationBanner from '../components/WorkLocationBanner';
 import {
   addMonths,
+  calendarYearForMonth,
   DEFAULT_TRACKING_YEAR_START_MONTH,
   formatMonthYear,
   MONTH_NAMES,
   thisMonth,
+  trackingMonthOrder,
   trackingYear,
   ViewMonth,
 } from '../dates';
+import { enableWorkTracking } from '../location';
 import { monthStats, yearStats } from '../stats';
 import { AttendanceState, cycleState } from '../states';
-import { Connection } from '../storage';
-import { colors, fonts, radius, spacing } from '../theme';
+import {
+  cacheStartMonth,
+  Connection,
+  DEFAULT_WORK_RADIUS,
+  dismissWorkBanner,
+  isWorkBannerDismissed,
+  loadWorkLocation,
+} from '../storage';
+import { colors, radius, spacing } from '../theme';
 
 interface Props {
   conn: Connection;
@@ -45,6 +58,9 @@ export default function CalendarScreen({
     [conn, onUnauthorized],
   );
 
+  // Read-only servers can be browsed but never written to.
+  const readOnly = conn.readOnly;
+
   const [view, setView] = useState<ViewMonth>(thisMonth());
   const [startMonth, setStartMonth] = useState(DEFAULT_TRACKING_YEAR_START_MONTH);
   const fy = trackingYear(view.year, view.month, startMonth);
@@ -59,6 +75,48 @@ export default function CalendarScreen({
 
   // Local, possibly-unsaved note text for the current month.
   const [noteText, setNoteText] = useState('');
+
+  // Work-location prompt + picker.
+  const [showBanner, setShowBanner] = useState(false);
+  const [pickerVisible, setPickerVisible] = useState(false);
+
+  // Show the banner only when no work location is set and it wasn't dismissed.
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([loadWorkLocation(), isWorkBannerDismissed()]).then(
+      ([loc, dismissed]) => {
+        if (!cancelled) setShowBanner(!loc && !dismissed);
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const onPickLocation = useCallback(
+    async (coord: Coord, label?: string) => {
+      setPickerVisible(false);
+      setShowBanner(false);
+      const background = await enableWorkTracking({
+        latitude: coord.latitude,
+        longitude: coord.longitude,
+        radius: DEFAULT_WORK_RADIUS,
+        label,
+      });
+      if (!background) {
+        Alert.alert(
+          'Work location saved',
+          'To mark office days while the app is closed, allow "Always" location access for Officetracker in your device settings.',
+        );
+      }
+    },
+    [],
+  );
+
+  const dismissBanner = useCallback(() => {
+    setShowBanner(false);
+    dismissWorkBanner();
+  }, []);
 
   // Live refs so optimistic callbacks read current state (not a stale closure)
   // and a late refetch can confirm we're still on the same tracking year.
@@ -75,6 +133,8 @@ export default function CalendarScreen({
       .getSettings()
       .then((s) => {
         if (!cancelled) setStartMonth(s.trackingYearStartMonth);
+        // Cache for the background geofence task, which can't fetch settings.
+        cacheStartMonth(s.trackingYearStartMonth);
       })
       .catch(() => {});
     return () => {
@@ -121,6 +181,7 @@ export default function CalendarScreen({
 
   const onCycle = useCallback(
     (day: number, direction: 1 | -1) => {
+      if (readOnly) return;
       // Read the live value so rapid taps don't cycle/revert from a stale closure.
       const current =
         yearDataRef.current[view.month]?.[day] ?? AttendanceState.Untracked;
@@ -158,10 +219,11 @@ export default function CalendarScreen({
           }
         });
     },
-    [api, view, fy],
+    [api, view, fy, readOnly],
   );
 
   const saveNote = useCallback(() => {
+    if (readOnly) return;
     const text = noteText;
     const prev = notes[view.month] ?? '';
     if (prev === text) return;
@@ -171,7 +233,7 @@ export default function CalendarScreen({
       setNotes((n) => ({ ...n, [view.month]: prev })); // revert on failure
       Alert.alert('Could not save note', e?.message ?? 'Please try again.');
     });
-  }, [api, noteText, notes, view]);
+  }, [api, noteText, notes, view, readOnly]);
 
   // Save any pending note before leaving the current month/screen.
   const go = (delta: number) => {
@@ -187,53 +249,70 @@ export default function CalendarScreen({
     onOpenSettings();
   };
 
-  const month = useMemo(
-    () => monthStats(yearData[view.month] ?? {}),
-    [yearData, view.month],
-  );
   const year = useMemo(() => yearStats(yearData), [yearData]);
-  const today = thisMonth();
-  const isThisMonth = view.year === today.year && view.month === today.month;
+
+  // One row per tracked month, ordered start-month-first, mirroring the web
+  // summary table.
+  const summaryRows = useMemo<SummaryRow[]>(() => {
+    return Object.keys(yearData)
+      .map(Number)
+      .map((m) => {
+        const s = monthStats(yearData[m] ?? {});
+        const calYear = calendarYearForMonth(m, fy, startMonth);
+        return { label: `${MONTH_NAMES[m - 1]} ${calYear}`, ...s, month: m };
+      })
+      .filter((r) => r.total > 0)
+      .sort(
+        (a, b) =>
+          trackingMonthOrder(a.month, startMonth) -
+          trackingMonthOrder(b.month, startMonth),
+      );
+  }, [yearData, fy, startMonth]);
+
+  // Swipe the calendar left/right to change months. Built once; reads the
+  // latest navigation handler through a ref to avoid a stale closure.
+  const goRef = useRef(go);
+  goRef.current = go;
+  const monthSwipe = useRef(
+    PanResponder.create({
+      // Only claim clearly-horizontal drags so day taps and vertical scroll
+      // keep working.
+      onMoveShouldSetPanResponder: (_e, g) =>
+        Math.abs(g.dx) > 20 && Math.abs(g.dx) > Math.abs(g.dy) * 1.5,
+      onPanResponderRelease: (_e, g) => {
+        if (g.dx <= -50) goRef.current(1); // swipe left → next month
+        else if (g.dx >= 50) goRef.current(-1); // swipe right → previous month
+      },
+    }),
+  ).current;
 
   return (
-    <ScrollView
-      style={styles.flex}
-      contentContainerStyle={styles.content}
-      keyboardShouldPersistTaps="handled"
-      keyboardDismissMode="interactive"
-      automaticallyAdjustKeyboardInsets
-      refreshControl={
-        <RefreshControl
-          refreshing={refreshing}
-          onRefresh={() => load(fy, true)}
-          tintColor={colors.textMuted}
-        />
-      }
-    >
-      <View style={styles.brandBar}>
-        <View style={styles.brandLeft}>
-          <Image
-            source={require('../../assets/office-building.png')}
-            style={styles.brandIcon}
-            resizeMode="contain"
+    <View style={styles.screen}>
+      {/* Fixed nav bar — pull-to-refresh only scrolls the content below it. */}
+      <Header rightLabel="Settings" onRightPress={openSettings} />
+
+      <ScrollView
+        style={styles.flex}
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+        automaticallyAdjustKeyboardInsets
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => load(fy, true)}
+            tintColor={colors.textMuted}
           />
-          <Text style={styles.wordmark}>Officetracker</Text>
-        </View>
-        <Pressable
-          onPress={openSettings}
-          hitSlop={10}
-          style={({ pressed }) => [styles.gear, pressed && styles.pressed]}
-        >
-          <Text style={styles.gearText}>⚙</Text>
-        </Pressable>
-      </View>
-
-      <View style={styles.titleBlock}>
-        <Text style={styles.month}>{MONTH_NAMES[view.month - 1]}</Text>
-        <Text style={styles.year}>{view.year}</Text>
-      </View>
-
-      <View style={styles.nav}>
+        }
+      >
+        <View style={styles.body}>
+        {showBanner && !readOnly && (
+          <WorkLocationBanner
+            onPress={() => setPickerVisible(true)}
+            onDismiss={dismissBanner}
+          />
+        )}
+      <View style={styles.calendarNav}>
         <Pressable
           onPress={() => go(-1)}
           style={({ pressed }) => [styles.navBtn, pressed && styles.pressed]}
@@ -241,14 +320,9 @@ export default function CalendarScreen({
         >
           <Text style={styles.navText}>‹</Text>
         </Pressable>
-        <Pressable
-          onPress={goToday}
-          style={({ pressed }) => [styles.todayBtn, pressed && styles.pressed]}
-        >
-          <Text
-            style={[styles.todayBtnText, isThisMonth && styles.todayBtnTextActive]}
-          >
-            Today
+        <Pressable onPress={goToday} hitSlop={8}>
+          <Text style={styles.monthYear}>
+            {MONTH_NAMES[view.month - 1]} {view.year}
           </Text>
         </Pressable>
         <Pressable
@@ -273,99 +347,75 @@ export default function CalendarScreen({
         </View>
       ) : (
         <>
-          <Calendar
-            year={view.year}
-            month={view.month}
-            days={days}
-            onCycle={onCycle}
-          />
+          <View {...monthSwipe.panHandlers}>
+            <Calendar
+              year={view.year}
+              month={view.month}
+              days={days}
+              onCycle={onCycle}
+              readOnly={readOnly}
+            />
+          </View>
 
-          <Text style={styles.tip}>Tap to cycle · long-press to go back</Text>
+          <Text style={styles.tip}>
+            Tap a day to cycle through home, office and other; long-press to go
+            back.
+          </Text>
           <View style={styles.legendWrap}>
             <Legend />
           </View>
 
           <View style={styles.section}>
-            <Summary
-              monthLabel={MONTH_NAMES[view.month - 1]}
-              month={month}
-              year={year}
-            />
-          </View>
-
-          <View style={styles.section}>
-            <Text style={styles.sectionLabel}>Notes</Text>
+            <Text style={styles.heading}>Notes</Text>
             <TextInput
               style={styles.notes}
               value={noteText}
               onChangeText={setNoteText}
               onBlur={saveNote}
+              editable={!readOnly}
               placeholder={`Notes for ${formatMonthYear(view)}…`}
               placeholderTextColor={colors.textFaint}
               multiline
               textAlignVertical="top"
             />
           </View>
+
+          <View style={styles.section}>
+            <Text style={styles.heading}>Summary</Text>
+            <Summary rows={summaryRows} total={year} />
+          </View>
         </>
       )}
-    </ScrollView>
+        </View>
+      </ScrollView>
+
+      <LocationPicker
+        visible={pickerVisible}
+        onClose={() => setPickerVisible(false)}
+        onSelect={onPickLocation}
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: colors.bg },
+  screen: { flex: 1, backgroundColor: colors.surface },
+  flex: { flex: 1, backgroundColor: colors.surface },
   content: {
-    padding: spacing.lg,
     paddingBottom: spacing.xl * 2,
   },
-  brandBar: {
+  body: {
+    padding: spacing.lg,
+  },
+  calendarNav: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-  },
-  brandLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  brandIcon: {
-    width: 26,
-    height: 26,
-  },
-  wordmark: {
-    fontSize: 20,
-    fontFamily: fonts.wordmark,
-    color: colors.accent,
-  },
-  titleBlock: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: spacing.sm,
     marginTop: spacing.lg,
-  },
-  month: {
-    fontSize: 26,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  year: {
-    fontSize: 26,
-    fontWeight: '300',
-    color: colors.textFaint,
-  },
-  gear: {
-    padding: spacing.xs,
-  },
-  gearText: {
-    fontSize: 22,
-    color: colors.textMuted,
-  },
-  nav: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: spacing.md,
-    marginBottom: spacing.lg,
+    marginBottom: spacing.md,
+    // Match the 3px padding inside each day cell so the arrows line up with the
+    // Monday and Sunday columns below.
+    paddingHorizontal: 3,
   },
   navBtn: {
     width: 44,
@@ -375,22 +425,16 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: radius.md,
+    backgroundColor: colors.cellBg,
   },
   navText: {
     fontSize: 22,
     color: colors.text,
     lineHeight: 24,
   },
-  todayBtn: {
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.lg,
-  },
-  todayBtnText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.textMuted,
-  },
-  todayBtnTextActive: {
+  monthYear: {
+    fontSize: 22,
+    fontWeight: '700',
     color: colors.text,
   },
   pressed: { opacity: 0.6 },
@@ -422,6 +466,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 12,
     color: colors.textFaint,
+    lineHeight: 17,
   },
   legendWrap: {
     marginTop: spacing.md,
@@ -429,13 +474,11 @@ const styles = StyleSheet.create({
   section: {
     marginTop: spacing.xl,
   },
-  sectionLabel: {
-    fontSize: 13,
-    fontWeight: '600',
+  heading: {
+    fontSize: 18,
+    fontWeight: '700',
     color: colors.text,
     marginBottom: spacing.sm,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
   },
   notes: {
     minHeight: 96,

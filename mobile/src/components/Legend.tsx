@@ -36,26 +36,28 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'center',
-    gap: spacing.md,
+    rowGap: spacing.sm,
+    columnGap: spacing.lg,
   },
   item: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: spacing.sm,
   },
+  // Square swatch with a border, matching the web .legend-color.
   swatch: {
-    width: 12,
-    height: 12,
-    borderRadius: 3,
+    width: 16,
+    height: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   scheduledSwatch: {
     backgroundColor: 'transparent',
-    borderWidth: 1,
     borderStyle: 'dashed',
     borderColor: colors.borderStrong,
   },
   label: {
-    fontSize: 12,
+    fontSize: 13,
     color: colors.textMuted,
   },
 });
