@@ -23,10 +23,10 @@ type Databaser interface {
 	GetDay(userID int, day int, month int, year int) (model.DayState, error)
 	SaveMonth(userID int, month int, year int, state model.MonthState) error
 	GetMonth(userID int, month int, year int) (model.MonthState, error)
-	GetYear(userID int, year int) (model.YearState, error)
+	GetYear(userID int, year int, startMonth int) (model.YearState, error)
 	SaveNote(userID int, month int, year int, note string) error
 	GetNote(userID int, month int, year int) (model.Note, error)
-	GetNotes(userID int, year int) (map[int]model.Note, error)
+	GetNotes(userID int, year int, startMonth int) (map[int]model.Note, error)
 
 	GetUserByGHID(ghID string) (int, error)
 	GetUserBySecret(secret string) (int, error)
@@ -41,10 +41,14 @@ type Databaser interface {
 	SaveThemePreferences(userID int, prefs model.ThemePreferences) error
 	GetSchedulePreferences(userID int) (model.SchedulePreferences, error)
 	SaveSchedulePreferences(userID int, prefs model.SchedulePreferences) error
+	GetCalendarPreferences(userID int) (model.CalendarPreferences, error)
+	SaveCalendarPreferences(userID int, prefs model.CalendarPreferences) error
 
 	SaveSecret(userID int, secret string, name string) error
 	ListActiveTokens(userID int) ([]TokenMetadata, error)
 	RevokeToken(userID int, tokenID int) error
+	// RevokeSecretByValue deactivates the secret with the given value.
+	RevokeSecretByValue(secret string) error
 
 	IsUserSuspended(userID int) (bool, error)
 }

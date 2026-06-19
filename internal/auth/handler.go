@@ -20,5 +20,6 @@ func Router(cfg config.IntegratedApp, db database.Databaser, author *Auth) func(
 	return func(r chi.Router) {
 		r.Get("/logout", handleLogout(cfg))
 		r.Get("/callback/auth0", author.handleAuth0Callback(cfg, db))
+		r.Post("/native", author.HandleNativeExchange(cfg, db))
 	}
 }

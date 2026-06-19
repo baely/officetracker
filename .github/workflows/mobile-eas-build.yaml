@@ -1,0 +1,71 @@
+name: EAS Build
+
+# Builds the mobile app on Expo Application Services (EAS). Runs only when a new
+# version tag (v*) is pushed or when triggered manually — never on ordinary
+# commits. A tag push builds the production profile for both platforms and
+# auto-submits them: iOS to App Store Connect (TestFlight) and Android to the
+# Play Store internal track (eas.json -> submit.production.android.track). Manual
+# dispatch lets you pick the platform/profile and whether to submit. The build
+# runs on EAS infrastructure (not the GitHub runner); --no-wait queues it and
+# returns, so check progress at https://expo.dev. Requires an EXPO_TOKEN repo
+# secret (an Expo access token for the baelys-team account). Store submission
+# uses credentials saved in EAS: the App Store Connect API key and the Google
+# Play service account key (run `eas credentials` once per platform to upload
+# them).
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: "Platform to build"
+        type: choice
+        options: [ios, android, all]
+        default: ios
+      profile:
+        description: "EAS build profile (see mobile/eas.json)"
+        type: choice
+        options: [development, preview, production]
+        default: production
+      submit:
+        description: "Submit to the store once the build finishes"
+        type: boolean
+        default: false
+
+jobs:
+  build:
+    name: EAS Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build on EAS
+        run: |
+          eas build \
+            --platform ${{ inputs.platform || 'all' }} \
+            --profile ${{ inputs.profile || 'production' }} \
+            --non-interactive \
+            --no-wait \
+            ${{ (inputs.submit || github.event_name == 'push') && '--auto-submit' || '' }}

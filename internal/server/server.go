@@ -19,6 +19,7 @@ import (
 	"github.com/baely/officetracker/internal/embed"
 	v1 "github.com/baely/officetracker/internal/implementation/v1"
 	"github.com/baely/officetracker/internal/report"
+	"github.com/baely/officetracker/internal/util"
 	"github.com/baely/officetracker/pkg/model"
 )
 
@@ -58,6 +59,11 @@ func NewServer(cfg config.AppConfigurer, db database.Databaser, redis *database.
 
 	// API routes
 	r.Route("/api/v1", func(r chi.Router) {
+		// Handlers needing the auth service live here rather than apiRouter.
+		r.With(AllowedAuthMethods(auth.MethodSSO, auth.MethodSecret)).
+			Get("/account/link", s.handleAccountLinkURL)
+		r.With(AllowedAuthMethods(auth.MethodSSO, auth.MethodSecret, auth.MethodExcluded)).
+			Post("/auth/logout", s.handleLogoutToken)
 		apiRouter(s.v1)(r)
 	})
 
@@ -112,21 +118,24 @@ func (s *Server) Run() error {
 }
 
 // handleIndex handles the index route:
-// - if the app is standalone or integrated and the user is logged in, it shows the form
+// - if the app is standalone or integrated and the user is logged in, it redirects to the form
 // - if the app is integrated and the user is not logged in, it shows the hero
 func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 	switch s.cfg.(type) {
 	case config.StandaloneApp:
-		s.handleForm(w, r)
+		http.Redirect(w, r, fmt.Sprintf("/%s", time.Now().Format("2006-01")), http.StatusTemporaryRedirect)
 		return
 	case config.IntegratedApp:
 		method, _ := getAuthMethod(r)
 		var loggedInMethods = []auth.Method{auth.MethodSSO, auth.MethodSecret}
-		if !slices.Contains(loggedInMethods, method) {
-			s.handleHero(w, r)
+		if slices.Contains(loggedInMethods, method) {
+			if userID, err := getUserID(r); err == nil && userID != 0 {
+				http.Redirect(w, r, fmt.Sprintf("/%s", time.Now().Format("2006-01")), http.StatusTemporaryRedirect)
+				return
+			}
 		}
 
-		s.handleForm(w, r)
+		s.handleHero(w, r)
 	default:
 		s.handleHero(w, r)
 	}
@@ -164,9 +173,16 @@ func (s *Server) handleForm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if month > 9 {
-		year++
+	calendarPrefs, err := s.db.GetCalendarPreferences(userID)
+	if err != nil {
+		err = fmt.Errorf("failed to get calendar preferences: %w", err)
+		errorPage(w, r, err, internalErrorMsg, http.StatusInternalServerError)
+		return
 	}
+	startMonth := util.NormaliseStartMonth(calendarPrefs.TrackingYearStartMonth)
+
+	// Translate the displayed calendar month/year into its tracking-year label.
+	year = util.TrackingYear(month, year, startMonth)
 
 	yearlyData, err := s.v1.GetYear(model.GetYearRequest{
 		Meta: model.GetYearRequestMeta{
@@ -207,8 +223,9 @@ func (s *Server) handleForm(w http.ResponseWriter, r *http.Request) {
 	yearlyNotesStr := string(yearlyNotesByte)
 
 	serveForm(w, r, formPage{
-		YearlyState: template.JS(yearlyDataStr),
-		YearlyNotes: template.JS(yearlyNotesStr),
+		YearlyState:        template.JS(yearlyDataStr),
+		YearlyNotes:        template.JS(yearlyNotesStr),
+		TrackingStartMonth: startMonth,
 	})
 }
 
@@ -275,7 +292,55 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 		Auth0AuthURL:        authURL,
 		ThemePreferences:    settings.ThemePreferences,
 		SchedulePreferences: settings.SchedulePreferences,
+		CalendarPreferences: settings.CalendarPreferences,
 	})
+}
+
+// handleAccountLinkURL returns an Auth0 account-linking URL for the signed-in
+// user (expires after 10 minutes).
+func (s *Server) handleAccountLinkURL(w http.ResponseWriter, r *http.Request) {
+	if s.auth == nil {
+		writeError(w, "account linking is not available", http.StatusNotImplemented)
+		return
+	}
+	userID, err := getUserID(r)
+	if err != nil || userID == 0 {
+		writeError(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	url, err := s.auth.GenerateAuth0AuthLink(userID)
+	if err != nil {
+		slog.Error(fmt.Sprintf("failed to generate account link url: %v", err))
+		writeError(w, internalErrorMsg, http.StatusInternalServerError)
+		return
+	}
+	b, err := json.Marshal(map[string]string{"url": url})
+	if err != nil {
+		writeError(w, internalErrorMsg, http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(b)
+}
+
+// handleLogoutToken revokes the API token presented on this request. No-op for
+// standalone and cookie/SSO sessions.
+func (s *Server) handleLogoutToken(w http.ResponseWriter, r *http.Request) {
+	cfg, ok := s.cfg.(config.IntegratedApp)
+	if !ok {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	secret, method := auth.GetAuth(cfg, r)
+	if method == auth.MethodSecret && secret != "" {
+		if err := s.db.RevokeSecretByValue(secret); err != nil {
+			slog.Error(fmt.Sprintf("failed to revoke token on logout: %v", err))
+			writeError(w, internalErrorMsg, http.StatusInternalServerError)
+			return
+		}
+		slog.Info("revoked token on logout")
+	}
+	w.WriteHeader(http.StatusOK)
 }
 
 func (s *Server) handleDeveloper(w http.ResponseWriter, r *http.Request) {

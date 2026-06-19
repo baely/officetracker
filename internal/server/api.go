@@ -54,16 +54,17 @@ func noteRouter(service *v1.Service) func(chi.Router) {
 }
 
 func settingsRouter(service *v1.Service) func(router chi.Router) {
-	middlewares := []func(handler http.Handler) http.Handler{AllowedAuthMethods(auth.MethodSSO, auth.MethodExcluded)}
+	middlewares := []func(handler http.Handler) http.Handler{AllowedAuthMethods(auth.MethodSSO, auth.MethodSecret, auth.MethodExcluded)}
 	return func(r chi.Router) {
 		r.With(middlewares...).Method(http.MethodGet, "/", wrap(service.GetSettings))
 		r.With(middlewares...).Method(http.MethodPut, "/theme", wrap(service.UpdateThemePreferences))
 		r.With(middlewares...).Method(http.MethodPut, "/schedule", wrap(service.UpdateSchedulePreferences))
+		r.With(middlewares...).Method(http.MethodPut, "/calendar", wrap(service.UpdateCalendarPreferences))
 	}
 }
 
 func developerRouter(service *v1.Service) func(chi.Router) {
-	middlewares := chi.Middlewares{AllowedAuthMethods(auth.MethodSSO)}
+	middlewares := chi.Middlewares{AllowedAuthMethods(auth.MethodSSO, auth.MethodSecret)}
 	return func(r chi.Router) {
 		r.With(middlewares...).Method(http.MethodPost, "/secret", wrap(service.PostSecret))
 		r.With(middlewares...).Method(http.MethodGet, "/tokens", wrap(service.ListTokens))

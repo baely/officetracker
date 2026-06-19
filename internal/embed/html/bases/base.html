@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Calistoga&display=swap" rel="stylesheet">
-    <link href="/static/themes.css" rel="stylesheet">
+    <link href="/static/themes.css?v=2" rel="stylesheet">
     <style>
         html, body { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; margin: 0; padding: 0; }
         body { background-color: #f7f8f8; height: 100vh; overflow-x: hidden; overflow-y: auto; width: 100vw; }
@@ -342,6 +342,8 @@ function fetchThemePreferences() {
     }
 }
 
+let skylineTimeTimer = null;
+
 function applyTheme(themeName, weatherEnabled, timeBasedEnabled) {
     // Remove existing theme classes
     document.body.className = '';
@@ -349,6 +351,10 @@ function applyTheme(themeName, weatherEnabled, timeBasedEnabled) {
     // Reset dynamic elements
     const themeElements = document.getElementById('theme-elements');
     themeElements.innerHTML = '';
+    if (skylineTimeTimer) {
+        clearInterval(skylineTimeTimer);
+        skylineTimeTimer = null;
+    }
 
     // Apply the selected theme
     if (themeName === 'default') {
@@ -358,102 +364,51 @@ function applyTheme(themeName, weatherEnabled, timeBasedEnabled) {
 
         // For city-skyline theme with special features
         if (themeName === 'city-skyline') {
-            // Create skyline background container
             const skylineContainer = document.createElement('div');
             skylineContainer.className = 'skyline-background';
-
-            // Use object tag to embed the SVG (allows animations to work)
-            const skylineObject = document.createElement('object');
-            skylineObject.type = 'image/svg+xml';
-            skylineObject.data = '/static/skyline.svg';
-            skylineObject.id = 'skyline-svg';
-
-            // Handle SVG load to apply time-based gradient
-            skylineObject.onload = function() {
-                if (timeBasedEnabled) {
-                    applySkylineTimeOfDay(skylineObject);
-                }
-            };
-
-            skylineContainer.appendChild(skylineObject);
             themeElements.appendChild(skylineContainer);
 
-            // Apply time-based theme class for fallback styling
+            // Inline the SVG into the page so the time-of-day CSS variables
+            // on <body> cascade into it (an <object> embed is a separate
+            // document and can't see them).
+            fetch('/static/skyline.svg?v=2')
+                .then(response => response.text())
+                .then(svg => { skylineContainer.innerHTML = svg; })
+                .catch(error => console.error('Error loading skyline:', error));
+
             if (timeBasedEnabled) {
-                const hour = new Date().getHours();
-                if (hour >= 5 && hour < 10) {
-                    document.body.classList.add('time-morning');
-                } else if (hour >= 10 && hour < 17) {
-                    document.body.classList.add('time-day');
-                } else if (hour >= 17 && hour < 21) {
-                    document.body.classList.add('time-evening');
-                } else {
-                    document.body.classList.add('time-night');
-                }
+                applySkylineTimeOfDay();
+                // Refresh each minute so the scene follows the clock
+                skylineTimeTimer = setInterval(applySkylineTimeOfDay, 60 * 1000);
+            } else {
+                document.body.classList.add('time-day');
             }
 
-            // Apply weather effect if enabled
             if (weatherEnabled) {
                 // Fetch weather data for Melbourne, Australia
-                fetchMelbourneWeather(timeBasedEnabled);
+                fetchMelbourneWeather();
             }
         }
     }
 }
 
-function applySkylineTimeOfDay(skylineObject) {
-    try {
-        const svgDoc = skylineObject.contentDocument;
-        if (!svgDoc) return;
-
-        const hour = new Date().getHours();
-        const skyBg = svgDoc.getElementById('sky-bg');
-        const stars = svgDoc.querySelector('.stars');
-        const sunMoon = svgDoc.getElementById('sun-moon');
-
-        if (!skyBg) return;
-
-        // Determine time of day and apply appropriate gradient
-        if (hour >= 5 && hour < 10) {
-            // Morning
-            skyBg.setAttribute('fill', 'url(#skyGradientMorning)');
-            if (stars) stars.style.opacity = '0';
-            if (sunMoon) {
-                sunMoon.setAttribute('fill', 'rgb(255, 200, 100)');
-                sunMoon.setAttribute('cy', '150');
-            }
-        } else if (hour >= 10 && hour < 17) {
-            // Day (default)
-            skyBg.setAttribute('fill', 'url(#skyGradient)');
-            if (stars) stars.style.opacity = '0';
-            if (sunMoon) {
-                sunMoon.setAttribute('fill', 'rgb(255, 254, 236)');
-                sunMoon.setAttribute('cy', '106');
-            }
-        } else if (hour >= 17 && hour < 21) {
-            // Evening
-            skyBg.setAttribute('fill', 'url(#skyGradientEvening)');
-            if (stars) stars.style.opacity = '0.3';
-            if (sunMoon) {
-                sunMoon.setAttribute('fill', 'rgb(255, 150, 80)');
-                sunMoon.setAttribute('cy', '200');
-            }
-        } else {
-            // Night
-            skyBg.setAttribute('fill', 'url(#skyGradientNight)');
-            if (stars) stars.style.opacity = '1';
-            if (sunMoon) {
-                sunMoon.setAttribute('fill', 'rgb(230, 230, 200)');
-                sunMoon.setAttribute('cy', '120');
-                sunMoon.setAttribute('r', '30');
-            }
-        }
-    } catch (e) {
-        console.error('Error applying time of day to skyline:', e);
+function applySkylineTimeOfDay() {
+    const hour = new Date().getHours();
+    let bucket;
+    if (hour >= 5 && hour < 9) {
+        bucket = 'morning';
+    } else if (hour >= 9 && hour < 17) {
+        bucket = 'day';
+    } else if (hour >= 17 && hour < 20) {
+        bucket = 'evening';
+    } else {
+        bucket = 'night';
     }
+    document.body.classList.remove('time-morning', 'time-day', 'time-evening', 'time-night');
+    document.body.classList.add('time-' + bucket);
 }
 
-function fetchMelbourneWeather(timeBasedEnabled) {
+function fetchMelbourneWeather() {
     // Melbourne coordinates
     const lat = -37.8142;
     const lon = 144.9631;
@@ -469,7 +424,6 @@ function fetchMelbourneWeather(timeBasedEnabled) {
             // Weather codes are based on WMO standards:
             // https://open-meteo.com/en/docs (see Weather variable documentation section)
             const weatherCode = data.current.weather_code;
-            const isDay = data.current.is_day === 1;
 
             let weatherType = 'clear';
 
@@ -494,56 +448,15 @@ function fetchMelbourneWeather(timeBasedEnabled) {
                 weatherType = 'thunderstorm';
             }
 
-            // Apply the weather effect
+            // Apply the weather effect; the weather-* body class drives
+            // overlays and cloud styling in themes.css
             if (weatherType !== 'clear') {
                 document.body.classList.add('weather-' + weatherType);
-                applyWeatherToSkyline(weatherType);
-            }
-
-            // If it's night, also add the night class regardless of weather
-            if (!isDay && timeBasedEnabled) {
-                document.body.classList.add('time-night');
-                // Re-apply time of day to skyline for night
-                const skylineObject = document.getElementById('skyline-svg');
-                if (skylineObject && skylineObject.contentDocument) {
-                    applySkylineTimeOfDay(skylineObject);
-                }
             }
         })
         .catch(error => {
             console.error('Error fetching weather data:', error);
         });
-}
-
-function applyWeatherToSkyline(weatherType) {
-    const themeElements = document.getElementById('theme-elements');
-
-    // Add weather overlay div on top of skyline
-    const weatherOverlay = document.createElement('div');
-    weatherOverlay.className = 'weather-overlay weather-' + weatherType;
-    themeElements.appendChild(weatherOverlay);
-
-    // Also try to modify the SVG clouds opacity based on weather
-    const skylineObject = document.getElementById('skyline-svg');
-    if (skylineObject && skylineObject.contentDocument) {
-        try {
-            const svgDoc = skylineObject.contentDocument;
-            const clouds = svgDoc.querySelector('.clouds');
-            if (clouds) {
-                if (weatherType === 'cloudy' || weatherType === 'rain' || weatherType === 'thunderstorm') {
-                    // Make clouds more visible for cloudy/rainy weather
-                    clouds.style.opacity = '1';
-                    const cloudEllipses = clouds.querySelectorAll('ellipse');
-                    cloudEllipses.forEach(el => {
-                        const currentOpacity = parseFloat(el.getAttribute('opacity') || 0.08);
-                        el.setAttribute('opacity', Math.min(currentOpacity * 3, 0.4));
-                    });
-                }
-            }
-        } catch (e) {
-            console.error('Error applying weather to skyline SVG:', e);
-        }
-    }
 }
 
 // Initialize theme when page loads

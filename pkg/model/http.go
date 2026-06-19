@@ -163,6 +163,13 @@ type SchedulePreferences struct {
 	Sunday    State `json:"sunday"`
 }
 
+// CalendarPreferences holds settings that control how the reporting/tracking year
+// is laid out for a user.
+type CalendarPreferences struct {
+	// TrackingYearStartMonth is the month (1-12) the tracking year starts on.
+	TrackingYearStartMonth int `json:"tracking_year_start_month"`
+}
+
 type LinkedAccount struct {
 	Provider        string `json:"provider"`
 	ProviderDisplay string `json:"provider_display"`
@@ -173,6 +180,7 @@ type GetSettingsResponse struct {
 	LinkedAccounts      []LinkedAccount     `json:"linked_accounts"`
 	ThemePreferences    ThemePreferences    `json:"theme_preferences"`
 	SchedulePreferences SchedulePreferences `json:"schedule_preferences"`
+	CalendarPreferences CalendarPreferences `json:"calendar_preferences"`
 }
 
 type UpdateThemePreferencesRequest struct {
@@ -196,6 +204,17 @@ type UpdateSchedulePreferencesRequestMeta struct {
 }
 
 type UpdateSchedulePreferencesResponse struct{}
+
+type UpdateCalendarPreferencesRequest struct {
+	Meta UpdateCalendarPreferencesRequestMeta `meta:"meta" json:"-"`
+	Data CalendarPreferences                  `json:"data"`
+}
+
+type UpdateCalendarPreferencesRequestMeta struct {
+	UserID int `meta:"user_id"`
+}
+
+type UpdateCalendarPreferencesResponse struct{}
 
 // Token management models
 type PostSecretRequest struct {

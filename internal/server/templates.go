@@ -18,8 +18,9 @@ type basePage struct {
 
 type formPage struct {
 	basePage
-	YearlyState template.JS
-	YearlyNotes template.JS
+	YearlyState        template.JS
+	YearlyNotes        template.JS
+	TrackingStartMonth int
 }
 
 func serveForm(w http.ResponseWriter, r *http.Request, page formPage) {
@@ -35,13 +36,11 @@ type heroPage struct {
 }
 
 func serveHero(w http.ResponseWriter, r *http.Request, page heroPage) {
-	http.Redirect(w, r, "/login", http.StatusTemporaryRedirect)
-
-	// TODO: create proper hero
-	//if err := embed.Hero.Execute(w, page); err != nil {
-	//	err = fmt.Errorf("failed to execute hero template: %w", err)
-	//	errorPage(w, err, internalErrorMsg, http.StatusInternalServerError)
-	//}
+	page.basePage = getBasePageData(r)
+	if err := embed.Hero.Execute(w, page); err != nil {
+		err = fmt.Errorf("failed to execute hero template: %w", err)
+		errorPage(w, r, err, internalErrorMsg, http.StatusInternalServerError)
+	}
 }
 
 type loginPage struct {
@@ -63,6 +62,7 @@ type settingsPage struct {
 	Auth0AuthURL        string
 	ThemePreferences    model.ThemePreferences
 	SchedulePreferences model.SchedulePreferences
+	CalendarPreferences model.CalendarPreferences
 }
 
 func serveSettings(w http.ResponseWriter, r *http.Request, page settingsPage) {
@@ -137,11 +137,18 @@ func getBasePageData(r *http.Request) basePage {
 }
 
 func errorPage(w http.ResponseWriter, r *http.Request, err error, userMsg string, status int) {
-	slog.Error(err.Error())
+	// err may be nil (e.g. a 404 from handleNotFound); fall back to userMsg.
+	errMsg := userMsg
+	if err != nil {
+		slog.Error(err.Error())
+		errMsg = err.Error()
+	} else {
+		slog.Error(userMsg)
+	}
 	w.WriteHeader(status)
 	if err := embed.Error.Execute(w, ErrorPage{
 		basePage:     getBasePageData(r),
-		ErrorMessage: err.Error(),
+		ErrorMessage: errMsg,
 	}); err != nil {
 		err = fmt.Errorf("failed to execute error template: %w", err)
 		slog.Error(err.Error())

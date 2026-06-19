@@ -2,6 +2,29 @@ const states = ["untracked", "present", "not present", "other", "scheduled-prese
 const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September",
     "October", "November", "December"];
 
+// The month (1-12) the tracking year starts on, configurable per user.
+let trackingStartMonth = {{ .TrackingStartMonth }} || 10;
+
+// trackingYearForMonth0 maps a 0-indexed calendar month + calendar year to its
+// tracking-year label (mirrors util.TrackingYear in Go).
+function trackingYearForMonth0(month0, calYear) {
+    if (trackingStartMonth === 1) { return calYear; }
+    return month0 < (trackingStartMonth - 1) ? calYear : calYear + 1;
+}
+
+// calendarYearForMonth maps a 1-indexed calendar month to the calendar year it
+// falls in within the tracking year labelled fy (mirrors util.TrackingYearCalendarYears).
+function calendarYearForMonth(month1, fy) {
+    if (trackingStartMonth === 1) { return fy; }
+    return month1 >= trackingStartMonth ? fy - 1 : fy;
+}
+
+// trackingMonthOrder returns the position (0-11) of a 1-indexed month within the
+// tracking year.
+function trackingMonthOrder(month1) {
+    return (month1 - trackingStartMonth + 12) % 12;
+}
+
 class Summary {
     constructor(data, year) {
         this.updateYear(year, data);
@@ -85,7 +108,7 @@ class Summary {
         this.year = year;
         this.data = {};
         for (const [month, vals] of Object.entries(state)) {
-            let monthYear = month <= 9 ? year : year - 1;
+            let monthYear = calendarYearForMonth(parseInt(month), year);
             let key = formatDate(monthYear, parseInt(month) - 1);
             let stats = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
             for (const [day, state] of Object.entries(vals)) {
@@ -110,7 +133,7 @@ class Data {
         this.state = state;
         this.notes = notes;
         this.updateDate(true, false);
-        let year = this.currentMonth < 9 ? this.currentYear : this.currentYear + 1;
+        let year = trackingYearForMonth0(this.currentMonth, this.currentYear);
         this.summary = new Summary(state, year);
         this.refreshDOM();
         Data.notesDOM.addEventListener("blur", () => { this.updateNote() });
@@ -160,7 +183,7 @@ class Data {
     drawSummary() { this.summary.refreshDOM(); }
 
     fetchData() {
-        let year = this.currentMonth < 9 ? this.currentYear : this.currentYear + 1;
+        let year = trackingYearForMonth0(this.currentMonth, this.currentYear);
         fetch("/api/v1/state/" + year)
             .then(r => r.json())
             .then(payload => {
@@ -171,7 +194,7 @@ class Data {
     }
 
     fetchNotes() {
-        let year = this.currentMonth < 9 ? this.currentYear : this.currentYear + 1;
+        let year = trackingYearForMonth0(this.currentMonth, this.currentYear);
         fetch("/api/v1/note/" + year)
             .then(r => r.json())
             .then(payload => {
@@ -259,7 +282,10 @@ class Data {
             this.currentYear++;
         }
         window.history.pushState({}, "", "/" + formatDate(this.currentYear, this.currentMonth));
-        let sameYear = !(this.currentMonth === 8 && delta === -1) && !(this.currentMonth === 9 && delta === 1);
+        // Detect crossing a tracking-year boundary (0-indexed first/last tracking months).
+        let firstMonth0 = (trackingStartMonth - 1) % 12;
+        let lastMonth0 = (trackingStartMonth - 2 + 12) % 12;
+        let sameYear = !(this.currentMonth === lastMonth0 && delta === -1) && !(this.currentMonth === firstMonth0 && delta === 1);
         this.updateDate(sameYear, true);
     }
 
@@ -289,7 +315,7 @@ class Data {
         if (csvButton.onclick) { csvButton.onclick = null; }
         if (pdfButton.onclick) { pdfButton.onclick = null; }
 
-        let year = this.currentMonth < 9 ? this.currentYear : this.currentYear + 1;
+        let year = trackingYearForMonth0(this.currentMonth, this.currentYear);
 
         csvButton.onclick = () => {
             window.location.href = "/api/v1/report/csv/" + year + "-attendance";
@@ -445,10 +471,8 @@ function calculateAllTimeTotal(currState, currentMonth, upToDay) {
 
     // Get all months from the state and sort them
     let months = Object.keys(currState).map(m => parseInt(m)).sort((a, b) => {
-        // Fiscal year ordering: Oct(10), Nov(11), Dec(12), Jan(1), Feb(2), etc.
-        let aOrder = a >= 10 ? a - 10 : a + 2;
-        let bOrder = b >= 10 ? b - 10 : b + 2;
-        return aOrder - bOrder;
+        // Order months within the tracking year (start month first).
+        return trackingMonthOrder(a) - trackingMonthOrder(b);
     });
 
     for (let m of months) {
