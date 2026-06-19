@@ -52,6 +52,9 @@ export default function SettingsScreen({
     [conn, onUnauthorized],
   );
 
+  // Read-only servers (e.g. the public demo) hide every account/write affordance.
+  const readOnly = conn.readOnly;
+
   const [settings, setSettings] = useState<Settings | null>(null);
   const [tokens, setTokens] = useState<TokenInfo[]>([]);
   const [loading, setLoading] = useState(true);
@@ -76,7 +79,12 @@ export default function SettingsScreen({
       else setLoading(true);
       setError(null);
       try {
-        const [s, t] = await Promise.all([api.getSettings(), api.listTokens()]);
+        // Developer tokens require auth; skip them on a read-only/anonymous
+        // server (the section is hidden, and the call would otherwise 401).
+        const [s, t] = await Promise.all([
+          api.getSettings(),
+          readOnly ? Promise.resolve<TokenInfo[]>([]) : api.listTokens(),
+        ]);
         setSettings(s);
         setTokens(t);
         // Cache for the background geofence task, which can't fetch settings.
@@ -88,7 +96,7 @@ export default function SettingsScreen({
         setRefreshing(false);
       }
     },
-    [api],
+    [api, readOnly],
   );
 
   useEffect(() => {
@@ -217,6 +225,21 @@ export default function SettingsScreen({
   }
 
   function signOut() {
+    // A read-only/anonymous connection has no session to revoke — just drop it.
+    if (readOnly) {
+      Alert.alert('Disconnect', 'Disconnect from this server?', [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Disconnect',
+          style: 'destructive',
+          onPress: async () => {
+            await clearConnection();
+            onDisconnect();
+          },
+        },
+      ]);
+      return;
+    }
     Alert.alert('Sign out', 'Sign out of Officetracker on this device?', [
       { text: 'Cancel', style: 'cancel' },
       {
@@ -266,44 +289,50 @@ export default function SettingsScreen({
         </View>
       ) : (
         <>
-          {/* Accounts */}
-          <Text style={styles.sectionLabel}>Accounts</Text>
-          <View style={styles.card}>
-            {settings && settings.linkedAccounts.length > 0 ? (
-              settings.linkedAccounts.map((a, i) => (
-                <View key={`${a.provider}-${i}`}>
-                  {i > 0 && <View style={styles.hr} />}
-                  <Text style={styles.fieldLabel}>{a.providerDisplay}</Text>
-                  <Text style={styles.fieldValue}>{a.nickname || '—'}</Text>
-                </View>
-              ))
-            ) : (
-              <Text style={styles.muted}>No linked accounts.</Text>
-            )}
-          </View>
-          <Pressable
-            style={styles.button}
-            onPress={addAccount}
-            disabled={addingAccount}
-          >
-            {addingAccount ? (
-              <ActivityIndicator color={colors.text} />
-            ) : (
-              <Text style={styles.buttonText}>Add account</Text>
-            )}
-          </Pressable>
+          {/* Accounts (hidden on a read-only/anonymous server) */}
+          {!readOnly && (
+            <>
+              <Text style={styles.sectionLabel}>Accounts</Text>
+              <View style={styles.card}>
+                {settings && settings.linkedAccounts.length > 0 ? (
+                  settings.linkedAccounts.map((a, i) => (
+                    <View key={`${a.provider}-${i}`}>
+                      {i > 0 && <View style={styles.hr} />}
+                      <Text style={styles.fieldLabel}>{a.providerDisplay}</Text>
+                      <Text style={styles.fieldValue}>{a.nickname || '—'}</Text>
+                    </View>
+                  ))
+                ) : (
+                  <Text style={styles.muted}>No linked accounts.</Text>
+                )}
+              </View>
+              <Pressable
+                style={styles.button}
+                onPress={addAccount}
+                disabled={addingAccount}
+              >
+                {addingAccount ? (
+                  <ActivityIndicator color={colors.text} />
+                ) : (
+                  <Text style={styles.buttonText}>Add account</Text>
+                )}
+              </Pressable>
+            </>
+          )}
 
           {/* Planned days */}
           <Text style={styles.sectionLabel}>Planned days</Text>
           <Text style={styles.hint}>
-            Set the days you usually attend. They show as faded "planned" days on
-            the calendar. Tap to cycle, long-press to go back.
+            {readOnly
+              ? 'The days usually attended, shown as faded "planned" days on the calendar.'
+              : 'Set the days you usually attend. They show as faded "planned" days on the calendar. Tap to cycle, long-press to go back.'}
           </Text>
           <View style={styles.card}>
             {settings && (
               <ScheduleEditor
                 schedule={settings.schedule}
                 onChange={cycleSchedule}
+                disabled={readOnly}
               />
             )}
             <View style={styles.legendWrap}>
@@ -331,6 +360,7 @@ export default function SettingsScreen({
                   <Pressable
                     key={month}
                     onPress={() => setTrackingStart(month)}
+                    disabled={readOnly}
                     style={[styles.monthChip, selected && styles.monthChipSelected]}
                   >
                     <Text
@@ -347,7 +377,9 @@ export default function SettingsScreen({
             </ScrollView>
           </View>
 
-          {/* Work location */}
+          {/* Work location (device feature; hidden on a read-only server) */}
+          {!readOnly && (
+            <>
           <Text style={styles.sectionLabel}>Work location</Text>
           <Text style={styles.hint}>
             When you arrive here, Officetracker marks the day as an office day —
@@ -391,8 +423,12 @@ export default function SettingsScreen({
               </>
             )}
           </View>
+            </>
+          )}
 
-          {/* Developer tokens */}
+          {/* Developer tokens (require auth; hidden on a read-only server) */}
+          {!readOnly && (
+            <>
           <Text style={styles.sectionLabel}>Developer tokens</Text>
           <Text style={styles.hint}>
             API tokens for scripts or the MCP server. Sent as a Bearer token.
@@ -457,9 +493,13 @@ export default function SettingsScreen({
               </Pressable>
             </View>
           )}
+            </>
+          )}
 
           <Pressable style={[styles.button, styles.danger]} onPress={signOut}>
-            <Text style={[styles.buttonText, styles.dangerText]}>Sign out</Text>
+            <Text style={[styles.buttonText, styles.dangerText]}>
+              {readOnly ? 'Disconnect' : 'Sign out'}
+            </Text>
           </Pressable>
         </>
       )}
