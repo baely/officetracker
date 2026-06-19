@@ -11,9 +11,11 @@ interface Props {
   month: number; // 1-12
   days: MonthDays;
   onCycle: (day: number, direction: 1 | -1) => void;
+  // Display-only: render days without responding to taps (read-only server).
+  readOnly?: boolean;
 }
 
-function Calendar({ year, month, days, onCycle }: Props) {
+function Calendar({ year, month, days, onCycle, readOnly }: Props) {
   const weeks = monthGrid(year, month);
 
   return (
@@ -39,6 +41,7 @@ function Calendar({ year, month, days, onCycle }: Props) {
               }
               onPress={() => cell.day != null && onCycle(cell.day, 1)}
               onLongPress={() => cell.day != null && onCycle(cell.day, -1)}
+              disabled={readOnly}
             />
           ))}
         </View>

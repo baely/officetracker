@@ -11,7 +11,7 @@ import {
   View,
 } from 'react-native';
 import { useAuth0 } from 'react-native-auth0';
-import { exchangeNativeToken } from '../api';
+import { exchangeNativeToken, fetchServerMeta, ServerMeta } from '../api';
 import { AUTH0_SCHEME, DEFAULT_BASE_URL } from '../config';
 import { Connection, saveConnection } from '../storage';
 import { colors, fonts, radius, spacing } from '../theme';
@@ -38,13 +38,40 @@ export default function LoginScreen({
   const [advanced, setAdvanced] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Cached capabilities of the entered server, probed when the field changes so
+  // we can relabel the button and hint that no sign-in is needed.
+  const [serverMeta, setServerMeta] = useState<ServerMeta | null>(null);
 
   const normalised = normaliseUrl(baseUrl);
+  const anonymous = serverMeta?.auth === 'none';
 
-  async function signIn() {
+  // Probe the server's /api/v1/meta so the UI reflects an anonymous server
+  // before the user commits. Runs on blur of the server field.
+  async function probeServer() {
+    setServerMeta(await fetchServerMeta(normaliseUrl(baseUrl)));
+  }
+
+  async function connect() {
     setError(null);
     setBusy(true);
     try {
+      // Ask the server how to authenticate (cheap, unauthenticated probe).
+      const meta = await fetchServerMeta(normalised);
+      setServerMeta(meta);
+
+      // Anonymous server: no Auth0 prompt and no token exchange — connect with
+      // an empty token straight away.
+      if (meta.auth === 'none') {
+        const conn: Connection = {
+          baseUrl: normalised,
+          token: '',
+          readOnly: meta.readOnly,
+        };
+        await saveConnection(conn);
+        onConnected(conn);
+        return;
+      }
+
       const credentials = await authorize(
         // Always show a fresh login screen instead of silently reusing a cached
         // Auth0 session. prompt=login asks the server to re-prompt, and
@@ -64,7 +91,11 @@ export default function LoginScreen({
       }
 
       const token = await exchangeNativeToken(normalised, credentials.idToken);
-      const conn: Connection = { baseUrl: normalised, token };
+      const conn: Connection = {
+        baseUrl: normalised,
+        token,
+        readOnly: meta.readOnly,
+      };
       await saveConnection(conn);
       onConnected(conn);
     } catch (e: any) {
@@ -100,13 +131,15 @@ export default function LoginScreen({
               pressed && styles.buttonPressed,
               busy && styles.buttonDisabled,
             ]}
-            onPress={signIn}
+            onPress={connect}
             disabled={busy}
           >
             {busy ? (
               <ActivityIndicator color="#ffffff" />
             ) : (
-              <Text style={styles.buttonText}>Sign in</Text>
+              <Text style={styles.buttonText}>
+                {anonymous ? 'Continue' : 'Sign in'}
+              </Text>
             )}
           </Pressable>
 
@@ -116,7 +149,12 @@ export default function LoginScreen({
               <TextInput
                 style={styles.input}
                 value={baseUrl}
-                onChangeText={setBaseUrl}
+                onChangeText={(t) => {
+                  setBaseUrl(t);
+                  // A new URL invalidates the previous probe.
+                  setServerMeta(null);
+                }}
+                onBlur={probeServer}
                 autoCapitalize="none"
                 autoCorrect={false}
                 keyboardType="url"
@@ -126,7 +164,9 @@ export default function LoginScreen({
                 editable={!busy}
               />
               <Text style={styles.hint}>
-                Change this only if you use a different Office Tracker instance.
+                {anonymous
+                  ? "This server doesn't require sign in — it's a read-only demo."
+                  : 'Change this only if you use a different Office Tracker instance.'}
               </Text>
             </View>
           ) : (
