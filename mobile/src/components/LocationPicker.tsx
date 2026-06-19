@@ -12,8 +12,8 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
-import MapView, { MapPressEvent, Marker, MarkerDragStartEndEvent } from 'react-native-maps';
 import { WebView } from 'react-native-webview';
+import NativeMap, { NativeMapHandle } from './NativeMap';
 import { colors, radius, spacing } from '../theme';
 
 export interface Coord {
@@ -85,7 +85,7 @@ export default function LocationPicker({
   onSelect,
 }: Props) {
   const webRef = useRef<WebView>(null);
-  const mapRef = useRef<MapView>(null);
+  const mapRef = useRef<NativeMapHandle>(null);
   const [center, setCenter] = useState<Coord | null>(null);
   const [coord, setCoord] = useState<Coord | null>(null);
   const [address, setAddress] = useState('');
@@ -157,10 +157,7 @@ export default function LocationPicker({
   // Move the visible map to a coordinate (after an address search).
   function recenter(c: Coord) {
     if (Platform.OS === 'ios') {
-      mapRef.current?.animateToRegion(
-        { ...c, latitudeDelta: DELTA, longitudeDelta: DELTA },
-        350,
-      );
+      mapRef.current?.recenter(c);
     } else {
       webRef.current?.injectJavaScript(
         `window.setLocation(${c.latitude}, ${c.longitude}); true;`,
@@ -253,29 +250,13 @@ export default function LocationPicker({
               <Text style={styles.hint}>Finding your location…</Text>
             </View>
           ) : Platform.OS === 'ios' ? (
-            <MapView
+            <NativeMap
               ref={mapRef}
-              style={styles.map}
-              initialRegion={{
-                latitude: center.latitude,
-                longitude: center.longitude,
-                latitudeDelta: DELTA,
-                longitudeDelta: DELTA,
-              }}
-              onPress={(e: MapPressEvent) =>
-                setCoord(e.nativeEvent.coordinate)
-              }
-            >
-              {coord && (
-                <Marker
-                  draggable
-                  coordinate={coord}
-                  onDragEnd={(e: MarkerDragStartEndEvent) =>
-                    setCoord(e.nativeEvent.coordinate)
-                  }
-                />
-              )}
-            </MapView>
+              center={center}
+              coord={coord}
+              delta={DELTA}
+              onChange={setCoord}
+            />
           ) : (
             <WebView
               ref={webRef}
