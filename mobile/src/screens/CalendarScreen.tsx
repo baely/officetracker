@@ -58,7 +58,7 @@ export default function CalendarScreen({
     [conn, onUnauthorized],
   );
 
-  // Read-only servers (e.g. the public demo) can be browsed but never written to.
+  // Read-only servers can be browsed but never written to.
   const readOnly = conn.readOnly;
 
   const [view, setView] = useState<ViewMonth>(thisMonth());
@@ -358,35 +358,27 @@ export default function CalendarScreen({
           </View>
 
           <Text style={styles.tip}>
-            {readOnly
-              ? 'This is a read-only demo — attendance is shown but cannot be edited.'
-              : 'Tap a day to cycle through home, office and other; long-press to go back.'}
+            Tap a day to cycle through home, office and other; long-press to go
+            back.
           </Text>
           <View style={styles.legendWrap}>
             <Legend />
           </View>
 
-          {(!readOnly || noteText) && (
-            <View style={styles.section}>
-              <Text style={styles.heading}>Notes</Text>
-              {readOnly ? (
-                <Text style={[styles.notes, styles.notesReadOnly]}>
-                  {noteText}
-                </Text>
-              ) : (
-                <TextInput
-                  style={styles.notes}
-                  value={noteText}
-                  onChangeText={setNoteText}
-                  onBlur={saveNote}
-                  placeholder={`Notes for ${formatMonthYear(view)}…`}
-                  placeholderTextColor={colors.textFaint}
-                  multiline
-                  textAlignVertical="top"
-                />
-              )}
-            </View>
-          )}
+          <View style={styles.section}>
+            <Text style={styles.heading}>Notes</Text>
+            <TextInput
+              style={styles.notes}
+              value={noteText}
+              onChangeText={setNoteText}
+              onBlur={saveNote}
+              editable={!readOnly}
+              placeholder={`Notes for ${formatMonthYear(view)}…`}
+              placeholderTextColor={colors.textFaint}
+              multiline
+              textAlignVertical="top"
+            />
+          </View>
 
           <View style={styles.section}>
             <Text style={styles.heading}>Summary</Text>
@@ -498,8 +490,5 @@ const styles = StyleSheet.create({
     color: colors.text,
     backgroundColor: colors.fieldBg,
     lineHeight: 21,
-  },
-  notesReadOnly: {
-    color: colors.textMuted,
   },
 });

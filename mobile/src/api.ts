@@ -90,7 +90,7 @@ async function rawFetch(url: string, init?: RequestInit): Promise<Response> {
 }
 
 // How a server expects clients to authenticate. 'none' means the server serves
-// anonymous requests with no token (e.g. a public demo instance).
+// anonymous requests with no token (e.g. a public read-only instance).
 export type ServerAuth = 'auth0' | 'none';
 
 export interface ServerMeta {
