@@ -35,6 +35,9 @@ export default function LoginScreen({
 }: Props) {
   const { authorize } = useAuth0();
   const [baseUrl, setBaseUrl] = useState(initialBaseUrl ?? DEFAULT_BASE_URL);
+  // The server picker is hidden behind "Use a different server" so the initial
+  // screen stays a single Sign in button against the default server.
+  const [advanced, setAdvanced] = useState(false);
   // Manual entry is for instances not in the known list. Start in manual mode
   // only when resuming with a previously-used server that isn't a known one.
   const [manual, setManual] = useState(
@@ -139,84 +142,6 @@ export default function LoginScreen({
         <View style={styles.actions}>
           {error && <Text style={styles.error}>{error}</Text>}
 
-          {/* Server picker — choose a known instance, or enter one manually. */}
-          <Text style={styles.label}>Server</Text>
-          <View style={styles.serverList}>
-            {KNOWN_SERVERS.map((s) => {
-              const selected = !manual && normalised === s.url;
-              return (
-                <Pressable
-                  key={s.url}
-                  onPress={() => selectServer(s.url)}
-                  disabled={busy}
-                  style={({ pressed }) => [
-                    styles.serverRow,
-                    selected && styles.serverRowSelected,
-                    pressed && styles.serverRowPressed,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.serverLabel,
-                      selected && styles.serverLabelSelected,
-                    ]}
-                  >
-                    {s.label}
-                  </Text>
-                  {selected && <Text style={styles.check}>✓</Text>}
-                </Pressable>
-              );
-            })}
-            <Pressable
-              onPress={() => {
-                setManual(true);
-                setBaseUrl('');
-                setServerMeta(null);
-              }}
-              disabled={busy}
-              style={({ pressed }) => [
-                styles.serverRow,
-                manual && styles.serverRowSelected,
-                pressed && styles.serverRowPressed,
-              ]}
-            >
-              <Text
-                style={[styles.serverLabel, manual && styles.serverLabelSelected]}
-              >
-                Enter a different server…
-              </Text>
-              {manual && <Text style={styles.check}>✓</Text>}
-            </Pressable>
-          </View>
-
-          {manual && (
-            <TextInput
-              style={styles.input}
-              value={baseUrl}
-              onChangeText={(t) => {
-                setBaseUrl(t);
-                // A new URL invalidates the previous probe.
-                setServerMeta(null);
-              }}
-              onBlur={() => probeServer()}
-              autoCapitalize="none"
-              autoCorrect={false}
-              autoFocus
-              keyboardType="url"
-              inputMode="url"
-              placeholder={DEFAULT_BASE_URL}
-              placeholderTextColor={colors.textFaint}
-              editable={!busy}
-            />
-          )}
-
-          {anonymous && (
-            <Text style={styles.hint}>
-              This server doesn&apos;t require sign in — it&apos;s a read-only
-              demo.
-            </Text>
-          )}
-
           <Pressable
             style={({ pressed }) => [
               styles.button,
@@ -234,6 +159,99 @@ export default function LoginScreen({
               </Text>
             )}
           </Pressable>
+
+          {advanced ? (
+            <View style={styles.advanced}>
+              {/* Choose a known instance, or enter one manually. */}
+              <Text style={styles.label}>Server</Text>
+              <View style={styles.serverList}>
+                {KNOWN_SERVERS.map((s) => {
+                  const selected = !manual && normalised === s.url;
+                  return (
+                    <Pressable
+                      key={s.url}
+                      onPress={() => selectServer(s.url)}
+                      disabled={busy}
+                      style={({ pressed }) => [
+                        styles.serverRow,
+                        selected && styles.serverRowSelected,
+                        pressed && styles.serverRowPressed,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.serverLabel,
+                          selected && styles.serverLabelSelected,
+                        ]}
+                      >
+                        {s.label}
+                      </Text>
+                      {selected && <Text style={styles.check}>✓</Text>}
+                    </Pressable>
+                  );
+                })}
+                <Pressable
+                  onPress={() => {
+                    setManual(true);
+                    setBaseUrl('');
+                    setServerMeta(null);
+                  }}
+                  disabled={busy}
+                  style={({ pressed }) => [
+                    styles.serverRow,
+                    manual && styles.serverRowSelected,
+                    pressed && styles.serverRowPressed,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.serverLabel,
+                      manual && styles.serverLabelSelected,
+                    ]}
+                  >
+                    Enter a different server…
+                  </Text>
+                  {manual && <Text style={styles.check}>✓</Text>}
+                </Pressable>
+              </View>
+
+              {manual && (
+                <TextInput
+                  style={styles.input}
+                  value={baseUrl}
+                  onChangeText={(t) => {
+                    setBaseUrl(t);
+                    // A new URL invalidates the previous probe.
+                    setServerMeta(null);
+                  }}
+                  onBlur={() => probeServer()}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  autoFocus
+                  keyboardType="url"
+                  inputMode="url"
+                  placeholder={DEFAULT_BASE_URL}
+                  placeholderTextColor={colors.textFaint}
+                  editable={!busy}
+                />
+              )}
+
+              {anonymous && (
+                <Text style={styles.hint}>
+                  This server doesn&apos;t require sign in — it&apos;s a
+                  read-only demo.
+                </Text>
+              )}
+            </View>
+          ) : (
+            <Pressable
+              onPress={() => setAdvanced(true)}
+              hitSlop={8}
+              disabled={busy}
+            >
+              <Text style={styles.advancedLink}>Use a different server</Text>
+            </Pressable>
+          )}
 
           {onCancel && (
             <Pressable style={styles.cancel} onPress={onCancel} disabled={busy}>
@@ -286,7 +304,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   button: {
-    marginTop: spacing.lg,
     backgroundColor: colors.accent,
     borderRadius: radius.md,
     paddingVertical: spacing.md + 2,
@@ -295,6 +312,13 @@ const styles = StyleSheet.create({
   buttonPressed: { opacity: 0.8 },
   buttonDisabled: { opacity: 0.6 },
   buttonText: { color: '#ffffff', fontSize: 16, fontWeight: '600' },
+  advancedLink: {
+    marginTop: spacing.lg,
+    textAlign: 'center',
+    color: colors.textMuted,
+    fontSize: 14,
+  },
+  advanced: { marginTop: spacing.lg },
   label: {
     fontSize: 13,
     fontWeight: '600',
