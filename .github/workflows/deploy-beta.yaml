@@ -2,6 +2,12 @@ name: Deploy Beta
 
 on:
   workflow_dispatch:
+  # TEMPORARY: deploy beta on pushes to the migration branch so we can validate
+  # the new GCP project (officetracker-501000) end-to-end before merging.
+  # Remove this push trigger before merging to main.
+  push:
+    branches:
+      - worktree-gcp-project-migration
 
 jobs:
   deploy:
