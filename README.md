@@ -47,7 +47,7 @@ docker compose up
 
 Alternatively, pull the latest image:
 ```shell
-docker pull asia-southeast1-docker.pkg.dev/baileybutler-syd/officetracker/officetracker:latest
+docker pull asia-southeast1-docker.pkg.dev/officetracker-501000/officetracker/officetracker:latest
 ```
 
 ### Standalone Mode

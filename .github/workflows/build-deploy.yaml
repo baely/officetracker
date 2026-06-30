@@ -31,16 +31,16 @@ jobs:
         run: docker build -t officetracker .
       - name: Tag docker image
         run: |
-          docker tag officetracker asia-southeast1-docker.pkg.dev/baileybutler-syd/officetracker/officetracker:${{ github.sha }}
-          docker tag officetracker asia-southeast1-docker.pkg.dev/baileybutler-syd/officetracker/officetracker:latest
+          docker tag officetracker asia-southeast1-docker.pkg.dev/officetracker-501000/officetracker/officetracker:${{ github.sha }}
+          docker tag officetracker asia-southeast1-docker.pkg.dev/officetracker-501000/officetracker/officetracker:latest
       - name: Authorise docker
         run: |
           gcloud auth configure-docker -q
           gcloud auth configure-docker asia-southeast1-docker.pkg.dev
       - name: Publish image
         run: |
-          docker push asia-southeast1-docker.pkg.dev/baileybutler-syd/officetracker/officetracker:${{ github.sha }}
-          docker push asia-southeast1-docker.pkg.dev/baileybutler-syd/officetracker/officetracker:latest
+          docker push asia-southeast1-docker.pkg.dev/officetracker-501000/officetracker/officetracker:${{ github.sha }}
+          docker push asia-southeast1-docker.pkg.dev/officetracker-501000/officetracker/officetracker:latest
 
   deploy:
     name: "Deploy"
@@ -66,9 +66,9 @@ jobs:
       - name: Deploy Cloud Run
         uses: google-github-actions/deploy-cloudrun@v3
         with:
-          project_id: baileybutler-syd
+          project_id: officetracker-501000
           service: ${{ inputs.service_name }}
-          image: asia-southeast1-docker.pkg.dev/baileybutler-syd/officetracker/officetracker:${{ github.sha }}
+          image: asia-southeast1-docker.pkg.dev/officetracker-501000/officetracker/officetracker:${{ github.sha }}
           region: asia-southeast1
           labels: |
             sha=${{ github.sha }}
