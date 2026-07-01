@@ -44,7 +44,7 @@ func BuildRegistry(ctx context.Context, cfg Config, db database.Databaser) *Regi
 	// Register in display/dependency order. Usage must precede cost-per-user.
 	r.Register(usage)
 	r.Register(TrackedDaysCollector{DB: db})
-	r.Register(AttendanceSplitCollector{DB: db})
+	r.Register(AverageOfficeAttendanceCollector{DB: db})
 	r.Register(GCPCostCollector{Querier: costQ})
 	r.Register(FixedCostCollector{Config: cfg.FixedCosts()})
 	r.Register(CostPerUserCollector{Provider: CostPerUserProvider{

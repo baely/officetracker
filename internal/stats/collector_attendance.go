@@ -24,50 +24,42 @@ func (c TrackedDaysCollector) Collect(_ context.Context) ([]model.StatWidget, er
 	}
 	return []model.StatWidget{{
 		Key:   "tracked_days_total",
-		Title: "Lifetime Days Tracked",
+		Title: "Days Tracked (lifetime)",
 		Value: formatInt(count),
 		Unit:  "days",
-		Group: "Usage",
+		Group: "Usage (30d)",
 		Order: 10,
 	}}, nil
 }
 
-// AttendanceSplitCollector reports the percentage breakdown of tracked days
-// across the work states (WFH / Office / Other). Aggregate only.
-type AttendanceSplitCollector struct {
+// AverageOfficeAttendanceCollector reports the share of home/office days spent
+// in the office: office / (home + office). "Other" days are excluded as they
+// don't represent a home-vs-office choice. Aggregate only.
+type AverageOfficeAttendanceCollector struct {
 	DB database.Databaser
 }
 
-func (c AttendanceSplitCollector) Name() string { return "attendance_split" }
+func (c AverageOfficeAttendanceCollector) Name() string { return "avg_office_attendance" }
 
-func (c AttendanceSplitCollector) Collect(_ context.Context) ([]model.StatWidget, error) {
+func (c AverageOfficeAttendanceCollector) Collect(_ context.Context) ([]model.StatWidget, error) {
 	counts, err := c.DB.CountEntriesByState()
 	if err != nil {
 		return nil, fmt.Errorf("count entries by state: %w", err)
 	}
 
-	total := 0
-	for _, n := range counts {
-		total += n
-	}
-	if total == 0 {
+	home := counts[model.StateWorkFromHome]
+	office := counts[model.StateWorkFromOffice]
+	if home+office == 0 {
 		return nil, nil
 	}
+	officePct := int(float64(office)/float64(home+office)*100 + 0.5)
 
-	pct := func(s model.State) int {
-		return int(float64(counts[s])/float64(total)*100 + 0.5)
-	}
-	home := pct(model.StateWorkFromHome)
-	office := pct(model.StateWorkFromOffice)
-	other := pct(model.StateOther)
-
-	// A single combined widget showing the split, e.g. "37% / 58% / 5%" under
-	// the label "Home / Office / Other".
 	return []model.StatWidget{{
-		Key:   "attendance_split",
-		Title: "Attendance (Home / Office / Other)",
-		Value: fmt.Sprintf("%d%% / %d%% / %d%%", home, office, other),
-		Group: "Usage",
+		Key:   "avg_office_attendance",
+		Title: "Average Office Attendance (lifetime)",
+		Value: fmt.Sprintf("%d", officePct),
+		Unit:  "%",
+		Group: "Usage (30d)",
 		Order: 11,
 	}}, nil
 }

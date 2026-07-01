@@ -50,7 +50,7 @@ func (c *UsageCollector) Collect(ctx context.Context) ([]model.StatWidget, error
 		Title: "Monthly Active Users",
 		Value: formatInt(mau),
 		Unit:  "users",
-		Group: "Usage",
+		Group: "Usage (30d)",
 		Order: 1,
 	})
 
@@ -63,7 +63,7 @@ func (c *UsageCollector) Collect(ctx context.Context) ([]model.StatWidget, error
 		Title: "Avg Daily Active Users",
 		Value: fmt.Sprintf("%.1f", avgDAU),
 		Unit:  "users",
-		Group: "Usage",
+		Group: "Usage (30d)",
 		Order: 2,
 	})
 
@@ -73,10 +73,10 @@ func (c *UsageCollector) Collect(ctx context.Context) ([]model.StatWidget, error
 	}
 	widgets = append(widgets, model.StatWidget{
 		Key:   "requests_30d",
-		Title: "Requests (30d)",
+		Title: "Requests",
 		Value: formatInt(reqs),
 		Unit:  "req",
-		Group: "Usage",
+		Group: "Usage (30d)",
 		Order: 3,
 	})
 
