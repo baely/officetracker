@@ -27,7 +27,7 @@ func (c TrackedDaysCollector) Collect(_ context.Context) ([]model.StatWidget, er
 		Title: "Days Tracked (lifetime)",
 		Value: formatInt(count),
 		Unit:  "days",
-		Group: "Usage (lifetime)",
+		Group: "Usage (30d)",
 		Order: 10,
 	}}, nil
 }
@@ -59,7 +59,7 @@ func (c AverageOfficeAttendanceCollector) Collect(_ context.Context) ([]model.St
 		Title: "Average Office Attendance (lifetime)",
 		Value: fmt.Sprintf("%d", officePct),
 		Unit:  "%",
-		Group: "Usage (lifetime)",
+		Group: "Usage (30d)",
 		Order: 11,
 	}}, nil
 }
