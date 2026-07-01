@@ -41,14 +41,19 @@ func BuildRegistry(ctx context.Context, cfg Config, db database.Databaser) *Regi
 		}
 	}
 
-	// Register in display/dependency order. Usage must precede cost-per-user.
+	// gcpCost is shared: registered as its own widget collector AND referenced
+	// by cost-per-user, so the billed billing-export query runs only once.
+	gcpCost := &GCPCostCollector{Querier: costQ}
+
+	// Register in display/dependency order. Usage and gcpCost must precede
+	// cost-per-user, which reuses their cached values.
 	r.Register(usage)
 	r.Register(TrackedDaysCollector{DB: db})
 	r.Register(AverageOfficeAttendanceCollector{DB: db})
-	r.Register(GCPCostCollector{Querier: costQ})
+	r.Register(gcpCost)
 	r.Register(FixedCostCollector{Config: cfg.FixedCosts()})
 	r.Register(CostPerUserCollector{Provider: CostPerUserProvider{
-		Cost:  costQ,
+		Cost:  gcpCost,
 		Usage: usage,
 		Fixed: cfg.FixedCosts(),
 	}})
