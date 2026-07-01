@@ -64,9 +64,9 @@ func (q *bigQueryQuerier) queryScalar(ctx context.Context, sql string) (float64,
 
 func (q *bigQueryQuerier) MAU(ctx context.Context) (int, error) {
 	sql := fmt.Sprintf(`
-SELECT COUNT(DISTINCT CAST(jsonPayload.userID AS INT64)) AS v
+SELECT COUNT(DISTINCT SAFE_CAST(jsonPayload.userID AS INT64)) AS v
 FROM `+"`%s`"+`
-WHERE jsonPayload.message = 'request processed'
+WHERE jsonPayload.msg = 'request processed'
   AND SAFE_CAST(jsonPayload.userID AS INT64) > 0
   AND timestamp >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 30 DAY)`, q.logsTable)
 	v, err := q.queryScalar(ctx, sql)
@@ -76,9 +76,9 @@ WHERE jsonPayload.message = 'request processed'
 func (q *bigQueryQuerier) AvgDAU(ctx context.Context) (float64, error) {
 	sql := fmt.Sprintf(`
 SELECT AVG(daily) AS v FROM (
-  SELECT DATE(timestamp) d, COUNT(DISTINCT CAST(jsonPayload.userID AS INT64)) daily
+  SELECT DATE(timestamp, 'Australia/Melbourne') d, COUNT(DISTINCT SAFE_CAST(jsonPayload.userID AS INT64)) daily
   FROM `+"`%s`"+`
-  WHERE jsonPayload.message = 'request processed'
+  WHERE jsonPayload.msg = 'request processed'
     AND SAFE_CAST(jsonPayload.userID AS INT64) > 0
     AND timestamp >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 30 DAY)
   GROUP BY d)`, q.logsTable)
@@ -91,7 +91,7 @@ func (q *bigQueryQuerier) RequestCount(ctx context.Context) (int, error) {
 	sql := fmt.Sprintf(`
 SELECT COUNT(*) AS v
 FROM `+"`%s`"+`
-WHERE jsonPayload.message = 'request processed'
+WHERE jsonPayload.msg = 'request processed'
   AND SAFE_CAST(jsonPayload.userID AS INT64) > 0
   AND timestamp >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 30 DAY)`, q.logsTable)
 	v, err := q.queryScalar(ctx, sql)
@@ -109,8 +109,12 @@ func (q *bigQueryQuerier) GCPCost(ctx context.Context) (float64, error) {
 	if q.billingProjectID == "" {
 		return 0, fmt.Errorf("STATS_BQ_BILLING_PROJECT_ID is required to scope billing to a single project")
 	}
+	// Net cost = list cost plus credits (free-tier/promotional credits are
+	// stored as negative amounts in the repeated `credits` field, so summing
+	// only `cost` would overstate the real bill). SAFE_CAST guards against the
+	// billing export's `cost` column being NUMERIC rather than FLOAT64.
 	sql := fmt.Sprintf(`
-SELECT SUM(cost) AS v
+SELECT SAFE_CAST(SUM(cost) + SUM(IFNULL((SELECT SUM(c.amount) FROM UNNEST(credits) c), 0)) AS FLOAT64) AS v
 FROM `+"`%s`"+`
 WHERE project.id = @projectID
   AND usage_start_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 30 DAY)`, q.billingTable)

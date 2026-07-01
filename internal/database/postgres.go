@@ -580,7 +580,7 @@ func (p *postgres) SaveStatsSnapshot(widgets []model.StatWidget) error {
 }
 
 func (p *postgres) GetLatestStatsSnapshot() ([]model.StatWidget, time.Time, error) {
-	q := `SELECT widgets, computed_at FROM stats_snapshots ORDER BY computed_at DESC LIMIT 1;`
+	q := `SELECT widgets, computed_at FROM stats_snapshots ORDER BY computed_at DESC, id DESC LIMIT 1;`
 	var (
 		payload    []byte
 		computedAt time.Time

@@ -60,6 +60,13 @@ func BuildRegistry(ctx context.Context, cfg Config, db database.Databaser) *Regi
 func Run(ctx context.Context, cfg Config, db database.Databaser) ([]model.StatWidget, error) {
 	r := BuildRegistry(ctx, cfg, db)
 	widgets := r.Collect(ctx)
+	// Don't persist an empty snapshot: if every collector failed (e.g. a
+	// transient DB/BigQuery outage), saving would clobber the last good
+	// snapshot and flip the public dashboard to its empty state.
+	if len(widgets) == 0 {
+		slog.Warn("stats collection produced no widgets; skipping snapshot save")
+		return widgets, nil
+	}
 	if err := db.SaveStatsSnapshot(widgets); err != nil {
 		return nil, err
 	}
