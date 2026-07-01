@@ -1,0 +1,78 @@
+{{ template "base.html" . }}
+{{ define "title" }}Stats{{ end }}
+{{ define "content" }}
+<style>
+    .stats-updated {
+        color: #666;
+        font-size: 0.85rem;
+        margin-bottom: 1.5rem;
+    }
+    .stats-group {
+        margin-bottom: 2rem;
+    }
+    .stats-group h3 {
+        margin-bottom: 0.75rem;
+        font-size: 1rem;
+        color: #495057;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        gap: 1rem;
+    }
+    .stat-card {
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 1.25rem;
+    }
+    .stat-card .stat-title {
+        font-size: 0.85rem;
+        color: #666;
+        margin-bottom: 0.5rem;
+    }
+    .stat-card .stat-value {
+        font-size: 1.75rem;
+        font-weight: 700;
+        line-height: 1.1;
+    }
+    .stat-card .stat-unit {
+        font-size: 0.9rem;
+        font-weight: 400;
+        color: #888;
+        margin-left: 0.25rem;
+    }
+    .stats-empty {
+        padding: 1.5rem;
+        text-align: center;
+        color: #666;
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+    }
+</style>
+
+{{ if .LastUpdated }}
+<div class="stats-updated">Last updated: {{ .LastUpdated }}</div>
+{{ end }}
+
+{{ if .Groups }}
+    {{ range .Groups }}
+    <div class="stats-group">
+        {{ if .Name }}<h3>{{ .Name }}</h3>{{ end }}
+        <div class="stats-grid">
+            {{ range .Widgets }}
+            <div class="stat-card" data-key="{{ .Key }}">
+                <div class="stat-title">{{ .Title }}</div>
+                <div class="stat-value">{{ .Prefix }}{{ .Value }}{{ if .Unit }}<span class="stat-unit">{{ .Unit }}</span>{{ end }}</div>
+            </div>
+            {{ end }}
+        </div>
+    </div>
+    {{ end }}
+{{ else }}
+<div class="stats-empty">No stats available yet. Check back soon.</div>
+{{ end }}
+{{ end }}

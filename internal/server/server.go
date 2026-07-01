@@ -74,6 +74,9 @@ func NewServer(cfg config.AppConfigurer, db database.Databaser, redis *database.
 	// Settings available in both standalone and integrated modes
 	r.Get("/settings", s.handleSettings)
 
+	// Public stats dashboard (unauthenticated, aggregate-only).
+	r.Get("/stats", s.handleStats)
+
 	// Integrated app routes
 	switch integratedCfg := cfg.(type) {
 	case config.IntegratedApp:
@@ -367,6 +370,18 @@ func (s *Server) handlePrivacy(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleSuspended(w http.ResponseWriter, r *http.Request) {
 	serveSuspended(w, r, suspendedPage{})
+}
+
+func (s *Server) handleStats(w http.ResponseWriter, r *http.Request) {
+	resp, err := s.v1.GetStats(model.GetStatsRequest{})
+	if err != nil {
+		errorPage(w, r, err, internalErrorMsg, http.StatusInternalServerError)
+		return
+	}
+	serveStats(w, r, statsPage{
+		Groups:      groupStatWidgets(resp.Widgets),
+		LastUpdated: formatLastUpdated(resp.ComputedAt),
+	})
 }
 
 func (s *Server) handleNotFound(w http.ResponseWriter, r *http.Request) {

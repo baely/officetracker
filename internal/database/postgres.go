@@ -566,3 +566,73 @@ func (p *postgres) IsUserSuspended(userID int) (bool, error) {
 	})
 	return suspended, err
 }
+
+func (p *postgres) SaveStatsSnapshot(widgets []model.StatWidget) error {
+	payload, err := json.Marshal(widgets)
+	if err != nil {
+		return fmt.Errorf("failed to marshal widgets: %w", err)
+	}
+	q := `INSERT INTO stats_snapshots (widgets) VALUES ($1);`
+	return p.readWriteTransaction(func(tx *sql.Tx) error {
+		_, err := tx.Exec(q, payload)
+		return err
+	})
+}
+
+func (p *postgres) GetLatestStatsSnapshot() ([]model.StatWidget, time.Time, error) {
+	q := `SELECT widgets, computed_at FROM stats_snapshots ORDER BY computed_at DESC, id DESC LIMIT 1;`
+	var (
+		payload    []byte
+		computedAt time.Time
+	)
+	err := p.readOnlyTransaction(func(tx *sql.Tx) error {
+		row := tx.QueryRow(q)
+		err := row.Scan(&payload, &computedAt)
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil
+		}
+		return err
+	})
+	if err != nil {
+		return nil, time.Time{}, err
+	}
+	if payload == nil {
+		return nil, time.Time{}, nil
+	}
+	var widgets []model.StatWidget
+	if err := json.Unmarshal(payload, &widgets); err != nil {
+		return nil, time.Time{}, fmt.Errorf("failed to unmarshal widgets: %w", err)
+	}
+	return widgets, computedAt, nil
+}
+
+func (p *postgres) CountTrackedDays() (int, error) {
+	// A tracked day is any entry with a non-Untracked state.
+	q := `SELECT COUNT(*) FROM entries WHERE state != $1;`
+	var count int
+	err := p.readOnlyTransaction(func(tx *sql.Tx) error {
+		return tx.QueryRow(q, int(model.StateUntracked)).Scan(&count)
+	})
+	return count, err
+}
+
+func (p *postgres) CountEntriesByState() (map[model.State]int, error) {
+	q := `SELECT state, COUNT(*) FROM entries WHERE state != $1 GROUP BY state;`
+	result := make(map[model.State]int)
+	err := p.readOnlyTransaction(func(tx *sql.Tx) error {
+		rows, err := tx.Query(q, int(model.StateUntracked))
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var state, count int
+			if err := rows.Scan(&state, &count); err != nil {
+				return err
+			}
+			result[model.State(state)] = count
+		}
+		return rows.Err()
+	})
+	return result, err
+}

@@ -19,6 +19,7 @@ var (
 	Privacy   = template.Must(template.ParseFS(templates, "html/bases/*", "html/privacy.html"))
 	Suspended = template.Must(template.ParseFS(templates, "html/bases/*", "html/suspended.html"))
 	Error     = template.Must(template.ParseFS(templates, "html/bases/*", "html/error.html"))
+	Stats     = template.Must(template.ParseFS(templates, "html/bases/*", "html/stats.html"))
 )
 
 // static files

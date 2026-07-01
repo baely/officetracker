@@ -1,0 +1,57 @@
+package stats
+
+import "github.com/kelseyhightower/envconfig"
+
+// Config controls the stats collection pipeline. All fields are optional; when
+// BigQuery settings are absent, the usage/GCP-cost collectors are simply
+// skipped and the dashboard shows whatever DB-backed and fixed-cost widgets are
+// available.
+type Config struct {
+	// BigQuery configuration for usage + billing queries.
+	BQProjectID    string `envconfig:"STATS_BQ_PROJECT_ID"`
+	BQLogsTable    string `envconfig:"STATS_BQ_LOGS_TABLE"`    // fully-qualified: dataset.table
+	BQBillingTable string `envconfig:"STATS_BQ_BILLING_TABLE"` // fully-qualified: dataset.table
+
+	// BQBillingProjectID scopes the billing query to a single GCP project. The
+	// Cloud Billing export table contains rows for every project under the
+	// billing account, so this filter is required to report only Office
+	// Tracker's cost. Typically the same value as STATS_BQ_PROJECT_ID.
+	BQBillingProjectID string `envconfig:"STATS_BQ_BILLING_PROJECT_ID"`
+
+	// Fixed monthly costs (AUD) for non-GCP platforms.
+	CostSupabase float64 `envconfig:"STATS_COST_SUPABASE"`
+	CostRedis    float64 `envconfig:"STATS_COST_REDIS"`
+	CostAuth0    float64 `envconfig:"STATS_COST_AUTH0"`
+}
+
+// LoadConfig loads stats configuration from the environment.
+func LoadConfig() (Config, error) {
+	var cfg Config
+	if err := envconfig.Process("", &cfg); err != nil {
+		return Config{}, err
+	}
+	return cfg, nil
+}
+
+// FixedCosts returns the configured fixed-cost constants.
+func (c Config) FixedCosts() FixedCostConfig {
+	return FixedCostConfig{
+		Supabase: c.CostSupabase,
+		Redis:    c.CostRedis,
+		Auth0:    c.CostAuth0,
+	}
+}
+
+// BigQueryEnabled reports whether enough config is present to run the
+// usage (log-backed) BigQuery collectors.
+func (c Config) BigQueryEnabled() bool {
+	return c.BQProjectID != "" && c.BQLogsTable != ""
+}
+
+// BillingEnabled reports whether the Cloud Billing export is configured. The
+// GCP-cost widgets are skipped entirely when it isn't, rather than reporting a
+// misleading $0 during the staged rollout (log sink and billing export are set
+// up as separate steps).
+func (c Config) BillingEnabled() bool {
+	return c.BQBillingTable != "" && c.BQBillingProjectID != ""
+}
