@@ -168,7 +168,13 @@ func formatLastUpdated(computedAt string) string {
 	if err != nil {
 		return computedAt
 	}
-	return t.Local().Format("2 Jan 2006, 3:04 PM")
+	// Render in Melbourne time. The container runs in UTC, so t.Local() would
+	// show UTC; fall back to UTC only if the tz database is unavailable.
+	loc, err := time.LoadLocation("Australia/Melbourne")
+	if err != nil {
+		loc = time.UTC
+	}
+	return t.In(loc).Format("2 Jan 2006, 3:04 PM MST")
 }
 
 type ErrorPage struct {
