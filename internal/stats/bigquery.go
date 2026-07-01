@@ -15,10 +15,6 @@ import (
 	"google.golang.org/api/iterator"
 )
 
-func init() {
-	bigQueryFactory = newBigQueryQuerier
-}
-
 type bigQueryQuerier struct {
 	client       *bigquery.Client
 	logsTable    string

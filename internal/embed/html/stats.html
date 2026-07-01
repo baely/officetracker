@@ -44,7 +44,7 @@
         color: #888;
         margin-left: 0.25rem;
     }
-    .stats-empty, .stats-error {
+    .stats-empty {
         padding: 1.5rem;
         text-align: center;
         color: #666;
@@ -54,94 +54,25 @@
     }
 </style>
 
-<p>A live look at how Office Tracker is used and what it costs to run. All numbers
-are aggregate and updated daily.</p>
+{{ if .LastUpdated }}
+<div class="stats-updated">Last updated: {{ .LastUpdated }}</div>
+{{ end }}
 
-<div id="stats-updated" class="stats-updated"></div>
-<div id="stats-root">
-    <div class="stats-empty">Loading stats&hellip;</div>
-</div>
-
-<script>
-(function () {
-    const root = document.getElementById("stats-root");
-    const updated = document.getElementById("stats-updated");
-
-    function card(widget) {
-        const el = document.createElement("div");
-        el.className = "stat-card";
-        el.dataset.key = widget.key;
-
-        const title = document.createElement("div");
-        title.className = "stat-title";
-        title.textContent = widget.title;
-
-        const value = document.createElement("div");
-        value.className = "stat-value";
-        value.textContent = widget.value;
-        if (widget.unit) {
-            const unit = document.createElement("span");
-            unit.className = "stat-unit";
-            unit.textContent = widget.unit;
-            value.appendChild(unit);
-        }
-
-        el.appendChild(title);
-        el.appendChild(value);
-        return el;
-    }
-
-    function render(data) {
-        const widgets = (data && data.widgets) || [];
-        if (widgets.length === 0) {
-            root.innerHTML = '<div class="stats-empty">No stats available yet. Check back soon.</div>';
-            return;
-        }
-
-        if (data.computedAt) {
-            const d = new Date(data.computedAt);
-            updated.textContent = "Last updated: " + d.toLocaleString();
-        }
-
-        // Group widgets by their (optional) Group field, preserving order.
-        const groups = [];
-        const byName = {};
-        widgets.forEach(function (w) {
-            const name = w.group || "";
-            if (!byName[name]) {
-                byName[name] = { name: name, items: [] };
-                groups.push(byName[name]);
-            }
-            byName[name].items.push(w);
-        });
-
-        root.innerHTML = "";
-        groups.forEach(function (g) {
-            const section = document.createElement("div");
-            section.className = "stats-group";
-            if (g.name) {
-                const h = document.createElement("h3");
-                h.textContent = g.name;
-                section.appendChild(h);
-            }
-            const grid = document.createElement("div");
-            grid.className = "stats-grid";
-            g.items.forEach(function (w) { grid.appendChild(card(w)); });
-            section.appendChild(grid);
-            root.appendChild(section);
-        });
-    }
-
-    fetch("/api/v1/stats")
-        .then(function (r) {
-            if (!r.ok) throw new Error("request failed: " + r.status);
-            return r.json();
-        })
-        .then(render)
-        .catch(function (err) {
-            root.innerHTML = '<div class="stats-error">Could not load stats right now.</div>';
-            console.error(err);
-        });
-})();
-</script>
+{{ if .Groups }}
+    {{ range .Groups }}
+    <div class="stats-group">
+        {{ if .Name }}<h3>{{ .Name }}</h3>{{ end }}
+        <div class="stats-grid">
+            {{ range .Widgets }}
+            <div class="stat-card" data-key="{{ .Key }}">
+                <div class="stat-title">{{ .Title }}</div>
+                <div class="stat-value">{{ .Prefix }}{{ .Value }}{{ if .Unit }}<span class="stat-unit">{{ .Unit }}</span>{{ end }}</div>
+            </div>
+            {{ end }}
+        </div>
+    </div>
+    {{ end }}
+{{ else }}
+<div class="stats-empty">No stats available yet. Check back soon.</div>
+{{ end }}
 {{ end }}

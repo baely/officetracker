@@ -8,17 +8,15 @@ import (
 	"github.com/baely/officetracker/pkg/model"
 )
 
-// bigQueryFactory constructs a querier that satisfies both UsageQuerier and
-// CostQuerier. It is set by the bigquery build-tagged adapter (bigquery.go). When
-// the adapter is not compiled in, it remains nil and BigQuery-backed collectors
-// are skipped. This keeps the default build free of the heavy GCP SDK while
-// allowing the collector job to opt in via `-tags bigquery`.
+// bqQuerier satisfies both the usage and cost data-source interfaces. Its
+// concrete implementation (BigQuery) is selected at build time: the real adapter
+// is compiled in with `-tags bigquery` (bigquery.go), otherwise a no-op
+// constructor is used (bigquery_stub.go). This keeps the default build free of
+// the heavy GCP SDK.
 type bqQuerier interface {
 	UsageQuerier
 	CostQuerier
 }
-
-var bigQueryFactory func(ctx context.Context, cfg Config) (bqQuerier, error)
 
 // BuildRegistry assembles the full collector registry from config and the
 // database. DB-backed and fixed-cost collectors always run; BigQuery-backed
@@ -31,16 +29,16 @@ func BuildRegistry(ctx context.Context, cfg Config, db database.Databaser) *Regi
 	usage := &UsageCollector{}
 
 	var costQ CostQuerier
-	if cfg.BigQueryEnabled() && bigQueryFactory != nil {
-		q, err := bigQueryFactory(ctx, cfg)
+	if cfg.BigQueryEnabled() {
+		q, err := newBigQueryQuerier(ctx, cfg)
 		if err != nil {
 			slog.Error("failed to init bigquery querier; skipping usage/gcp-cost widgets", "error", err.Error())
+		} else if q == nil {
+			slog.Warn("bigquery configured but adapter not compiled in; build the collector with -tags bigquery")
 		} else {
 			usage.Querier = q
 			costQ = q
 		}
-	} else if cfg.BigQueryEnabled() {
-		slog.Warn("bigquery configured but adapter not compiled in; build the collector with -tags bigquery")
 	}
 
 	// Register in display/dependency order. Usage must precede cost-per-user.

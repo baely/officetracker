@@ -5,6 +5,7 @@ import (
 	"html/template"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/baely/officetracker/internal/auth"
 	"github.com/baely/officetracker/internal/embed"
@@ -121,8 +122,15 @@ func serveSuspended(w http.ResponseWriter, r *http.Request, page suspendedPage) 
 	}
 }
 
+type statWidgetGroup struct {
+	Name    string
+	Widgets []model.StatWidget
+}
+
 type statsPage struct {
 	basePage
+	Groups      []statWidgetGroup
+	LastUpdated string
 }
 
 func serveStats(w http.ResponseWriter, r *http.Request, page statsPage) {
@@ -131,6 +139,36 @@ func serveStats(w http.ResponseWriter, r *http.Request, page statsPage) {
 		err = fmt.Errorf("failed to execute stats template: %w", err)
 		errorPage(w, r, err, internalErrorMsg, http.StatusInternalServerError)
 	}
+}
+
+// groupStatWidgets clusters widgets by their Group field, preserving first-seen
+// order for both groups and the widgets within them.
+func groupStatWidgets(widgets []model.StatWidget) []statWidgetGroup {
+	var groups []statWidgetGroup
+	index := make(map[string]int)
+	for _, wgt := range widgets {
+		i, ok := index[wgt.Group]
+		if !ok {
+			index[wgt.Group] = len(groups)
+			groups = append(groups, statWidgetGroup{Name: wgt.Group})
+			i = len(groups) - 1
+		}
+		groups[i].Widgets = append(groups[i].Widgets, wgt)
+	}
+	return groups
+}
+
+// formatLastUpdated renders the snapshot timestamp for display, or a fallback
+// when no snapshot exists yet.
+func formatLastUpdated(computedAt string) string {
+	if computedAt == "" {
+		return ""
+	}
+	t, err := time.Parse(time.RFC3339, computedAt)
+	if err != nil {
+		return computedAt
+	}
+	return t.Local().Format("2 Jan 2006, 3:04 PM")
 }
 
 type ErrorPage struct {

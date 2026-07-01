@@ -373,7 +373,15 @@ func (s *Server) handleSuspended(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleStats(w http.ResponseWriter, r *http.Request) {
-	serveStats(w, r, statsPage{})
+	resp, err := s.v1.GetStats(model.GetStatsRequest{})
+	if err != nil {
+		errorPage(w, r, err, internalErrorMsg, http.StatusInternalServerError)
+		return
+	}
+	serveStats(w, r, statsPage{
+		Groups:      groupStatWidgets(resp.Widgets),
+		LastUpdated: formatLastUpdated(resp.ComputedAt),
+	})
 }
 
 func (s *Server) handleNotFound(w http.ResponseWriter, r *http.Request) {

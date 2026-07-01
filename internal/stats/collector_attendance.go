@@ -24,7 +24,7 @@ func (c TrackedDaysCollector) Collect(_ context.Context) ([]model.StatWidget, er
 	}
 	return []model.StatWidget{{
 		Key:   "tracked_days_total",
-		Title: "Total Days Tracked",
+		Title: "Lifetime Days Tracked",
 		Value: formatInt(count),
 		Unit:  "days",
 		Group: "Usage",
@@ -54,30 +54,20 @@ func (c AttendanceSplitCollector) Collect(_ context.Context) ([]model.StatWidget
 		return nil, nil
 	}
 
-	// Fixed presentation order and labels for the meaningful work states.
-	type stateInfo struct {
-		state model.State
-		key   string
-		title string
-		order int
+	pct := func(s model.State) int {
+		return int(float64(counts[s])/float64(total)*100 + 0.5)
 	}
-	states := []stateInfo{
-		{model.StateWorkFromOffice, "attendance_office_pct", "Office %", 20},
-		{model.StateWorkFromHome, "attendance_home_pct", "Work From Home %", 21},
-		{model.StateOther, "attendance_other_pct", "Other %", 22},
-	}
+	home := pct(model.StateWorkFromHome)
+	office := pct(model.StateWorkFromOffice)
+	other := pct(model.StateOther)
 
-	var widgets []model.StatWidget
-	for _, s := range states {
-		pct := float64(counts[s.state]) / float64(total) * 100
-		widgets = append(widgets, model.StatWidget{
-			Key:   s.key,
-			Title: s.title,
-			Value: fmt.Sprintf("%.0f", pct),
-			Unit:  "%",
-			Group: "Attendance",
-			Order: s.order,
-		})
-	}
-	return widgets, nil
+	// A single combined widget showing the split, e.g. "37% / 58% / 5%" under
+	// the label "Home / Office / Other".
+	return []model.StatWidget{{
+		Key:   "attendance_split",
+		Title: "Attendance (Home / Office / Other)",
+		Value: fmt.Sprintf("%d%% / %d%% / %d%%", home, office, other),
+		Group: "Usage",
+		Order: 11,
+	}}, nil
 }

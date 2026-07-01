@@ -39,12 +39,12 @@ func (c FixedCostCollector) Collect(_ context.Context) ([]model.StatWidget, erro
 	var widgets []model.StatWidget
 	for _, p := range platforms {
 		widgets = append(widgets, model.StatWidget{
-			Key:   p.key,
-			Title: p.title,
-			Value: fmt.Sprintf("%.2f", p.cost),
-			Unit:  "AUD",
-			Group: "Cost (30d)",
-			Order: p.order,
+			Key:    p.key,
+			Title:  p.title,
+			Value:  fmt.Sprintf("%.2f", p.cost),
+			Prefix: "$",
+			Group:  "Cost (30d)",
+			Order:  p.order,
 		})
 	}
 	return widgets, nil

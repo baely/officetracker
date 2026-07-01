@@ -29,12 +29,12 @@ func (c GCPCostCollector) Collect(ctx context.Context) ([]model.StatWidget, erro
 		return nil, fmt.Errorf("gcp cost: %w", err)
 	}
 	return []model.StatWidget{{
-		Key:   "cost_gcp_30d",
-		Title: "GCP Cost",
-		Value: fmt.Sprintf("%.2f", cost),
-		Unit:  "AUD",
-		Group: "Cost (30d)",
-		Order: 40,
+		Key:    "cost_gcp_30d",
+		Title:  "GCP Cost",
+		Value:  fmt.Sprintf("%.2f", cost),
+		Prefix: "$",
+		Group:  "Cost (30d)",
+		Order:  40,
 	}}, nil
 }
 
@@ -77,11 +77,11 @@ func (c CostPerUserCollector) Collect(ctx context.Context) ([]model.StatWidget, 
 	perUser := total / float64(mau)
 
 	return []model.StatWidget{{
-		Key:   "cost_per_active_user_30d",
-		Title: "Cost per Active User",
-		Value: fmt.Sprintf("%.3f", perUser),
-		Unit:  "AUD",
-		Group: "Cost (30d)",
-		Order: 44,
+		Key:    "cost_per_active_user_30d",
+		Title:  "Cost per Active User",
+		Value:  fmt.Sprintf("%.3f", perUser),
+		Prefix: "$",
+		Group:  "Cost (30d)",
+		Order:  44,
 	}}, nil
 }
