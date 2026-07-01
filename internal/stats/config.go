@@ -12,6 +12,12 @@ type Config struct {
 	BQLogsTable    string `envconfig:"STATS_BQ_LOGS_TABLE"`    // fully-qualified: dataset.table
 	BQBillingTable string `envconfig:"STATS_BQ_BILLING_TABLE"` // fully-qualified: dataset.table
 
+	// BQBillingProjectID scopes the billing query to a single GCP project. The
+	// Cloud Billing export table contains rows for every project under the
+	// billing account, so this filter is required to report only Office
+	// Tracker's cost. Typically the same value as STATS_BQ_PROJECT_ID.
+	BQBillingProjectID string `envconfig:"STATS_BQ_BILLING_PROJECT_ID"`
+
 	// Fixed monthly costs (AUD) for non-GCP platforms.
 	CostSupabase float64 `envconfig:"STATS_COST_SUPABASE"`
 	CostRedis    float64 `envconfig:"STATS_COST_REDIS"`

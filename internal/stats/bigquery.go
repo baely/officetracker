@@ -16,9 +16,10 @@ import (
 )
 
 type bigQueryQuerier struct {
-	client       *bigquery.Client
-	logsTable    string
-	billingTable string
+	client           *bigquery.Client
+	logsTable        string
+	billingTable     string
+	billingProjectID string
 }
 
 func newBigQueryQuerier(ctx context.Context, cfg Config) (bqQuerier, error) {
@@ -27,9 +28,10 @@ func newBigQueryQuerier(ctx context.Context, cfg Config) (bqQuerier, error) {
 		return nil, fmt.Errorf("bigquery client: %w", err)
 	}
 	return &bigQueryQuerier{
-		client:       client,
-		logsTable:    cfg.BQLogsTable,
-		billingTable: cfg.BQBillingTable,
+		client:           client,
+		logsTable:        cfg.BQLogsTable,
+		billingTable:     cfg.BQBillingTable,
+		billingProjectID: cfg.BQBillingProjectID,
 	}, nil
 }
 
@@ -100,9 +102,45 @@ func (q *bigQueryQuerier) GCPCost(ctx context.Context) (float64, error) {
 	if q.billingTable == "" {
 		return 0, nil
 	}
+	// The Cloud Billing export table contains rows for every project under the
+	// billing account, so we must scope to Office Tracker's project. Without a
+	// configured project ID the cost would incorrectly include other projects,
+	// so we refuse to report a misleading figure.
+	if q.billingProjectID == "" {
+		return 0, fmt.Errorf("STATS_BQ_BILLING_PROJECT_ID is required to scope billing to a single project")
+	}
 	sql := fmt.Sprintf(`
 SELECT SUM(cost) AS v
 FROM `+"`%s`"+`
-WHERE usage_start_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 30 DAY)`, q.billingTable)
-	return q.queryScalar(ctx, sql)
+WHERE project.id = @projectID
+  AND usage_start_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 30 DAY)`, q.billingTable)
+
+	query := q.client.Query(sql)
+	query.Parameters = []bigquery.QueryParameter{
+		{Name: "projectID", Value: q.billingProjectID},
+	}
+	job, err := query.Run(ctx)
+	if err != nil {
+		return 0, err
+	}
+	it, err := job.Read(ctx)
+	if err != nil {
+		return 0, err
+	}
+	var row []bigquery.Value
+	err = it.Next(&row)
+	if err == iterator.Done || len(row) == 0 || row[0] == nil {
+		return 0, nil
+	}
+	if err != nil {
+		return 0, err
+	}
+	switch v := row[0].(type) {
+	case int64:
+		return float64(v), nil
+	case float64:
+		return v, nil
+	default:
+		return 0, fmt.Errorf("unexpected scalar type %T", v)
+	}
 }
