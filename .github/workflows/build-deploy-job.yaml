@@ -76,5 +76,5 @@ jobs:
             --region asia-southeast1 \
             --image asia-southeast1-docker.pkg.dev/officetracker-501000/officetracker/statscollector:${{ github.sha }} \
             --set-env-vars "${{ steps.env.outputs.vars }}" \
-            --set-secrets "SIGNING_KEY=SIGNING_KEY:latest,POSTGRES_PASSWORD=POSTGRES_PASSWORD:latest" \
+            --set-secrets "SIGNING_KEY=${{ secrets.SIGNING_KEY }}:latest,POSTGRES_PASSWORD=${{ secrets.PQ_SECRET }}:latest" \
             --labels "sha=${{ github.sha }}"
