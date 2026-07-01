@@ -16,7 +16,8 @@ type UsageQuerier interface {
 	MAU(ctx context.Context) (int, error)
 	// AvgDAU returns the mean daily active users over the trailing 30 days.
 	AvgDAU(ctx context.Context) (float64, error)
-	// RequestCount returns total processed requests over the trailing 30 days.
+	// RequestCount returns total authenticated processed requests (userID > 0)
+	// over the trailing 30 days. Unauthenticated/crawler traffic is excluded.
 	RequestCount(ctx context.Context) (int, error)
 }
 
@@ -73,7 +74,7 @@ func (c *UsageCollector) Collect(ctx context.Context) ([]model.StatWidget, error
 	}
 	widgets = append(widgets, model.StatWidget{
 		Key:   "requests_30d",
-		Title: "Requests",
+		Title: "Authenticated Requests",
 		Value: formatInt(reqs),
 		Unit:  "req",
 		Group: "Usage (30d)",

@@ -84,10 +84,13 @@ SELECT AVG(daily) AS v FROM (
 }
 
 func (q *bigQueryQuerier) RequestCount(ctx context.Context) (int, error) {
+	// Authenticated requests only: a valid userID excludes crawler/bot traffic,
+	// which cannot hold a session.
 	sql := fmt.Sprintf(`
 SELECT COUNT(*) AS v
 FROM `+"`%s`"+`
 WHERE jsonPayload.message = 'request processed'
+  AND SAFE_CAST(jsonPayload.userID AS INT64) > 0
   AND timestamp >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 30 DAY)`, q.logsTable)
 	v, err := q.queryScalar(ctx, sql)
 	return int(v), err
