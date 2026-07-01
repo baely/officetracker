@@ -51,4 +51,13 @@ type Databaser interface {
 	RevokeSecretByValue(secret string) error
 
 	IsUserSuspended(userID int) (bool, error)
+
+	// Stats dashboard snapshots.
+	SaveStatsSnapshot(widgets []model.StatWidget) error
+	GetLatestStatsSnapshot() ([]model.StatWidget, time.Time, error)
+
+	// Aggregate stats used by stats collectors. These return
+	// non-user-identifiable aggregates for the public dashboard.
+	CountTrackedDays() (int, error)
+	CountEntriesByState() (map[model.State]int, error)
 }

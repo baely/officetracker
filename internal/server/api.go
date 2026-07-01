@@ -27,6 +27,8 @@ func apiRouter(service *v1.Service) func(chi.Router) {
 		r.Route("/developer", developerRouter(service))
 		r.Route("/report", reportRouter(service))
 		r.Route("/health", healthRouter(service))
+		// Public, unauthenticated stats endpoint. Returns aggregate-only data.
+		r.Method(http.MethodGet, "/stats", wrap(service.GetStats))
 		r.NotFound(func(w http.ResponseWriter, r *http.Request) {
 			writeError(w, "not found", http.StatusNotFound)
 		})

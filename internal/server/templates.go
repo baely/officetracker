@@ -121,6 +121,18 @@ func serveSuspended(w http.ResponseWriter, r *http.Request, page suspendedPage) 
 	}
 }
 
+type statsPage struct {
+	basePage
+}
+
+func serveStats(w http.ResponseWriter, r *http.Request, page statsPage) {
+	page.basePage = getBasePageData(r)
+	if err := embed.Stats.Execute(w, page); err != nil {
+		err = fmt.Errorf("failed to execute stats template: %w", err)
+		errorPage(w, r, err, internalErrorMsg, http.StatusInternalServerError)
+	}
+}
+
 type ErrorPage struct {
 	basePage
 	ErrorMessage string

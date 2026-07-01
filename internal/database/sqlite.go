@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"os"
 	"path"
+	"time"
 
 	_ "github.com/mattn/go-sqlite3"
 
@@ -472,6 +473,41 @@ func (s *sqliteClient) SaveCalendarPreferences(_ int, prefs model.CalendarPrefer
 func (s *sqliteClient) IsUserSuspended(_ int) (bool, error) {
 	// Standalone mode doesn't support suspension
 	return false, nil
+}
+
+// Stats snapshots are only used by the integrated deployment's collector job.
+// Standalone mode has no public dashboard, so these are no-ops.
+func (s *sqliteClient) SaveStatsSnapshot(_ []model.StatWidget) error {
+	return nil
+}
+
+func (s *sqliteClient) GetLatestStatsSnapshot() ([]model.StatWidget, time.Time, error) {
+	return nil, time.Time{}, nil
+}
+
+func (s *sqliteClient) CountTrackedDays() (int, error) {
+	q := `SELECT COUNT(*) FROM entries WHERE State != ?;`
+	var count int
+	err := s.db.QueryRow(q, int(model.StateUntracked)).Scan(&count)
+	return count, err
+}
+
+func (s *sqliteClient) CountEntriesByState() (map[model.State]int, error) {
+	q := `SELECT State, COUNT(*) FROM entries WHERE State != ? GROUP BY State;`
+	result := make(map[model.State]int)
+	rows, err := s.db.Query(q, int(model.StateUntracked))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var state, count int
+		if err := rows.Scan(&state, &count); err != nil {
+			return nil, err
+		}
+		result[model.State(state)] = count
+	}
+	return result, rows.Err()
 }
 
 func (s *sqliteClient) initConnection() error {

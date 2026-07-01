@@ -14,3 +14,11 @@ jobs:
       service_name: officetracker
       env_file: config/cloud.env
     secrets: inherit
+
+  deploy-stats-collector:
+    uses: ./.github/workflows/build-deploy-job.yaml
+    with:
+      environment: cloud
+      job_name: officetracker-stats-collector
+      env_file: config/cloud.env
+    secrets: inherit
