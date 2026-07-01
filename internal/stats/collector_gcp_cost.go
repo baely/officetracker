@@ -77,11 +77,16 @@ func (c CostPerUserCollector) Collect(ctx context.Context) ([]model.StatWidget, 
 		return nil, nil
 	}
 
-	var gcp float64
-	if c.Provider.Cost != nil {
-		// Reuse the cost already computed by GCPCostCollector (registered
-		// first) rather than re-running the billed billing-export query.
-		gcp, _ = c.Provider.Cost.Cost()
+	// Reuse the cost already computed by GCPCostCollector (registered first)
+	// rather than re-running the billed billing-export query. Skip the widget
+	// entirely when the cost isn't available (billing unconfigured, or the query
+	// failed) instead of publishing a figure with real GCP spend omitted.
+	if c.Provider.Cost == nil {
+		return nil, nil
+	}
+	gcp, ok := c.Provider.Cost.Cost()
+	if !ok {
+		return nil, nil
 	}
 
 	total := gcp + c.Provider.Fixed.Supabase + c.Provider.Fixed.Redis + c.Provider.Fixed.Auth0

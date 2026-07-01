@@ -10,6 +10,7 @@ package stats
 import (
 	"context"
 	"fmt"
+	"math/big"
 
 	"cloud.google.com/go/bigquery"
 	"google.golang.org/api/iterator"
@@ -35,8 +36,32 @@ func newBigQueryQuerier(ctx context.Context, cfg Config) (bqQuerier, error) {
 	}, nil
 }
 
-func (q *bigQueryQuerier) queryScalar(ctx context.Context, sql string) (float64, error) {
-	job, err := q.client.Query(sql).Run(ctx)
+// toFloat64 coerces a BigQuery scalar to float64. It accepts every numeric type
+// the driver may hand back - including *big.Rat for NUMERIC/BIGNUMERIC columns -
+// and treats NULL as 0.
+func toFloat64(v bigquery.Value) (float64, error) {
+	switch x := v.(type) {
+	case nil:
+		return 0, nil
+	case int64:
+		return float64(x), nil
+	case float64:
+		return x, nil
+	case *big.Rat:
+		f, _ := x.Float64()
+		return f, nil
+	default:
+		return 0, fmt.Errorf("unexpected scalar type %T", v)
+	}
+}
+
+// queryScalar runs a query expected to yield a single scalar in the first column
+// of the first row, returning 0 for no rows or NULL. Optional query parameters
+// are bound when provided.
+func (q *bigQueryQuerier) queryScalar(ctx context.Context, sql string, params ...bigquery.QueryParameter) (float64, error) {
+	query := q.client.Query(sql)
+	query.Parameters = params
+	job, err := query.Run(ctx)
 	if err != nil {
 		return 0, err
 	}
@@ -46,56 +71,64 @@ func (q *bigQueryQuerier) queryScalar(ctx context.Context, sql string) (float64,
 	}
 	var row []bigquery.Value
 	err = it.Next(&row)
-	if err == iterator.Done || len(row) == 0 || row[0] == nil {
+	if err == iterator.Done || len(row) == 0 {
 		return 0, nil
 	}
 	if err != nil {
 		return 0, err
 	}
-	switch v := row[0].(type) {
-	case int64:
-		return float64(v), nil
-	case float64:
-		return v, nil
-	default:
-		return 0, fmt.Errorf("unexpected scalar type %T", v)
-	}
+	return toFloat64(row[0])
 }
 
-func (q *bigQueryQuerier) MAU(ctx context.Context) (int, error) {
+// Usage returns MAU, average DAU and request count over the trailing 30 days
+// from a single scan of the request log. Only authenticated traffic (userID > 0)
+// is counted, so crawler/bot requests are excluded. AvgDAU divides the total
+// distinct user-days by a fixed 30-day denominator (zero-activity days count as
+// 0), rather than averaging over active days only, which would overstate it.
+func (q *bigQueryQuerier) Usage(ctx context.Context) (UsageStats, error) {
 	sql := fmt.Sprintf(`
-SELECT COUNT(DISTINCT SAFE_CAST(jsonPayload.userID AS INT64)) AS v
-FROM `+"`%s`"+`
-WHERE jsonPayload.msg = 'request processed'
-  AND SAFE_CAST(jsonPayload.userID AS INT64) > 0
-  AND timestamp >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 30 DAY)`, q.logsTable)
-	v, err := q.queryScalar(ctx, sql)
-	return int(v), err
-}
-
-func (q *bigQueryQuerier) AvgDAU(ctx context.Context) (float64, error) {
-	sql := fmt.Sprintf(`
-SELECT AVG(daily) AS v FROM (
-  SELECT DATE(timestamp, 'Australia/Melbourne') d, COUNT(DISTINCT SAFE_CAST(jsonPayload.userID AS INT64)) daily
+SELECT
+  COUNT(DISTINCT uid) AS mau,
+  COUNT(*) AS requests,
+  COUNT(DISTINCT CONCAT(CAST(d AS STRING), '|', CAST(uid AS STRING))) / 30.0 AS avg_dau
+FROM (
+  SELECT DATE(timestamp, 'Australia/Melbourne') AS d,
+         SAFE_CAST(jsonPayload.userID AS INT64) AS uid
   FROM `+"`%s`"+`
   WHERE jsonPayload.msg = 'request processed'
     AND SAFE_CAST(jsonPayload.userID AS INT64) > 0
     AND timestamp >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 30 DAY)
-  GROUP BY d)`, q.logsTable)
-	return q.queryScalar(ctx, sql)
-}
+)`, q.logsTable)
 
-func (q *bigQueryQuerier) RequestCount(ctx context.Context) (int, error) {
-	// Authenticated requests only: a valid userID excludes crawler/bot traffic,
-	// which cannot hold a session.
-	sql := fmt.Sprintf(`
-SELECT COUNT(*) AS v
-FROM `+"`%s`"+`
-WHERE jsonPayload.msg = 'request processed'
-  AND SAFE_CAST(jsonPayload.userID AS INT64) > 0
-  AND timestamp >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 30 DAY)`, q.logsTable)
-	v, err := q.queryScalar(ctx, sql)
-	return int(v), err
+	job, err := q.client.Query(sql).Run(ctx)
+	if err != nil {
+		return UsageStats{}, err
+	}
+	it, err := job.Read(ctx)
+	if err != nil {
+		return UsageStats{}, err
+	}
+	var row []bigquery.Value
+	err = it.Next(&row)
+	if err == iterator.Done || len(row) < 3 {
+		return UsageStats{}, nil
+	}
+	if err != nil {
+		return UsageStats{}, err
+	}
+	mau, err := toFloat64(row[0])
+	if err != nil {
+		return UsageStats{}, err
+	}
+	reqs, err := toFloat64(row[1])
+	if err != nil {
+		return UsageStats{}, err
+	}
+	avgDAU, err := toFloat64(row[2])
+	if err != nil {
+		return UsageStats{}, err
+	}
+	return UsageStats{MAU: int(mau), Requests: int(reqs), AvgDAU: avgDAU}, nil
 }
 
 func (q *bigQueryQuerier) GCPCost(ctx context.Context) (float64, error) {
@@ -119,32 +152,5 @@ FROM `+"`%s`"+`
 WHERE project.id = @projectID
   AND usage_start_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 30 DAY)`, q.billingTable)
 
-	query := q.client.Query(sql)
-	query.Parameters = []bigquery.QueryParameter{
-		{Name: "projectID", Value: q.billingProjectID},
-	}
-	job, err := query.Run(ctx)
-	if err != nil {
-		return 0, err
-	}
-	it, err := job.Read(ctx)
-	if err != nil {
-		return 0, err
-	}
-	var row []bigquery.Value
-	err = it.Next(&row)
-	if err == iterator.Done || len(row) == 0 || row[0] == nil {
-		return 0, nil
-	}
-	if err != nil {
-		return 0, err
-	}
-	switch v := row[0].(type) {
-	case int64:
-		return float64(v), nil
-	case float64:
-		return v, nil
-	default:
-		return 0, fmt.Errorf("unexpected scalar type %T", v)
-	}
+	return q.queryScalar(ctx, sql, bigquery.QueryParameter{Name: "projectID", Value: q.billingProjectID})
 }

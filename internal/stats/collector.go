@@ -40,15 +40,27 @@ func (r *Registry) Register(collectors ...Collector) {
 	r.collectors = append(r.collectors, collectors...)
 }
 
+// CollectResult is the outcome of a collection run: the merged widgets plus the
+// number of collectors that failed, so the caller can decide whether the
+// snapshot is complete enough to persist.
+type CollectResult struct {
+	Widgets  []model.StatWidget
+	Failures int
+}
+
 // Collect runs every registered collector and returns the merged, ordered set
-// of widgets. A failure in one collector is logged and skipped so that a single
-// broken source never takes down the whole dashboard.
-func (r *Registry) Collect(ctx context.Context) []model.StatWidget {
+// of widgets along with a count of collectors that errored. A failure in one
+// collector is logged and skipped so that a single broken source never takes
+// down the whole dashboard, but the count lets the caller avoid persisting a
+// degraded snapshot over a good one.
+func (r *Registry) Collect(ctx context.Context) CollectResult {
 	var widgets []model.StatWidget
+	failures := 0
 	for _, c := range r.collectors {
 		w, err := c.Collect(ctx)
 		if err != nil {
 			slog.Error("stats collector failed", "collector", c.Name(), "error", err.Error())
+			failures++
 			continue
 		}
 		widgets = append(widgets, w...)
@@ -56,5 +68,5 @@ func (r *Registry) Collect(ctx context.Context) []model.StatWidget {
 	sort.SliceStable(widgets, func(i, j int) bool {
 		return widgets[i].Order < widgets[j].Order
 	})
-	return widgets
+	return CollectResult{Widgets: widgets, Failures: failures}
 }

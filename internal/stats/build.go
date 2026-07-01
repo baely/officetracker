@@ -42,7 +42,9 @@ func BuildRegistry(ctx context.Context, cfg Config, db database.Databaser) *Regi
 	}
 
 	// gcpCost is shared: registered as its own widget collector AND referenced
-	// by cost-per-user, so the billed billing-export query runs only once.
+	// by cost-per-user, so the billed billing-export query runs only once. Only
+	// registered when billing is configured, so we never publish a misleading
+	// $0 GCP-cost widget before the billing export exists.
 	gcpCost := &GCPCostCollector{Querier: costQ}
 
 	// Register in display/dependency order. Usage and gcpCost must precede
@@ -50,7 +52,9 @@ func BuildRegistry(ctx context.Context, cfg Config, db database.Databaser) *Regi
 	r.Register(usage)
 	r.Register(TrackedDaysCollector{DB: db})
 	r.Register(AverageOfficeAttendanceCollector{DB: db})
-	r.Register(gcpCost)
+	if cfg.BillingEnabled() {
+		r.Register(gcpCost)
+	}
 	r.Register(FixedCostCollector{Config: cfg.FixedCosts()})
 	r.Register(CostPerUserCollector{Provider: CostPerUserProvider{
 		Cost:  gcpCost,
@@ -64,10 +68,17 @@ func BuildRegistry(ctx context.Context, cfg Config, db database.Databaser) *Regi
 // Run performs a full collection and persists the snapshot.
 func Run(ctx context.Context, cfg Config, db database.Databaser) ([]model.StatWidget, error) {
 	r := BuildRegistry(ctx, cfg, db)
-	widgets := r.Collect(ctx)
-	// Don't persist an empty snapshot: if every collector failed (e.g. a
-	// transient DB/BigQuery outage), saving would clobber the last good
-	// snapshot and flip the public dashboard to its empty state.
+	res := r.Collect(ctx)
+	widgets := res.Widgets
+	// Don't persist a degraded snapshot over the last good one. Any collector
+	// failure (e.g. a transient DB/BigQuery outage) can leave a partial result
+	// that still contains the always-present fixed-cost widgets, so guard on
+	// the failure count rather than on len(widgets) being zero.
+	if res.Failures > 0 {
+		slog.Warn("stats collection had failures; skipping snapshot save to preserve the last good snapshot",
+			"failures", res.Failures, "widgets", len(widgets))
+		return widgets, nil
+	}
 	if len(widgets) == 0 {
 		slog.Warn("stats collection produced no widgets; skipping snapshot save")
 		return widgets, nil

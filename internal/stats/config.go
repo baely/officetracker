@@ -42,8 +42,16 @@ func (c Config) FixedCosts() FixedCostConfig {
 	}
 }
 
-// BigQueryEnabled reports whether enough config is present to run BigQuery-backed
-// collectors.
+// BigQueryEnabled reports whether enough config is present to run the
+// usage (log-backed) BigQuery collectors.
 func (c Config) BigQueryEnabled() bool {
 	return c.BQProjectID != "" && c.BQLogsTable != ""
+}
+
+// BillingEnabled reports whether the Cloud Billing export is configured. The
+// GCP-cost widgets are skipped entirely when it isn't, rather than reporting a
+// misleading $0 during the staged rollout (log sink and billing export are set
+// up as separate steps).
+func (c Config) BillingEnabled() bool {
+	return c.BQBillingTable != "" && c.BQBillingProjectID != ""
 }

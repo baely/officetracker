@@ -11,14 +11,18 @@ import (
 // The production implementation is backed by BigQuery (see bigquery.go), but the
 // interface keeps collectors decoupled and unit-testable, and lets the whole
 // usage pipeline be omitted entirely when BigQuery is not configured.
+// UsageStats bundles the usage metrics derived from the request log so they can
+// be fetched together in a single query.
+type UsageStats struct {
+	MAU      int
+	AvgDAU   float64
+	Requests int
+}
+
 type UsageQuerier interface {
-	// MAU returns distinct active users over the trailing 30 days.
-	MAU(ctx context.Context) (int, error)
-	// AvgDAU returns the mean daily active users over the trailing 30 days.
-	AvgDAU(ctx context.Context) (float64, error)
-	// RequestCount returns total authenticated processed requests (userID > 0)
-	// over the trailing 30 days. Unauthenticated/crawler traffic is excluded.
-	RequestCount(ctx context.Context) (int, error)
+	// Usage returns MAU, average DAU and request count over the trailing 30
+	// days. Implementations compute all three in one pass.
+	Usage(ctx context.Context) (UsageStats, error)
 }
 
 // UsageCollector emits the MAU, average DAU and request-count widgets. It also
@@ -39,49 +43,38 @@ func (c *UsageCollector) Collect(ctx context.Context) ([]model.StatWidget, error
 		return nil, nil
 	}
 
-	var widgets []model.StatWidget
-
-	mau, err := c.Querier.MAU(ctx)
+	u, err := c.Querier.Usage(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("mau: %w", err)
+		return nil, fmt.Errorf("usage: %w", err)
 	}
-	c.lastMAU = mau
-	widgets = append(widgets, model.StatWidget{
-		Key:   "mau_30d",
-		Title: "Monthly Active Users",
-		Value: formatInt(mau),
-		Unit:  "users",
-		Group: "Usage (30d)",
-		Order: 1,
-	})
+	c.lastMAU = u.MAU
 
-	avgDAU, err := c.Querier.AvgDAU(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("avg dau: %w", err)
-	}
-	widgets = append(widgets, model.StatWidget{
-		Key:   "avg_dau_30d",
-		Title: "Avg Daily Active Users",
-		Value: fmt.Sprintf("%.1f", avgDAU),
-		Unit:  "users",
-		Group: "Usage (30d)",
-		Order: 2,
-	})
-
-	reqs, err := c.Querier.RequestCount(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("request count: %w", err)
-	}
-	widgets = append(widgets, model.StatWidget{
-		Key:   "requests_30d",
-		Title: "Authenticated Requests",
-		Value: formatInt(reqs),
-		Unit:  "req",
-		Group: "Usage (30d)",
-		Order: 3,
-	})
-
-	return widgets, nil
+	return []model.StatWidget{
+		{
+			Key:   "mau_30d",
+			Title: "Monthly Active Users",
+			Value: formatInt(u.MAU),
+			Unit:  "users",
+			Group: "Usage (30d)",
+			Order: 1,
+		},
+		{
+			Key:   "avg_dau_30d",
+			Title: "Avg Daily Active Users",
+			Value: fmt.Sprintf("%.1f", u.AvgDAU),
+			Unit:  "users",
+			Group: "Usage (30d)",
+			Order: 2,
+		},
+		{
+			Key:   "requests_30d",
+			Title: "Authenticated Requests",
+			Value: formatInt(u.Requests),
+			Unit:  "req",
+			Group: "Usage (30d)",
+			Order: 3,
+		},
+	}, nil
 }
 
 // MAU returns the most recently collected MAU value, or 0 if unknown.
