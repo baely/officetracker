@@ -48,7 +48,8 @@ func NewServer(cfg config.AppConfigurer, db database.Databaser, redis *database.
 	}
 	s.auth = author
 
-	r := chi.NewMux().With(injectAuth(db, cfg), s.logRequest)
+	limiter := newRateLimiter(redis, authedRateLimits, unauthedRateLimits)
+	r := chi.NewMux().With(injectAuth(db, cfg), s.logRequest, limiter.middleware)
 
 	// Suspension page (must be accessible to suspended users)
 	r.Get("/suspended", s.handleSuspended)
@@ -257,6 +258,11 @@ func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 	userID, err := getUserID(r)
+	if errors.Is(err, ErrNoUserInCtx) || userID == 0 {
+		slog.Info("no user id in context, redirecting to login")
+		http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
+		return
+	}
 	if err != nil {
 		err = fmt.Errorf("failed to get user id: %w", err)
 		errorPage(w, r, err, internalErrorMsg, http.StatusInternalServerError)
@@ -355,6 +361,7 @@ func (s *Server) handleDeveloper(w http.ResponseWriter, r *http.Request) {
 	}
 	if authMethod != auth.MethodSSO {
 		http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
+		return
 	}
 
 	serveDeveloper(w, r, developerPage{})
