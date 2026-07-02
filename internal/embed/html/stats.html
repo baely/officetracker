@@ -3,7 +3,7 @@
 {{ define "content" }}
 <style>
     .stats-updated {
-        color: #666;
+        color: var(--muted);
         font-size: 0.85rem;
         margin-bottom: 1.5rem;
     }
@@ -11,11 +11,8 @@
         margin-bottom: 2rem;
     }
     .stats-group h3 {
-        margin-bottom: 0.75rem;
-        font-size: 1rem;
-        color: #495057;
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
+        margin: 0 0 0.75rem;
+        font-size: 1.05rem;
     }
     .stats-grid {
         display: grid;
@@ -23,14 +20,14 @@
         gap: 1rem;
     }
     .stat-card {
-        background: #f8f9fa;
-        border: 1px solid #dee2e6;
-        border-radius: 8px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
         padding: 1.25rem;
     }
     .stat-card .stat-title {
         font-size: 0.85rem;
-        color: #666;
+        color: var(--muted);
         margin-bottom: 0.5rem;
     }
     .stat-card .stat-value {
@@ -41,16 +38,16 @@
     .stat-card .stat-unit {
         font-size: 0.9rem;
         font-weight: 400;
-        color: #888;
+        color: var(--muted);
         margin-left: 0.25rem;
     }
     .stats-empty {
         padding: 1.5rem;
         text-align: center;
-        color: #666;
-        background: #f8f9fa;
-        border: 1px solid #dee2e6;
-        border-radius: 8px;
+        color: var(--muted);
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
     }
 </style>
 
