@@ -1,6 +1,9 @@
 package server
 
 import (
+	"context"
+	"fmt"
+	"log/slog"
 	"math"
 	"net"
 	"net/http"
@@ -10,6 +13,8 @@ import (
 	"time"
 
 	"golang.org/x/time/rate"
+
+	"github.com/baely/officetracker/internal/database"
 )
 
 type rateLimits struct {
@@ -17,9 +22,8 @@ type rateLimits struct {
 	perHour   int // sustained hourly cap
 }
 
-// Limits applied per client, tracked in memory per instance. Authenticated
-// requests are limited per user; everything else per client IP, on a much
-// tighter budget.
+// Limits applied per client. Authenticated requests are limited per user;
+// everything else per client IP, on a much tighter budget.
 var (
 	authedRateLimits = rateLimits{perMinute: 120, perHour: 1200}
 	// A flat hourly cap for unauthenticated clients: the minute bucket
@@ -35,28 +39,35 @@ const (
 	limiterSweepEvery   = 5 * time.Minute
 )
 
-// clientLimiter holds the two token buckets for a single client. A request
-// must claim a token from both: the minute bucket permits short bursts while
-// the hour bucket caps sustained usage.
+// clientLimiter holds the two in-memory token buckets for a single client. A
+// request must claim a token from both: the minute bucket permits short
+// bursts while the hour bucket caps sustained usage.
 type clientLimiter struct {
 	minute   *rate.Limiter
 	hour     *rate.Limiter
 	lastSeen time.Time
 }
 
+// rateLimiter enforces per-client limits. With Redis available the buckets
+// live there, shared across all instances; without it (standalone mode) each
+// instance keeps its own in-memory buckets.
 type rateLimiter struct {
 	authed   rateLimits
 	unauthed rateLimits
 
+	redis *database.Redis // nil in standalone mode
+
+	// In-memory fallback state, used only when redis is nil.
 	mu        sync.Mutex
 	clients   map[string]*clientLimiter
 	lastSweep time.Time
 }
 
-func newRateLimiter(authed, unauthed rateLimits) *rateLimiter {
+func newRateLimiter(redis *database.Redis, authed, unauthed rateLimits) *rateLimiter {
 	return &rateLimiter{
 		authed:   authed,
 		unauthed: unauthed,
+		redis:    redis,
 		clients:  make(map[string]*clientLimiter),
 	}
 }
@@ -64,7 +75,7 @@ func newRateLimiter(authed, unauthed rateLimits) *rateLimiter {
 func (rl *rateLimiter) middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		key, limits := rl.client(r)
-		ok, retryAfter := rl.allow(key, limits, time.Now())
+		ok, retryAfter := rl.allow(r.Context(), key, limits, time.Now())
 		if !ok {
 			w.Header().Set("Retry-After", strconv.Itoa(int(math.Ceil(retryAfter.Seconds()))))
 			writeError(w, "rate limit exceeded", http.StatusTooManyRequests)
@@ -85,7 +96,20 @@ func (rl *rateLimiter) client(r *http.Request) (string, rateLimits) {
 
 // allow reports whether the client identified by key may proceed at time now.
 // When denied it also returns how long the client should wait before retrying.
-func (rl *rateLimiter) allow(key string, limits rateLimits, now time.Time) (bool, time.Duration) {
+func (rl *rateLimiter) allow(ctx context.Context, key string, limits rateLimits, now time.Time) (bool, time.Duration) {
+	if rl.redis == nil {
+		return rl.allowInMemory(key, limits, now)
+	}
+	ok, retryAfter, err := rl.redis.RateLimitAllow(ctx, "ratelimit:"+key, limits.perMinute, limits.perHour, now)
+	if err != nil {
+		// Fail open: a Redis outage shouldn't take the site down.
+		slog.Error(fmt.Sprintf("rate limit check failed, allowing request: %v", err))
+		return true, 0
+	}
+	return ok, retryAfter
+}
+
+func (rl *rateLimiter) allowInMemory(key string, limits rateLimits, now time.Time) (bool, time.Duration) {
 	c := rl.limiterFor(key, limits, now)
 
 	minuteRes := c.minute.ReserveN(now, 1)

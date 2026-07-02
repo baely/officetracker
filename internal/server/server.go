@@ -48,7 +48,7 @@ func NewServer(cfg config.AppConfigurer, db database.Databaser, redis *database.
 	}
 	s.auth = author
 
-	limiter := newRateLimiter(authedRateLimits, unauthedRateLimits)
+	limiter := newRateLimiter(redis, authedRateLimits, unauthedRateLimits)
 	r := chi.NewMux().With(injectAuth(db, cfg), s.logRequest, limiter.middleware)
 
 	// Suspension page (must be accessible to suspended users)
