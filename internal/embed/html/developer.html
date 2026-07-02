@@ -13,28 +13,17 @@
     #token-name {
         flex: 1;
         padding: 0.5rem;
-        border: 1px solid #dee2e6;
-        border-radius: 4px;
-        background-color: #f8f9fa;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        background-color: var(--surface);
         color: #495057;
-    }
-    #generate-token-btn {
-        padding: 10px;
-        background: #24292e;
-        color: white;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-    }
-    #generate-token-btn:hover {
-        background: #1c2025;
     }
     #new-token-display {
         margin-top: 1rem;
         padding: 1rem;
-        background: #f8f9fa;
-        border: 1px solid #dee2e6;
-        border-radius: 4px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
     }
     .token-warning {
         margin-bottom: 0.5rem;
@@ -47,59 +36,40 @@
         flex: 1;
         padding: 0.5rem;
         background: white;
-        border: 1px solid #dee2e6;
-        border-radius: 4px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
         font-family: monospace;
-    }
-    #copy-token-btn {
-        padding: 10px;
-        background: #24292e;
-        color: white;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-    }
-    #copy-token-btn:hover {
-        background: #1c2025;
     }
     .tokens-table {
         width: 100%;
         border-collapse: collapse;
     }
     .tokens-table th {
-        background: #f4f4f4;
+        background: var(--surface);
         padding: 8px;
         text-align: left;
-        border: 1px solid #ddd;
+        border: 1px solid var(--border);
     }
     .tokens-table td {
         padding: 8px;
-        border: 1px solid #ddd;
+        border: 1px solid var(--border);
     }
     .revoke-btn {
         padding: 6px 12px;
-        background: #24292e;
-        color: white;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-    }
-    .revoke-btn:hover {
-        background: #1c2025;
     }
     .no-tokens {
         padding: 1rem;
         text-align: center;
-        color: #666;
-        background: #f8f9fa;
-        border-radius: 4px;
+        color: var(--muted);
+        background: var(--surface);
+        border-radius: var(--radius-lg);
     }
     .error {
         padding: 1rem;
-        background: #f8f9fa;
+        background: var(--surface);
         color: #495057;
-        border: 1px solid #dee2e6;
-        border-radius: 4px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
     }
 </style>
 

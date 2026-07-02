@@ -9,6 +9,17 @@
     <link href="https://fonts.googleapis.com/css2?family=Calistoga&display=swap" rel="stylesheet">
     <link href="/static/themes.css?v=2" rel="stylesheet">
     <style>
+        :root {
+            --ink: #24292e;
+            --ink-hover: #1c2025;
+            --muted: #6b7280;
+            --border: #dee2e6;
+            --divider: #f0f1f3;
+            --surface: #f8f9fa;
+            --radius-sm: 4px;
+            --radius-lg: 8px;
+        }
+
         html, body { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; margin: 0; padding: 0; }
         body { background-color: #f7f8f8; height: 100vh; overflow-x: hidden; overflow-y: auto; width: 100vw; }
         main { background-color: white; margin: 0 auto; max-width: 540px; min-height: calc(100vh - 96px); padding: 48px; }
@@ -27,11 +38,24 @@
             padding: 32px 48px 32px;
         }
 
+        button {
+            padding: 10px 16px;
+            border-radius: var(--radius-sm);
+            border: none;
+            background-color: var(--ink);
+            color: white;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: inherit;
+        }
+        button:hover {
+            background-color: var(--ink-hover);
+        }
         .login-btn {
             padding: 10px;
-            border-radius: 4px;
+            border-radius: var(--radius-sm);
             border: none;
-            background-color: #24292e;
+            background-color: var(--ink);
             color: white;
             cursor: pointer;
             font-size: inherit;
@@ -41,7 +65,7 @@
             box-sizing: border-box;
         }
         .login-btn:hover {
-            background-color: #1c2025;
+            background-color: var(--ink-hover);
         }
         #calendar-nav {
             display: flex;
@@ -64,10 +88,10 @@
         }
 
         .weekday-header, .day {
-            border: 1px solid #dee2e6; /* Bootstrap-like border color */
+            border: 1px solid var(--border);
             padding: 0.5rem;
             text-align: center;
-            background-color: #f8f9fa; /* Bootstrap-like background color */
+            background-color: var(--surface);
         }
 
         .weekday-header {
@@ -97,7 +121,7 @@
         .legend-color {
             width: 1rem;
             height: 1rem;
-            border: 1px solid #dee2e6;
+            border: 1px solid var(--border);
             margin-right: 0.5rem;
         }
 
@@ -120,13 +144,13 @@
         textarea#notes {
             width: 100%;
             padding: 10px;
-            border: 1px solid #dee2e6;
-            border-radius: 4px;
-            font-family: Arial, sans-serif;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            font-family: inherit;
             font-size: 1rem;
             line-height: 1.5;
             color: #495057;
-            background-color: #f8f9fa;
+            background-color: var(--surface);
             box-sizing: border-box;
             resize: vertical;
         }
@@ -137,56 +161,15 @@
         }
 
         .summary-container th, .summary-container td {
-            border: 1px solid #ddd;
+            border: 1px solid var(--border);
             padding: 8px;
             text-align: left;
         }
 
         .summary-container th {
-            background-color: #f4f4f4;
+            background-color: var(--surface);
         }
 
-        input#api-key {
-            width: 100%;
-        }
-        
-        /* Theme selector styles */
-        .theme-selector {
-            margin: 1rem 0;
-        }
-        
-        .theme-selector label {
-            display: block;
-            margin-bottom: 0.5rem;
-        }
-        
-        .theme-selector select {
-            padding: 0.5rem;
-            border-radius: 4px;
-            border: 1px solid #dee2e6;
-            background-color: white;
-            color: #495057;
-        }
-        
-        .theme-option {
-            margin: 0.5rem 0;
-        }
-        
-        .theme-option label {
-            margin-left: 0.5rem;
-        }
-        
-        /* Improved checkbox styling */
-        .checkbox-wrapper {
-            display: flex;
-            align-items: center;
-        }
-        
-        .checkbox-wrapper input[type="checkbox"] {
-            margin: 0;
-            margin-right: 0.5rem;
-        }
-        
         /* Schedule calendar styles */
         .schedule-container {
             margin: 1rem 0;
@@ -198,7 +181,7 @@
         }
         
         .schedule-day {
-            border: 1px solid #dee2e6;
+            border: 1px solid var(--border);
             padding: 1rem;
             text-align: center;
             cursor: pointer;
@@ -211,7 +194,7 @@
         }
         
         .schedule-day[data-state="0"] {
-            background-color: #f8f9fa; /* Untracked */
+            background-color: var(--surface); /* Untracked */
         }
         
         .schedule-day[data-state="1"] {
@@ -244,7 +227,7 @@
             background-color: #333;
             color: white;
             padding: 8px 12px;
-            border-radius: 4px;
+            border-radius: var(--radius-sm);
             font-size: 0.85em;
             white-space: nowrap;
             z-index: 1000;
@@ -285,10 +268,10 @@
     <h2>{{block "title" .}}{{end}}</h2>
     <section>{{block "content" .}}{{end}}</section>
     
-    <footer style="margin-top: 48px; padding: 24px 0; border-top: 1px solid #dee; text-align: center; color: #666;">
+    <footer style="margin-top: 48px; padding: 24px 0; border-top: 1px solid #dee; text-align: center; color: #6b7280;">
         <p>
-            <a href="/tos" style="margin: 0 8px; color: #666;">Terms of Service</a>
-            <a href="/privacy" style="margin: 0 8px; color: #666;">Privacy Policy</a>
+            <a href="/tos" style="margin: 0 8px; color: #6b7280;">Terms of Service</a>
+            <a href="/privacy" style="margin: 0 8px; color: #6b7280;">Privacy Policy</a>
         </p>
     </footer>
 </main>

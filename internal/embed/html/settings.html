@@ -4,8 +4,8 @@
 
 <style>
     .settings-section {
-        border: 1px solid #e6e8eb;
-        border-radius: 10px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
         padding: 20px 24px;
         margin: 20px 0;
     }
@@ -17,7 +17,7 @@
 
     .settings-section .section-desc {
         margin: 0 0 16px;
-        color: #6b7280;
+        color: var(--muted);
         font-size: 0.875rem;
         line-height: 1.5;
     }
@@ -36,7 +36,7 @@
     }
 
     .field-row + .field-row {
-        border-top: 1px solid #f0f1f3;
+        border-top: 1px solid var(--divider);
     }
 
     .field-row label {
@@ -46,8 +46,8 @@
 
     .field-row select {
         padding: 8px 10px;
-        border-radius: 6px;
-        border: 1px solid #dee2e6;
+        border-radius: var(--radius-sm);
+        border: 1px solid var(--border);
         background-color: #fff;
         color: #495057;
         font-size: 0.95rem;
@@ -74,11 +74,11 @@
     }
 
     .account-list li + li {
-        border-top: 1px solid #f0f1f3;
+        border-top: 1px solid var(--divider);
     }
 
     .account-list .empty {
-        color: #6b7280;
+        color: var(--muted);
     }
 
     /* Schedule calendar tweaks */
@@ -102,7 +102,7 @@
     <p class="section-desc">
         Link an additional social login to your account. Connection links expire after 10 minutes.
     </p>
-    <a href="{{.Auth0AuthURL}}" class="github-btn login-btn" id="assoc-uri">
+    <a href="{{.Auth0AuthURL}}" class="login-btn" id="assoc-uri">
         Connect a social login
     </a>
     <ul class="account-list">

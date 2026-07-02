@@ -3,10 +3,10 @@
 {{ define "content" }}
 <style>
     .hero {
-        background: #eef8f6 url("/static/office-building.png") no-repeat right 32px bottom 24px / 152px 152px;
-        margin: 0 -24px 32px;
+        background: #eef8f6 url("/static/office-building.png") no-repeat right 48px bottom 24px / 152px 152px;
+        margin: 0 -48px 32px;
         min-height: 360px;
-        padding: 32px 180px 32px 24px;
+        padding: 32px 200px 32px 48px;
     }
 
     .hero p {
@@ -24,9 +24,9 @@
     }
 
     .hero-actions a {
-        border: 1px solid #24292e;
-        border-radius: 4px;
-        color: #24292e;
+        border: 1px solid var(--ink);
+        border-radius: var(--radius-sm);
+        color: var(--ink);
         display: inline-flex;
         font-weight: 700;
         line-height: 1;
@@ -35,7 +35,7 @@
     }
 
     .hero-actions a.primary {
-        background-color: #24292e;
+        background-color: var(--ink);
         color: white;
     }
 
@@ -52,7 +52,7 @@
     }
 
     .hero-details p {
-        color: #526064;
+        color: var(--muted);
         line-height: 1.45;
         margin: 0;
     }
@@ -61,8 +61,6 @@
         .hero {
             background-position: right 20px bottom 20px;
             background-size: 96px 96px;
-            margin-left: 0;
-            margin-right: 0;
             min-height: 420px;
             padding: 24px 24px 132px;
         }
