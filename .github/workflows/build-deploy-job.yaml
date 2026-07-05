@@ -73,7 +73,7 @@ jobs:
         run: |
           gcloud run jobs deploy ${{ inputs.job_name }} \
             --project officetracker-501000 \
-            --region asia-southeast1 \
+            --region australia-southeast1 \
             --image asia-southeast1-docker.pkg.dev/officetracker-501000/officetracker/statscollector:${{ github.sha }} \
             --set-env-vars "${{ steps.env.outputs.vars }}" \
             --set-secrets "SIGNING_KEY=${{ secrets.SIGNING_KEY }}:latest,POSTGRES_PASSWORD=${{ secrets.PQ_SECRET }}:latest" \
