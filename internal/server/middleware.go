@@ -69,6 +69,9 @@ func injectAuth(db database.Databaser, cfger config.AppConfigurer) func(http.Han
 			case config.IntegratedApp:
 				token, authMethod := auth.GetAuth(cfg, r)
 				val.Set(context2.CtxAuthMethodKey, authMethod)
+				if authMethod == auth.MethodSSO || authMethod == auth.MethodSecret {
+					w.Header().Set("Cache-Control", "private, no-store")
+				}
 				userID, err := auth.GetUserID(cfg, db, token, authMethod)
 				if err != nil {
 					auth.ClearCookie(cfg, w)

@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	userCookieBase = "user"
+	userCookieBase = "__session"
 )
 
 func cookieName(cfg config.IntegratedApp) string {
