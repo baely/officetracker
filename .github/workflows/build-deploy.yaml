@@ -69,7 +69,7 @@ jobs:
           project_id: officetracker-501000
           service: ${{ inputs.service_name }}
           image: asia-southeast1-docker.pkg.dev/officetracker-501000/officetracker/officetracker:${{ github.sha }}
-          region: asia-southeast1
+          region: australia-southeast1
           labels: |
             sha=${{ github.sha }}
           env_vars: ${{ steps.env.outputs.ENV_VARS }}
