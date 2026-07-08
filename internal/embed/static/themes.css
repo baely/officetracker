@@ -216,11 +216,13 @@
 
 /* Dark theme */
 .theme-dark {
-    --primary-bg: #333;
-    --secondary-bg: #222;
-    --content-bg: #444;
-    --text-color: #ddd;
-    --border-color: #555;
+    --primary-bg: #202124;    /* page background */
+    --secondary-bg: #17181a;  /* navbar */
+    --content-bg: #2a2b2e;    /* content card */
+    --input-bg: #2f3033;      /* inputs, buttons, table headers */
+    --text-color: #e3e3e3;
+    --muted-text: #9aa0a6;    /* secondary/descriptive text */
+    --border-color: #3c4043;
     --highlight-color: #FFC107;
     --present-color: #4CAF50;
     --not-present-color: #F44336;
@@ -242,7 +244,8 @@ body.theme-city-skyline main {
 }
 
 body.theme-dark main nav {
-    background-color: var(--secondary-bg);
+    /* Base `main nav` sets #dee with !important, so this must be !important too. */
+    background-color: var(--secondary-bg) !important;
 }
 
 body.theme-dark .weekday-header, 
@@ -298,6 +301,82 @@ body.theme-city-skyline .scheduled-other {
 body.theme-dark .today,
 body.theme-city-skyline .today {
     border-color: var(--highlight-color);
+}
+
+/* -------------------------------------------------------------------------
+   Dark theme — consistency fixes.
+   The app's base styles are light-first with many hardcoded colours the
+   original dark theme never covered (white inputs, tables, dividers, etc.).
+   These rules bring the rest of the UI in line with the dark palette. They are
+   all scoped to body.theme-dark, so the other themes are left untouched. */
+
+/* Secondary / descriptive text */
+body.theme-dark .section-desc,
+body.theme-dark .account-list .empty {
+    color: var(--muted-text);
+}
+
+/* Form controls: inputs, selects, textareas (excluding native checkboxes) */
+body.theme-dark input:not([type="checkbox"]):not([type="radio"]),
+body.theme-dark select,
+body.theme-dark textarea,
+body.theme-dark textarea#notes,
+body.theme-dark .field-row select {
+    background-color: var(--input-bg);
+    color: var(--text-color);
+    border-color: var(--border-color);
+}
+
+/* Default buttons (calendar nav, export). The dedicated .login-btn keeps its
+   own dark styling. */
+body.theme-dark button:not(.login-btn) {
+    background-color: var(--input-bg);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+}
+body.theme-dark button:not(.login-btn):hover {
+    background-color: #3a3b3f;
+}
+
+/* Summary table */
+body.theme-dark .summary-container th,
+body.theme-dark .summary-container td {
+    border-color: var(--border-color);
+    color: var(--text-color);
+}
+body.theme-dark .summary-container th {
+    background-color: var(--input-bg);
+}
+
+/* Notification banner: keep the amber accent, but dark text for contrast */
+body.theme-dark section.notification {
+    color: #1a1a1a;
+}
+
+/* Footer (base uses inline styles, so !important is required to override) */
+body.theme-dark footer {
+    border-top-color: var(--border-color) !important;
+}
+body.theme-dark footer a {
+    color: var(--muted-text) !important;
+}
+
+/* Settings page: section cards, row dividers and the weekly-schedule grid */
+body.theme-dark .settings-section {
+    border-color: var(--border-color);
+}
+body.theme-dark .field-row + .field-row,
+body.theme-dark .account-list li + li {
+    border-top-color: var(--border-color);
+}
+body.theme-dark .schedule-day {
+    border-color: var(--border-color);
+}
+body.theme-dark .schedule-day[data-state="0"] {
+    background-color: var(--input-bg);
+}
+body.theme-dark .schedule-day:hover {
+    background-color: #3a3b3f;
 }
 
 /* Animations for weather effects */
