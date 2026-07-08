@@ -64,15 +64,19 @@ func (p *postgres) GetDay(userID int, day int, month int, year int) (model.DaySt
 }
 
 func (p *postgres) SaveMonth(userID int, month int, year int, state model.MonthState) error {
+	if len(state.Days) == 0 {
+		return nil
+	}
 	argNum := incrementer(1)
-	q := `INSERT INTO entries (user_id, day, month, year, state) VALUES `
-	var queries []string
+	var tuples []string
 	var args []interface{}
 	for day, dayState := range state.Days {
-		q += fmt.Sprintf("($%d, $%d, $%d, $%d, $%d), ", argNum(), argNum(), argNum(), argNum(), argNum())
+		tuples = append(tuples, fmt.Sprintf("($%d, $%d, $%d, $%d, $%d)", argNum(), argNum(), argNum(), argNum(), argNum()))
 		args = append(args, userID, day, month, year, dayState.State)
 	}
-	q = q + strings.Join(queries, ", ") + " ON CONFLICT(user_id, day, month, year) DO UPDATE SET state=EXCLUDED.state;"
+	q := `INSERT INTO entries (user_id, day, month, year, state) VALUES ` +
+		strings.Join(tuples, ", ") +
+		" ON CONFLICT(user_id, day, month, year) DO UPDATE SET state=EXCLUDED.state;"
 	err := p.readWriteTransaction(func(tx *sql.Tx) error {
 		_, err := tx.Exec(q, args...)
 		return err

@@ -111,7 +111,7 @@ func issueToken(cfg config.IntegratedApp, w http.ResponseWriter, userID int) err
 		Value:    token,
 		Path:     util.BasePath(cfg.Domain),
 		Expires:  time.Now().Add(loginExpiration),
-		Domain:   util.QualifiedDomain(cfg.Domain),
+		Domain:   domain,
 		HttpOnly: true,
 		Secure:   false,
 	}
