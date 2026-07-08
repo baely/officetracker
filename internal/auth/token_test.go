@@ -259,6 +259,41 @@ func TestMethodString(t *testing.T) {
 	}
 }
 
+// issueToken mints a JWT and sets it as the session cookie; the cookie's token
+// must validate back to the same user.
+func TestIssueToken(t *testing.T) {
+	cfg := testCfg()
+	w := httptest.NewRecorder()
+	if err := issueToken(cfg, w, 13); err != nil {
+		t.Fatalf("issueToken: %v", err)
+	}
+	cookies := w.Result().Cookies()
+	if len(cookies) != 1 {
+		t.Fatalf("expected 1 cookie, got %d", len(cookies))
+	}
+	c := cookies[0]
+	if c.Name != cookieName(cfg) || !c.HttpOnly {
+		t.Errorf("cookie = %+v, want httpOnly session cookie", c)
+	}
+	uid, err := getUserIDFromToken(cfg, c.Value)
+	if err != nil || uid != 13 {
+		t.Errorf("issued cookie token validates to (%d, %v), want (13, nil)", uid, err)
+	}
+}
+
+// On localhost the cookie Domain is left blank so browsers accept it.
+func TestIssueTokenLocalhostDomain(t *testing.T) {
+	cfg := testCfg()
+	cfg.Domain = config.Domain{Domain: "localhost"}
+	w := httptest.NewRecorder()
+	if err := issueToken(cfg, w, 1); err != nil {
+		t.Fatalf("issueToken: %v", err)
+	}
+	if got := w.Result().Cookies()[0].Domain; got != "" {
+		t.Errorf("localhost cookie domain = %q, want empty", got)
+	}
+}
+
 func TestClearCookie(t *testing.T) {
 	cfg := testCfg()
 	w := httptest.NewRecorder()
