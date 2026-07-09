@@ -20,10 +20,11 @@ const (
 )
 
 func cookieName(cfg config.IntegratedApp) string {
-	if cfg.App.Env == "" || cfg.App.Env == "cloud" {
-		return userCookieBase
-	}
-	return userCookieBase + "_" + cfg.App.Env
+	//if cfg.App.Env == "" || cfg.App.Env == "cloud" {
+	//	return userCookieBase
+	//}
+	//return userCookieBase + "_" + cfg.App.Env
+	return userCookieBase
 }
 
 type Method int
