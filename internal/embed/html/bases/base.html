@@ -264,21 +264,24 @@
         }
     </style>
 </head>
-<body>
+<body {{block "bodyattrs" .}}{{end}}>
 <!-- Dynamic theme elements -->
 <div id="theme-elements"></div>
 
 <main>
     <nav>
         <h1><a href="/"><img src="/static/office-building.png" alt="Office building"/>Officetracker</a></h1>
-        <div class="nav-links">
-            {{if .IsLoggedIn}}
-                {{if not .IsStandalone}}<a href="/logout">/logout</a>{{end}}
-                <a href="/settings">/settings</a>
-                {{if not .IsStandalone}}<a href="/developer">/developer</a>{{end}}
-            {{else}}
-                <a href="/login">/login</a>
-            {{end}}
+        <!--
+            Nav links are static so the page can be cached identically for every
+            user. The correct subset is revealed client-side once the auth context
+            resolves (see the bootstrap script below). Each link starts hidden to
+            avoid a flash of the wrong set.
+        -->
+        <div class="nav-links" id="ot-nav">
+            <a href="/logout" data-nav="logout" style="display:none">/logout</a>
+            <a href="/settings" data-nav="settings" style="display:none">/settings</a>
+            <a href="/developer" data-nav="developer" style="display:none">/developer</a>
+            <a href="/login" data-nav="login" style="display:none">/login</a>
         </div>
     </nav>
     {{ block "postheader" .}}{{end}}
@@ -294,6 +297,56 @@
 </main>
 
 <script>
+// --- Auth context bootstrap ---------------------------------------------
+// The auth cookie is HttpOnly, so the client cannot read login state directly.
+// A single call to the (uncached) /api/v1/context endpoint tells us whether the
+// user is authenticated, so we can render the right nav and enforce page-level
+// access rules that used to live in the Go handlers.
+function otCurrentMonthPath() {
+    const d = new Date();
+    return "/" + d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0");
+}
+
+function otApplyContext(ctx) {
+    const nav = document.getElementById("ot-nav");
+    const show = new Set();
+    if (ctx.authenticated) {
+        show.add("settings");
+        if (!ctx.standalone) { show.add("logout"); show.add("developer"); }
+    } else {
+        show.add("login");
+    }
+    if (nav) {
+        nav.querySelectorAll("a[data-nav]").forEach(a => {
+            a.style.display = show.has(a.dataset.nav) ? "" : "none";
+        });
+    }
+
+    // Page-level access rules, declared via <body> data attributes. These
+    // replace the server-side redirects that made pages uncacheable.
+    const body = document.body;
+    if (body.dataset.redirectWhenAuthed === "true" && ctx.authenticated) {
+        window.location.replace(otCurrentMonthPath());
+        return false;
+    }
+    if (body.dataset.require === "auth" && !ctx.authenticated) {
+        window.location.replace("/");
+        return false;
+    }
+    if (body.dataset.require === "sso" && !ctx.sso) {
+        window.location.replace("/");
+        return false;
+    }
+    return true;
+}
+
+const otDefaultContext = { authenticated: false, standalone: false, sso: false };
+// Exposed as a promise so page scripts can await the resolved context.
+window.otContext = fetch("/api/v1/context", { credentials: "include" })
+    .then(r => r.ok ? r.json() : otDefaultContext)
+    .catch(() => otDefaultContext)
+    .then(ctx => { window.otContextData = ctx; otApplyContext(ctx); return ctx; });
+
 // Theme management
 function initializeTheme() {
     // Default theme is 'default' (light)
@@ -308,22 +361,24 @@ function initializeTheme() {
 }
 
 function fetchThemePreferences() {
-    // Only try to fetch if the user is logged in
-    if (document.querySelector('a[href="/settings"]')) {
-        fetch('/api/v1/settings/')
-            .then(response => response.json())
-            .then(data => {
-                if (data && data.theme_preferences) {
-                    const prefs = data.theme_preferences;
-                    localStorage.setItem('officetracker-theme', prefs.theme);
-                    localStorage.setItem('officetracker-weather-enabled', prefs.weather_enabled);
-                    localStorage.setItem('officetracker-time-based-enabled', prefs.time_based_enabled);
-                    
-                    applyTheme(prefs.theme, prefs.weather_enabled, prefs.time_based_enabled);
-                }
-            })
-            .catch(error => console.error('Error fetching theme preferences:', error));
-    }
+    // Only try to fetch once we know the user is authenticated.
+    (window.otContext || Promise.resolve(window.otContextData || otDefaultContext))
+        .then(ctx => {
+            if (!ctx || !ctx.authenticated) { return; }
+            fetch('/api/v1/settings/')
+                .then(response => response.json())
+                .then(data => {
+                    if (data && data.theme_preferences) {
+                        const prefs = data.theme_preferences;
+                        localStorage.setItem('officetracker-theme', prefs.theme);
+                        localStorage.setItem('officetracker-weather-enabled', prefs.weather_enabled);
+                        localStorage.setItem('officetracker-time-based-enabled', prefs.time_based_enabled);
+
+                        applyTheme(prefs.theme, prefs.weather_enabled, prefs.time_based_enabled);
+                    }
+                })
+                .catch(error => console.error('Error fetching theme preferences:', error));
+        });
 }
 
 let skylineTimeTimer = null;

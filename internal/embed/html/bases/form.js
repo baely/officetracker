@@ -3,7 +3,8 @@ const monthNames = ["January", "February", "March", "April", "May", "June", "Jul
     "October", "November", "December"];
 
 // The month (1-12) the tracking year starts on, configurable per user.
-let trackingStartMonth = {{ .TrackingStartMonth }} || 10;
+// Defaults to October; overwritten by the user's setting fetched on boot.
+let trackingStartMonth = 10;
 
 // trackingYearForMonth0 maps a 0-indexed calendar month + calendar year to its
 // tracking-year label (mirrors util.TrackingYear in Go).
@@ -328,12 +329,28 @@ class Data {
     }
 }
 
-let rawState = {{ .YearlyState }};
-let rawNotes = {{ .YearlyNotes }};
-let state = mapState(rawState);
-let notes = mapNotes(rawNotes);
+// Initial state/notes are fetched from the API client-side so this page can be
+// served as static, cacheable HTML. Start empty, then load the current tracking
+// year once the user's tracking-start-month setting is known.
+let state = {};
+let notes = {};
+let data;
 
-let data = new Data(state, notes);
+(function bootForm() {
+    fetch('/api/v1/settings/', { credentials: "include" })
+        .then(r => r.ok ? r.json() : null)
+        .then(s => {
+            if (s && s.calendar_preferences && s.calendar_preferences.tracking_year_start_month) {
+                trackingStartMonth = s.calendar_preferences.tracking_year_start_month;
+            }
+        })
+        .catch(() => {})
+        .finally(() => {
+            data = new Data(state, notes);
+            // sameYear=false triggers fetchData()/fetchNotes() for the current year.
+            data.updateDate(false, true);
+        });
+})();
 
 function generateCalendar(month, year, currState, callback) {
     let calendar = document.createElement("div");

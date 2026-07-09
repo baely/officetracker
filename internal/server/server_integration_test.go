@@ -183,19 +183,24 @@ func TestServerAPINotFound(t *testing.T) {
 	}
 }
 
-// The index redirects to the current month's form in standalone mode.
-func TestServerIndexRedirect(t *testing.T) {
+// The index is now a static, cacheable page (the redirect to the current month
+// for authenticated users happens client-side).
+func TestServerIndexStaticAndCacheable(t *testing.T) {
 	h, _ := newStandaloneServer(t)
 	res := do(t, h, http.MethodGet, "/", "")
-	if res.StatusCode != http.StatusTemporaryRedirect {
-		t.Errorf("index status = %d, want 307", res.StatusCode)
+	if res.StatusCode != http.StatusOK {
+		t.Errorf("index status = %d, want 200", res.StatusCode)
 	}
-	if loc := res.Header.Get("Location"); !strings.HasPrefix(loc, "/2") {
-		t.Errorf("index redirect = %q, want a /YYYY-MM path", loc)
+	if ct := res.Header.Get("Content-Type"); !strings.Contains(ct, "text/html") {
+		t.Errorf("index content-type = %q, want html", ct)
+	}
+	if cc := res.Header.Get("Cache-Control"); !strings.Contains(cc, "public") {
+		t.Errorf("index Cache-Control = %q, want a public (cacheable) directive", cc)
 	}
 }
 
-// HTML pages render in standalone mode.
+// HTML pages render in standalone mode and are served with public, cacheable
+// headers so Firebase can cache them.
 func TestServerHTMLPages(t *testing.T) {
 	h, _ := newStandaloneServer(t)
 	for _, path := range []string{"/2024-03", "/settings", "/stats"} {
@@ -206,6 +211,26 @@ func TestServerHTMLPages(t *testing.T) {
 		if ct := res.Header.Get("Content-Type"); !strings.Contains(ct, "text/html") {
 			t.Errorf("GET %s content-type = %q, want html", path, ct)
 		}
+		if cc := res.Header.Get("Cache-Control"); !strings.Contains(cc, "public") {
+			t.Errorf("GET %s Cache-Control = %q, want public", path, cc)
+		}
+	}
+}
+
+// The auth-context bootstrap endpoint reports the viewer's auth state and is not
+// cached. In standalone mode the single local user is authenticated.
+func TestServerContextEndpoint(t *testing.T) {
+	h, _ := newStandaloneServer(t)
+	res := do(t, h, http.MethodGet, "/api/v1/context", "")
+	if res.StatusCode != http.StatusOK {
+		t.Fatalf("context status = %d, want 200", res.StatusCode)
+	}
+	b := bodyString(t, res)
+	if !strings.Contains(b, `"authenticated":true`) || !strings.Contains(b, `"standalone":true`) {
+		t.Errorf("context body = %s, want authenticated+standalone", b)
+	}
+	if cc := res.Header.Get("Cache-Control"); !strings.Contains(cc, "no-store") {
+		t.Errorf("context Cache-Control = %q, want no-store", cc)
 	}
 }
 

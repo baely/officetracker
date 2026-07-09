@@ -54,25 +54,109 @@
     }
 </style>
 
-{{ if .LastUpdated }}
-<div class="stats-updated">Last updated: {{ .LastUpdated }}</div>
-{{ end }}
+<!--
+    Stats are public aggregate data (identical for every visitor), fetched
+    client-side from /api/v1/stats so this page can be served as static,
+    cacheable HTML.
+-->
+<div id="stats-updated" class="stats-updated" style="display:none"></div>
+<div id="stats-content"></div>
 
-{{ if .Groups }}
-    {{ range .Groups }}
-    <div class="stats-group">
-        {{ if .Name }}<h3>{{ .Name }}</h3>{{ end }}
-        <div class="stats-grid">
-            {{ range .Widgets }}
-            <div class="stat-card" data-key="{{ .Key }}">
-                <div class="stat-title">{{ .Title }}</div>
-                <div class="stat-value">{{ .Prefix }}{{ .Value }}{{ if .Unit }}<span class="stat-unit">{{ .Unit }}</span>{{ end }}</div>
-            </div>
-            {{ end }}
-        </div>
-    </div>
-    {{ end }}
-{{ else }}
-<div class="stats-empty">No stats available yet. Check back soon.</div>
-{{ end }}
+<script>
+(function loadStats() {
+    const content = document.getElementById("stats-content");
+
+    fetch("/api/v1/stats", { credentials: "include" })
+        .then(r => r.ok ? r.json() : null)
+        .then(data => {
+            if (!data) { renderEmpty(); return; }
+            renderUpdated(data.computedAt);
+            renderGroups(data.widgets || []);
+        })
+        .catch(() => renderEmpty());
+
+    function renderEmpty() {
+        content.innerHTML = "";
+        const div = document.createElement("div");
+        div.className = "stats-empty";
+        div.textContent = "No stats available yet. Check back soon.";
+        content.appendChild(div);
+    }
+
+    function renderUpdated(computedAt) {
+        if (!computedAt) { return; }
+        const el = document.getElementById("stats-updated");
+        let text = computedAt;
+        const d = new Date(computedAt);
+        if (!isNaN(d.getTime())) {
+            try {
+                // Render in Melbourne time to match the previous server-side output.
+                text = new Intl.DateTimeFormat("en-AU", {
+                    day: "numeric", month: "short", year: "numeric",
+                    hour: "numeric", minute: "2-digit", hour12: true,
+                    timeZone: "Australia/Melbourne", timeZoneName: "short"
+                }).format(d);
+            } catch (e) { /* fall back to the raw timestamp */ }
+        }
+        el.textContent = "Last updated: " + text;
+        el.style.display = "";
+    }
+
+    // Group widgets by their `group` field, preserving first-seen order for both
+    // groups and the widgets within them (mirrors the old server-side grouping).
+    function groupWidgets(widgets) {
+        const groups = [];
+        const index = {};
+        widgets.forEach(w => {
+            const key = w.group || "";
+            if (!(key in index)) {
+                index[key] = groups.length;
+                groups.push({ name: key, widgets: [] });
+            }
+            groups[index[key]].widgets.push(w);
+        });
+        return groups;
+    }
+
+    function renderGroups(widgets) {
+        content.innerHTML = "";
+        if (!widgets.length) { renderEmpty(); return; }
+        groupWidgets(widgets).forEach(group => {
+            const groupEl = document.createElement("div");
+            groupEl.className = "stats-group";
+            if (group.name) {
+                const h3 = document.createElement("h3");
+                h3.textContent = group.name;
+                groupEl.appendChild(h3);
+            }
+            const grid = document.createElement("div");
+            grid.className = "stats-grid";
+            group.widgets.forEach(w => {
+                const card = document.createElement("div");
+                card.className = "stat-card";
+                card.dataset.key = w.key || "";
+
+                const title = document.createElement("div");
+                title.className = "stat-title";
+                title.textContent = w.title || "";
+                card.appendChild(title);
+
+                const value = document.createElement("div");
+                value.className = "stat-value";
+                value.appendChild(document.createTextNode((w.prefix || "") + (w.value || "")));
+                if (w.unit) {
+                    const unit = document.createElement("span");
+                    unit.className = "stat-unit";
+                    unit.textContent = w.unit;
+                    value.appendChild(unit);
+                }
+                card.appendChild(value);
+                grid.appendChild(card);
+            });
+            groupEl.appendChild(grid);
+            content.appendChild(groupEl);
+        });
+    }
+})();
+</script>
 {{ end }}

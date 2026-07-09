@@ -1,4 +1,5 @@
 {{ template "base.html" . }}
+{{ define "bodyattrs" }}data-require="auth"{{ end }}
 {{ define "content" }}
 <div id="calendar-nav">
     <button id="prev-month">Previous</button>

@@ -1,5 +1,6 @@
 {{ template "base.html" . }}
 {{ define "title" }}Settings{{ end }}
+{{ define "bodyattrs" }}data-require="auth"{{ end }}
 {{ define "content" }}
 
 <style>
@@ -96,24 +97,21 @@
     }
 </style>
 
-{{if .Auth0AuthURL}}
-<div class="settings-section">
+<!--
+    Connected accounts are only available in integrated mode. The section is
+    hidden by default and revealed client-side when /api/v1/account/link returns
+    a link URL. The linked-account list is populated from /api/v1/settings.
+-->
+<div class="settings-section" id="connected-accounts-section" style="display:none">
     <h3>Connected accounts</h3>
     <p class="section-desc">
         Link an additional social login to your account. Connection links expire after 10 minutes.
     </p>
-    <a href="{{.Auth0AuthURL}}" class="github-btn login-btn" id="assoc-uri">
+    <a href="#" class="github-btn login-btn" id="assoc-uri">
         Connect a social login
     </a>
-    <ul class="account-list">
-        {{range .LinkedAccounts}}
-        <li><strong>{{.ProviderDisplay}}</strong>{{if .Nickname}}: {{.Nickname}}{{end}}</li>
-        {{else}}
-        <li class="empty">No social accounts linked yet.</li>
-        {{end}}
-    </ul>
+    <ul class="account-list" id="linked-accounts-list"></ul>
 </div>
-{{end}}
 
 <div class="settings-section">
     <h3>Appearance</h3>
@@ -220,25 +218,6 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // Server-provided theme preferences, if available
-        const serverTheme = "{{.ThemePreferences.Theme}}";
-        const serverWeatherEnabled = {{.ThemePreferences.WeatherEnabled}};
-        const serverTimeBasedEnabled = {{.ThemePreferences.TimeBasedEnabled}};
-
-        // Server-provided schedule preferences
-        const serverSchedule = {
-            monday: {{.SchedulePreferences.Monday}},
-            tuesday: {{.SchedulePreferences.Tuesday}},
-            wednesday: {{.SchedulePreferences.Wednesday}},
-            thursday: {{.SchedulePreferences.Thursday}},
-            friday: {{.SchedulePreferences.Friday}},
-            saturday: {{.SchedulePreferences.Saturday}},
-            sunday: {{.SchedulePreferences.Sunday}}
-        };
-
-        // Server-provided tracking-year start month (1-12)
-        const serverTrackingStartMonth = {{.CalendarPreferences.TrackingYearStartMonth}} || 10;
-
         // State names mapping
         const stateNames = {
             0: "Untracked",
@@ -247,24 +226,105 @@
             3: "Other"
         };
 
-        // Load current theme preferences, prioritizing server values if available
-        const currentTheme = serverTheme || localStorage.getItem('officetracker-theme') || 'default';
-        const weatherEnabled = (serverTheme !== "") ? serverWeatherEnabled : (localStorage.getItem('officetracker-weather-enabled') === 'true');
-        const timeBasedEnabled = (serverTheme !== "") ? serverTimeBasedEnabled : (localStorage.getItem('officetracker-time-based-enabled') === 'true');
+        // Preferences are fetched from the API client-side so this page can be
+        // served as static, cacheable HTML. Defaults apply until the fetch resolves.
+        let serverTheme = "";
+        let serverWeatherEnabled = false;
+        let serverTimeBasedEnabled = false;
+        let serverSchedule = {
+            monday: 0, tuesday: 0, wednesday: 0, thursday: 0, friday: 0, saturday: 0, sunday: 0
+        };
+        let serverTrackingStartMonth = 10;
 
-        // Set form values
-        document.getElementById('theme-select').value = currentTheme;
-        document.getElementById('weather-enabled').checked = weatherEnabled;
-        document.getElementById('time-based-enabled').checked = timeBasedEnabled;
+        // Fetch the user's settings, then initialise the form.
+        fetch('/api/v1/settings/', { credentials: "include" })
+            .then(r => r.ok ? r.json() : null)
+            .then(data => {
+                if (data) {
+                    const tp = data.theme_preferences || {};
+                    serverTheme = tp.theme || "";
+                    serverWeatherEnabled = !!tp.weather_enabled;
+                    serverTimeBasedEnabled = !!tp.time_based_enabled;
+                    const sp = data.schedule_preferences || {};
+                    serverSchedule = {
+                        monday: sp.monday || 0, tuesday: sp.tuesday || 0, wednesday: sp.wednesday || 0,
+                        thursday: sp.thursday || 0, friday: sp.friday || 0, saturday: sp.saturday || 0, sunday: sp.sunday || 0
+                    };
+                    const cp = data.calendar_preferences || {};
+                    serverTrackingStartMonth = cp.tracking_year_start_month || 10;
+                    renderLinkedAccounts(data.linked_accounts || []);
+                }
+                initForm();
+            })
+            .catch(() => initForm());
 
-        // Show/hide options based on selected theme
-        toggleOptions(currentTheme);
+        // Connected accounts are only available in integrated mode; reveal the
+        // section when an account-link URL is returned.
+        fetch('/api/v1/account/link', { credentials: "include" })
+            .then(r => r.ok ? r.json() : null)
+            .then(data => {
+                if (data && data.url) {
+                    const link = document.getElementById('assoc-uri');
+                    if (link) { link.href = data.url; }
+                    const section = document.getElementById('connected-accounts-section');
+                    if (section) { section.style.display = ""; }
+                }
+            })
+            .catch(() => {});
 
-        // Initialize schedule calendar
-        initializeScheduleCalendar();
+        function renderLinkedAccounts(accounts) {
+            const list = document.getElementById('linked-accounts-list');
+            if (!list) { return; }
+            list.innerHTML = "";
+            if (!accounts.length) {
+                const li = document.createElement('li');
+                li.className = "empty";
+                li.textContent = "No social accounts linked yet.";
+                list.appendChild(li);
+                return;
+            }
+            accounts.forEach(acc => {
+                const li = document.createElement('li');
+                const strong = document.createElement('strong');
+                strong.textContent = acc.provider_display || acc.provider || "";
+                li.appendChild(strong);
+                if (acc.nickname) {
+                    li.appendChild(document.createTextNode(": " + acc.nickname));
+                }
+                list.appendChild(li);
+            });
+        }
 
-        // Initialize tracking-year start month
-        initializeYearStartMonth();
+        // Apply fetched preferences to the form controls and wire up listeners.
+        function initForm() {
+            const currentTheme = serverTheme || localStorage.getItem('officetracker-theme') || 'default';
+            const weatherEnabled = (serverTheme !== "") ? serverWeatherEnabled : (localStorage.getItem('officetracker-weather-enabled') === 'true');
+            const timeBasedEnabled = (serverTheme !== "") ? serverTimeBasedEnabled : (localStorage.getItem('officetracker-time-based-enabled') === 'true');
+
+            // Set form values
+            document.getElementById('theme-select').value = currentTheme;
+            document.getElementById('weather-enabled').checked = weatherEnabled;
+            document.getElementById('time-based-enabled').checked = timeBasedEnabled;
+
+            // Show/hide options based on selected theme
+            toggleOptions(currentTheme);
+
+            // Initialize schedule calendar
+            initializeScheduleCalendar();
+
+            // Initialize tracking-year start month
+            initializeYearStartMonth();
+
+            // Event listener for theme change
+            document.getElementById('theme-select').addEventListener('change', function() {
+                toggleOptions(this.value);
+                saveSettings();
+            });
+
+            // Event listeners for checkbox changes
+            document.getElementById('weather-enabled').addEventListener('change', saveSettings);
+            document.getElementById('time-based-enabled').addEventListener('change', saveSettings);
+        }
 
         // Save settings function
         function saveSettings() {
@@ -389,16 +449,6 @@
                 });
             });
         }
-
-        // Event listener for theme change
-        document.getElementById('theme-select').addEventListener('change', function() {
-            toggleOptions(this.value);
-            saveSettings();
-        });
-
-        // Event listeners for checkbox changes
-        document.getElementById('weather-enabled').addEventListener('change', saveSettings);
-        document.getElementById('time-based-enabled').addEventListener('change', saveSettings);
     });
 
     function toggleOptions(theme) {

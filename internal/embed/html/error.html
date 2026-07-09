@@ -1,5 +1,6 @@
 {{ template "base.html" . }}
-{{ define "title" }}Error{{ end }}
+{{ define "title" }}Something went wrong{{ end }}
 {{ define "content" }}
-{{ .ErrorMessage }}
+<p>The page you were looking for could not be found, or something went wrong.</p>
+<p><a href="/">Return home</a></p>
 {{ end }}

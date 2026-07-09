@@ -2,14 +2,9 @@ package server
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
-	"html/template"
 	"log/slog"
 	"net/http"
-	"slices"
-	"strconv"
-	"time"
 
 	"github.com/go-chi/chi/v5"
 
@@ -19,8 +14,6 @@ import (
 	"github.com/baely/officetracker/internal/embed"
 	v1 "github.com/baely/officetracker/internal/implementation/v1"
 	"github.com/baely/officetracker/internal/report"
-	"github.com/baely/officetracker/internal/util"
-	"github.com/baely/officetracker/pkg/model"
 )
 
 type Server struct {
@@ -51,15 +44,22 @@ func NewServer(cfg config.AppConfigurer, db database.Databaser, redis *database.
 	limiter := newRateLimiter(redis, authedRateLimits, unauthedRateLimits)
 	r := chi.NewMux().With(injectAuth(db, cfg), s.logRequest, limiter.middleware)
 
+	// Static, cacheable HTML pages. These carry no per-user data; the client
+	// fetches everything dynamic from /api and enforces auth-based redirects and
+	// nav rendering itself (see internal/embed/html/bases/base.html).
+	//
 	// Suspension page (must be accessible to suspended users)
-	r.Get("/suspended", s.handleSuspended)
+	r.Get("/suspended", staticPage(pageSuspended))
 
 	// Form routes
-	r.Get("/", s.handleIndex)
-	r.Get("/{year:[0-9]{4}}-{month:[0-9]{1,2}}", s.handleForm)
+	r.Get("/", staticPage(pageIndex))
+	r.Get("/{year:[0-9]{4}}-{month:[0-9]{1,2}}", staticPage(pageForm))
 
 	// API routes
 	r.Route("/api/v1", func(r chi.Router) {
+		// Uncached auth-state bootstrap for the static frontend. Public: an
+		// anonymous caller gets an all-false context.
+		r.Get("/context", handleContext)
 		// Handlers needing the auth service live here rather than apiRouter.
 		r.With(AllowedAuthMethods(auth.MethodSSO, auth.MethodSecret)).
 			Get("/account/link", s.handleAccountLinkURL)
@@ -73,23 +73,23 @@ func NewServer(cfg config.AppConfigurer, db database.Databaser, redis *database.
 	})
 
 	// Settings available in both standalone and integrated modes
-	r.Get("/settings", s.handleSettings)
+	r.Get("/settings", staticPage(pageSettings))
 
 	// Public stats dashboard (unauthenticated, aggregate-only).
-	r.Get("/stats", s.handleStats)
+	r.Get("/stats", staticPage(pageStats))
 
 	// Integrated app routes
 	switch integratedCfg := cfg.(type) {
 	case config.IntegratedApp:
 		// Auth routes
 		r.Route("/auth", auth.Router(integratedCfg, s.db, s.auth))
-		r.Get("/login", s.handleLogin)
+		r.Get("/login", staticPage(pageLogin))
 		r.Get("/logout", s.handleLogout)
 		// Cool stuff
-		r.Get("/developer", s.handleDeveloper)
+		r.Get("/developer", staticPage(pageDeveloper))
 		// Boring stuff
-		r.Get("/tos", s.handleTos)
-		r.Get("/privacy", s.handlePrivacy)
+		r.Get("/tos", staticPage(pageTos))
+		r.Get("/privacy", staticPage(pagePrivacy))
 	}
 
 	r.Route("/static", staticHandler)
@@ -99,7 +99,9 @@ func NewServer(cfg config.AppConfigurer, db database.Databaser, redis *database.
 		w.Write(embed.OfficeBuilding)
 	})
 
-	r.NotFound(s.handleNotFound)
+	r.NotFound(func(w http.ResponseWriter, r *http.Request) {
+		serveErrorPage(w, http.StatusNotFound)
+	})
 
 	port := cfg.GetApp().Port
 	if port == "" {
@@ -121,188 +123,10 @@ func (s *Server) Run() error {
 	return nil
 }
 
-// handleIndex handles the index route:
-// - if the app is standalone or integrated and the user is logged in, it redirects to the form
-// - if the app is integrated and the user is not logged in, it shows the hero
-func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
-	switch s.cfg.(type) {
-	case config.StandaloneApp:
-		http.Redirect(w, r, fmt.Sprintf("/%s", time.Now().Format("2006-01")), http.StatusTemporaryRedirect)
-		return
-	case config.IntegratedApp:
-		method, _ := getAuthMethod(r)
-		var loggedInMethods = []auth.Method{auth.MethodSSO, auth.MethodSecret}
-		if slices.Contains(loggedInMethods, method) {
-			if userID, err := getUserID(r); err == nil && userID != 0 {
-				http.Redirect(w, r, fmt.Sprintf("/%s", time.Now().Format("2006-01")), http.StatusTemporaryRedirect)
-				return
-			}
-		}
-
-		s.handleHero(w, r)
-	default:
-		s.handleHero(w, r)
-	}
-}
-
-func (s *Server) handleForm(w http.ResponseWriter, r *http.Request) {
-	userID, err := getUserID(r)
-	if errors.Is(err, ErrNoUserInCtx) || userID == 0 {
-		slog.Info("no user id in context, redirecting to login")
-		http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
-		return
-	}
-	if err != nil {
-		err = fmt.Errorf("failed to get user id: %w", err)
-		errorPage(w, r, err, internalErrorMsg, http.StatusInternalServerError)
-		return
-	}
-
-	yearStr := chi.URLParam(r, "year")
-	monthStr := chi.URLParam(r, "month")
-	if yearStr == "" || monthStr == "" {
-		http.Redirect(w, r, fmt.Sprintf("/%s", time.Now().Format("2006-01")), http.StatusTemporaryRedirect)
-		return
-	}
-	year, err := strconv.Atoi(yearStr)
-	if err != nil {
-		err = fmt.Errorf("failed to convert year to int: %w", err)
-		errorPage(w, r, err, "Invalid date", http.StatusBadRequest)
-		return
-	}
-	month, err := strconv.Atoi(monthStr)
-	if err != nil {
-		err = fmt.Errorf("failed to convert month to int: %w", err)
-		errorPage(w, r, err, "Invalid date", http.StatusBadRequest)
-		return
-	}
-
-	calendarPrefs, err := s.db.GetCalendarPreferences(userID)
-	if err != nil {
-		err = fmt.Errorf("failed to get calendar preferences: %w", err)
-		errorPage(w, r, err, internalErrorMsg, http.StatusInternalServerError)
-		return
-	}
-	startMonth := util.NormaliseStartMonth(calendarPrefs.TrackingYearStartMonth)
-
-	// Translate the displayed calendar month/year into its tracking-year label.
-	year = util.TrackingYear(month, year, startMonth)
-
-	yearlyData, err := s.v1.GetYear(model.GetYearRequest{
-		Meta: model.GetYearRequestMeta{
-			UserID: userID,
-			Year:   year,
-		},
-	})
-	if err != nil {
-		err = fmt.Errorf("failed to get year data: %w", err)
-		errorPage(w, r, err, internalErrorMsg, http.StatusInternalServerError)
-		return
-	}
-	yearlyNotes, err := s.v1.GetNotes(model.GetNotesRequest{
-		Meta: model.GetNotesRequestMeta{
-			UserID: userID,
-			Year:   year,
-		},
-	})
-	if err != nil {
-		err = fmt.Errorf("failed to get year note: %w", err)
-		errorPage(w, r, err, internalErrorMsg, http.StatusInternalServerError)
-		return
-	}
-
-	yearlyDataByte, err := json.Marshal(yearlyData)
-	if err != nil {
-		err = fmt.Errorf("failed to marshal yearly data: %w", err)
-		errorPage(w, r, err, internalErrorMsg, http.StatusInternalServerError)
-		return
-	}
-	yearlyNotesByte, err := json.Marshal(yearlyNotes)
-	if err != nil {
-		err = fmt.Errorf("failed to marshal yearly notes: %w", err)
-		errorPage(w, r, err, internalErrorMsg, http.StatusInternalServerError)
-		return
-	}
-	yearlyDataStr := string(yearlyDataByte)
-	yearlyNotesStr := string(yearlyNotesByte)
-
-	serveForm(w, r, formPage{
-		YearlyState:        template.JS(yearlyDataStr),
-		YearlyNotes:        template.JS(yearlyNotesStr),
-		TrackingStartMonth: startMonth,
-	})
-}
-
-func (s *Server) handleHero(w http.ResponseWriter, r *http.Request) {
-	serveHero(w, r, heroPage{})
-}
-
-func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
-	ssoUri, err := s.auth.Auth0SSOUri()
-
-	if err != nil {
-		slog.Error(fmt.Sprintf("failed to generate SSO URI: %v", err))
-		errorPage(w, r, err, internalErrorMsg, http.StatusInternalServerError)
-		return
-	}
-	serveLogin(w, r, loginPage{
-		SSOLink: ssoUri,
-	})
-}
-
 func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
 	cfg := s.cfg.(config.IntegratedApp)
 	auth.ClearCookie(cfg, w)
 	http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
-}
-
-func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
-	userID, err := getUserID(r)
-	if errors.Is(err, ErrNoUserInCtx) || userID == 0 {
-		slog.Info("no user id in context, redirecting to login")
-		http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
-		return
-	}
-	if err != nil {
-		err = fmt.Errorf("failed to get user id: %w", err)
-		errorPage(w, r, err, internalErrorMsg, http.StatusInternalServerError)
-		return
-	}
-	settings, err := s.v1.GetSettings(model.GetSettingsRequest{
-		Meta: model.GetSettingsRequestMeta{
-			UserID: userID,
-		},
-	})
-	if err != nil {
-		err = fmt.Errorf("failed to get settings: %w", err)
-		errorPage(w, r, err, internalErrorMsg, http.StatusInternalServerError)
-		return
-	}
-
-	// Handle Auth0 auth only for integrated mode
-	var authURL string
-	var linkedAccounts []model.LinkedAccount
-	switch s.cfg.(type) {
-	case config.IntegratedApp:
-		authURL, err = s.auth.GenerateAuth0AuthLink(userID)
-		if err != nil {
-			errorPage(w, r, fmt.Errorf("failed to generate auth0 auth link: %v", err), internalErrorMsg, http.StatusInternalServerError)
-			return
-		}
-		linkedAccounts = settings.LinkedAccounts
-	default:
-		// Standalone mode - no Auth0 integration
-		authURL = ""
-		linkedAccounts = []model.LinkedAccount{}
-	}
-
-	serveSettings(w, r, settingsPage{
-		LinkedAccounts:      linkedAccounts,
-		Auth0AuthURL:        authURL,
-		ThemePreferences:    settings.ThemePreferences,
-		SchedulePreferences: settings.SchedulePreferences,
-		CalendarPreferences: settings.CalendarPreferences,
-	})
 }
 
 // handleAccountLinkURL returns an Auth0 account-linking URL for the signed-in
@@ -350,49 +174,6 @@ func (s *Server) handleLogoutToken(w http.ResponseWriter, r *http.Request) {
 		slog.Info("revoked token on logout")
 	}
 	w.WriteHeader(http.StatusOK)
-}
-
-func (s *Server) handleDeveloper(w http.ResponseWriter, r *http.Request) {
-	authMethod, err := getAuthMethod(r)
-	if err != nil {
-		err = fmt.Errorf("failed to get auth method: %w", err)
-		errorPage(w, r, err, internalErrorMsg, http.StatusInternalServerError)
-		return
-	}
-	if authMethod != auth.MethodSSO {
-		http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
-		return
-	}
-
-	serveDeveloper(w, r, developerPage{})
-}
-
-func (s *Server) handleTos(w http.ResponseWriter, r *http.Request) {
-	serveTos(w, r, tosPage{})
-}
-
-func (s *Server) handlePrivacy(w http.ResponseWriter, r *http.Request) {
-	servePrivacy(w, r, privacyPage{})
-}
-
-func (s *Server) handleSuspended(w http.ResponseWriter, r *http.Request) {
-	serveSuspended(w, r, suspendedPage{})
-}
-
-func (s *Server) handleStats(w http.ResponseWriter, r *http.Request) {
-	resp, err := s.v1.GetStats(model.GetStatsRequest{})
-	if err != nil {
-		errorPage(w, r, err, internalErrorMsg, http.StatusInternalServerError)
-		return
-	}
-	serveStats(w, r, statsPage{
-		Groups:      groupStatWidgets(resp.Widgets),
-		LastUpdated: formatLastUpdated(resp.ComputedAt),
-	})
-}
-
-func (s *Server) handleNotFound(w http.ResponseWriter, r *http.Request) {
-	errorPage(w, r, nil, "Not found", http.StatusNotFound)
 }
 
 func staticHandler(r chi.Router) {
