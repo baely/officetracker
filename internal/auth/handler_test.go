@@ -4,8 +4,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
-
-	"github.com/baely/officetracker/internal/config"
 )
 
 // handleLogout clears the session cookie and redirects home.
@@ -35,26 +33,5 @@ func TestHandleLogout(t *testing.T) {
 	}
 	if cleared.Value != "" {
 		t.Errorf("logout cookie value = %q, want empty", cleared.Value)
-	}
-}
-
-// The cookie name switches per environment, so logout in a dev environment
-// clears the env-suffixed cookie.
-func TestHandleLogoutDevEnv(t *testing.T) {
-	cfg := config.IntegratedApp{
-		App:    config.App{Env: "dev"},
-		Domain: config.Domain{Domain: "localhost"},
-	}
-	w := httptest.NewRecorder()
-	handleLogout(cfg)(w, httptest.NewRequest("GET", "/logout", nil))
-
-	found := false
-	for _, c := range w.Result().Cookies() {
-		if c.Name == "__session_dev" {
-			found = true
-		}
-	}
-	if !found {
-		t.Error("expected __session_dev cookie to be cleared in dev env")
 	}
 }

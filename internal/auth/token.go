@@ -16,15 +16,15 @@ import (
 )
 
 const (
-	userCookieBase = "__session"
+	// userCookieName is the session cookie name. It must be exactly "__session"
+	// and identical across every environment: Firebase Hosting only forwards a
+	// cookie named "__session" to Cloud Run, so any env-suffixed variant would be
+	// stripped before it reached the app.
+	userCookieName = "__session"
 )
 
-func cookieName(cfg config.IntegratedApp) string {
-	//if cfg.App.Env == "" || cfg.App.Env == "cloud" {
-	//	return userCookieBase
-	//}
-	//return userCookieBase + "_" + cfg.App.Env
-	return userCookieBase
+func cookieName(config.IntegratedApp) string {
+	return userCookieName
 }
 
 type Method int

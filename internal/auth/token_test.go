@@ -33,20 +33,13 @@ func signClaims(t *testing.T, cfg config.IntegratedApp, claims tokenClaims) stri
 	return s
 }
 
+// The session cookie name must be "__session" in every environment: Firebase
+// Hosting only forwards a cookie by that exact name to Cloud Run.
 func TestCookieName(t *testing.T) {
-	cases := []struct {
-		env  string
-		want string
-	}{
-		{"", "__session"},
-		{"cloud", "__session"},
-		{"dev", "__session_dev"},
-		{"staging", "__session_staging"},
-	}
-	for _, c := range cases {
-		cfg := config.IntegratedApp{App: config.App{Env: c.env}}
-		if got := cookieName(cfg); got != c.want {
-			t.Errorf("cookieName(env=%q) = %q, want %q", c.env, got, c.want)
+	for _, env := range []string{"", "cloud", "dev", "staging"} {
+		cfg := config.IntegratedApp{App: config.App{Env: env}}
+		if got := cookieName(cfg); got != "__session" {
+			t.Errorf("cookieName(env=%q) = %q, want __session", env, got)
 		}
 	}
 }
