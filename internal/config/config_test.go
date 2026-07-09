@@ -26,7 +26,6 @@ func TestLoadIntegratedApp(t *testing.T) {
 	t.Setenv("AUTH0_CLIENT_ID", "cid")
 	t.Setenv("AUTH0_CLIENT_SECRET", "csecret")
 	t.Setenv("AUTH0_NATIVE_CLIENT_ID", "native-cid")
-	t.Setenv("SIGNING_KEY", "super-secret-key")
 
 	cfg, err := LoadIntegratedApp()
 	if err != nil {
@@ -49,7 +48,6 @@ func TestLoadIntegratedApp(t *testing.T) {
 		{"Redis.DB", cfg.Redis.DB, 3},
 		{"Auth0.Domain", cfg.Auth0.Domain, "example.auth0.com"},
 		{"Auth0.NativeClientID", cfg.Auth0.NativeClientID, "native-cid"},
-		{"SigningKey", cfg.SigningKey, "super-secret-key"},
 	}
 	for _, c := range checks {
 		if c.got != c.want {
@@ -70,7 +68,7 @@ func TestLoadIntegratedApp(t *testing.T) {
 func TestLoadIntegratedAppEmpty(t *testing.T) {
 	for _, k := range []string{
 		"APP_ENV", "APP_PORT", "DOMAIN_PROTOCOL", "DOMAIN_SUBDOMAIN", "DOMAIN_DOMAIN",
-		"DOMAIN_BASE_PATH", "POSTGRES_HOST", "AUTH0_DOMAIN", "SIGNING_KEY", "REDIS_DB",
+		"DOMAIN_BASE_PATH", "POSTGRES_HOST", "AUTH0_DOMAIN", "REDIS_DB",
 	} {
 		orig, had := os.LookupEnv(k)
 		os.Unsetenv(k)
@@ -82,7 +80,7 @@ func TestLoadIntegratedAppEmpty(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadIntegratedApp with clean env: %v", err)
 	}
-	if cfg.App.Env != "" || cfg.SigningKey != "" || cfg.Redis.DB != 0 {
+	if cfg.App.Env != "" || cfg.Auth0.Domain != "" || cfg.Redis.DB != 0 {
 		t.Errorf("expected zero-value config, got %+v", cfg)
 	}
 }

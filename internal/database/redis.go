@@ -94,8 +94,18 @@ func (r *Redis) SetState(ctx context.Context, key string, value interface{}, exp
 	return r.rdb.Set(ctx, key, value, expiration).Err()
 }
 
+func (r *Redis) GetState(ctx context.Context, key string) (string, error) {
+	return r.rdb.Get(ctx, key).Result()
+}
+
 func (r *Redis) GetStateInt(ctx context.Context, key string) (int, error) {
 	return r.rdb.Get(ctx, key).Int()
+}
+
+// SetStateNX sets the key only if it does not already exist, reporting whether
+// it was set. Used as a short-lived lock.
+func (r *Redis) SetStateNX(ctx context.Context, key string, value interface{}, expiration time.Duration) (bool, error) {
+	return r.rdb.SetNX(ctx, key, value, expiration).Result()
 }
 
 func (r *Redis) DeleteState(ctx context.Context, key string) error {

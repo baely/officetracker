@@ -9,13 +9,12 @@ type AppConfigurer interface {
 }
 
 type IntegratedApp struct {
-	App        App      `envconfig:"APP"`
-	Domain     Domain   `envconfig:"DOMAIN"`
-	Postgres   Postgres `envconfig:"POSTGRES"`
-	Redis      Redis    `envconfig:"REDIS"`
-	Github     Github   `envconfig:"GITHUB"`
-	Auth0      Auth0    `envconfig:"AUTH0"`
-	SigningKey string   `envconfig:"SIGNING_KEY"`
+	App      App      `envconfig:"APP"`
+	Domain   Domain   `envconfig:"DOMAIN"`
+	Postgres Postgres `envconfig:"POSTGRES"`
+	Redis    Redis    `envconfig:"REDIS"`
+	Github   Github   `envconfig:"GITHUB"`
+	Auth0    Auth0    `envconfig:"AUTH0"`
 }
 
 func (a IntegratedApp) GetApp() App {
