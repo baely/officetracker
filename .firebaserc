@@ -1,0 +1,18 @@
+{
+  "projects": {
+    "default": "officetracker-501000"
+  },
+  "targets": {
+    "officetracker-501000": {
+      "hosting": {
+        "officetracker-501000-beta": [
+          "officetracker-501000-beta"
+        ],
+        "officetracker-501000": [
+          "officetracker-501000"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}

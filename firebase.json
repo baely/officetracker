@@ -1,0 +1,21 @@
+{
+  "hosting": [{
+    "target": "officetracker-501000",
+    "rewrites": [{
+      "source": "**",
+      "run": {
+        "serviceId": "officetracker",
+        "region": "australia-southeast1"
+      }
+    }]
+  },{
+    "target": "officetracker-501000-beta",
+    "rewrites": [{
+      "source": "**",
+      "run": {
+        "serviceId": "officetracker-beta",
+        "region": "australia-southeast1"
+      }
+    }]
+  }]
+}
