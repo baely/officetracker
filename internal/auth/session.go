@@ -45,6 +45,17 @@ const (
 	// auth0Timeout bounds calls to Auth0 so a slow tenant can't stall
 	// request handling.
 	auth0Timeout = 10 * time.Second
+
+	// refreshGraceWindow keeps sessions alive on stale tokens while Auth0
+	// is unreachable. Only definitive rejections (Auth0 answering that the
+	// grant is gone) end a session inside this window; transient failures
+	// serve the stale session and retry. A session whose token has been
+	// expired longer than this is ended regardless.
+	refreshGraceWindow = 24 * time.Hour
+
+	// refreshRetryInterval spaces out refresh attempts during an outage so
+	// at most one request per session eats the Auth0 timeout per interval.
+	refreshRetryInterval = time.Minute
 )
 
 var errSessionInvalid = errors.New("session invalid")
@@ -55,6 +66,9 @@ type session struct {
 	RefreshToken string    `json:"refresh_token,omitempty"`
 	TokenExpiry  time.Time `json:"token_expiry"`
 	CreatedAt    time.Time `json:"created_at"`
+	// RefreshRetryAt is set after a transient refresh failure; until then
+	// requests serve the stale session without contacting Auth0 again.
+	RefreshRetryAt time.Time `json:"refresh_retry_at,omitempty"`
 }
 
 func sessionKey(id string) string {
@@ -173,6 +187,12 @@ func (a *Auth) refreshSession(ctx context.Context, id string, sess session) (int
 		return 0, errSessionInvalid
 	}
 
+	// A recent attempt failed transiently; serve the stale session and wait
+	// out the retry interval instead of hammering Auth0.
+	if withinRefreshGrace(sess) && time.Now().Before(sess.RefreshRetryAt) {
+		return sess.UserID, nil
+	}
+
 	locked, err := a.store.SetStateNX(ctx, refreshLockKey(id), 1, refreshLockTTL)
 	if err != nil {
 		return 0, fmt.Errorf("failed to acquire refresh lock: %w", err)
@@ -190,7 +210,23 @@ func (a *Auth) refreshSession(ctx context.Context, id string, sess session) (int
 	defer cancel()
 	token, err := a.Auth0OauthCfg().TokenSource(refreshCtx, &oauth2.Token{RefreshToken: sess.RefreshToken}).Token()
 	if err != nil {
-		slog.Info("auth0 refused token refresh; ending session", "userID", sess.UserID, "error", err.Error())
+		if refreshRejected(err) {
+			slog.Info("auth0 refused token refresh; ending session", "userID", sess.UserID, "error", err.Error())
+			a.deleteSession(ctx, id)
+			return 0, errSessionInvalid
+		}
+		// Auth0 is unreachable or erroring, not rejecting the grant.
+		if withinRefreshGrace(sess) {
+			slog.Warn("auth0 unreachable for token refresh; serving stale session within grace window",
+				"userID", sess.UserID, "error", err.Error())
+			sess.RefreshRetryAt = time.Now().Add(refreshRetryInterval)
+			if err := a.saveSession(ctx, id, sess); err != nil {
+				slog.Warn("failed to record refresh retry time", "error", err.Error())
+			}
+			return sess.UserID, nil
+		}
+		slog.Warn("auth0 unreachable and refresh grace window exhausted; ending session",
+			"userID", sess.UserID, "error", err.Error())
 		a.deleteSession(ctx, id)
 		return 0, errSessionInvalid
 	}
@@ -215,6 +251,7 @@ func (a *Auth) refreshSession(ctx context.Context, id string, sess session) (int
 		sess.RefreshToken = token.RefreshToken // rotated by Auth0
 	}
 	sess.TokenExpiry = tokenExpiry(token)
+	sess.RefreshRetryAt = time.Time{}
 	if err := a.saveSession(ctx, id, sess); err != nil {
 		return 0, err
 	}
@@ -241,11 +278,32 @@ func (a *Auth) awaitRefresh(ctx context.Context, id string, stale session) (int,
 		if time.Until(sess.TokenExpiry) > tokenExpiryLeeway {
 			return sess.UserID, nil
 		}
+		if withinRefreshGrace(sess) && time.Now().Before(sess.RefreshRetryAt) {
+			// The concurrent refresh hit an Auth0 outage; serve stale.
+			return sess.UserID, nil
+		}
 	}
 	// The concurrent refresh hasn't landed; serve this request on the stale
 	// session rather than logging the user out spuriously.
 	slog.Warn("session refresh still in flight; allowing request on stale session", "userID", stale.UserID)
 	return stale.UserID, nil
+}
+
+// withinRefreshGrace reports whether the session's token expired recently
+// enough that a transient Auth0 failure shouldn't end the session.
+func withinRefreshGrace(sess session) bool {
+	return time.Since(sess.TokenExpiry) < refreshGraceWindow
+}
+
+// refreshRejected reports whether a refresh error is Auth0 definitively
+// rejecting the grant (revoked or expired), as opposed to Auth0 being
+// unreachable or erroring.
+func refreshRejected(err error) bool {
+	var re *oauth2.RetrieveError
+	if errors.As(err, &re) && re.Response != nil {
+		return re.Response.StatusCode >= 400 && re.Response.StatusCode < 500
+	}
+	return false
 }
 
 // MigrateLegacyCookie re-issues a session presented under the legacy cookie

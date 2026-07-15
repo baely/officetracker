@@ -102,7 +102,14 @@ type fakeAuth0 struct {
 	mu           sync.Mutex
 	tokenForm    url.Values // last refresh request
 	revokeForm   url.Values // last revocation request
+	tokenCalls   int
 	tokenHandler http.HandlerFunc
+}
+
+func (f *fakeAuth0) tokenCallCount() int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.tokenCalls
 }
 
 func newFakeAuth0(t *testing.T) *fakeAuth0 {
@@ -125,6 +132,7 @@ func newFakeAuth0(t *testing.T) *fakeAuth0 {
 		_ = r.ParseForm()
 		f.mu.Lock()
 		f.tokenForm = r.PostForm
+		f.tokenCalls++
 		handler := f.tokenHandler
 		f.mu.Unlock()
 		if handler != nil {
@@ -318,6 +326,99 @@ func TestRefreshRefusedEndsSession(t *testing.T) {
 	}
 	if store.has(sessionKey(id)) {
 		t.Error("session should be deleted after a refused refresh")
+	}
+}
+
+// When Auth0 is erroring rather than rejecting the grant, the stale session
+// keeps being served within the grace window, and subsequent requests back
+// off instead of hammering Auth0.
+func TestAuth0OutageServesStaleWithinGrace(t *testing.T) {
+	f := newFakeAuth0(t)
+	f.tokenHandler = func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}
+	a, store := f.auth(t)
+	id := seedSession(t, a, session{
+		UserID:       7,
+		Sub:          "github|7",
+		RefreshToken: "rt-1",
+		TokenExpiry:  time.Now().Add(-time.Minute),
+		CreatedAt:    time.Now(),
+	})
+
+	uid, err := a.userIDFromSession(context.Background(), id)
+	if err != nil || uid != 7 {
+		t.Fatalf("userIDFromSession during outage = (%d, %v), want (7, nil)", uid, err)
+	}
+	if !store.has(sessionKey(id)) {
+		t.Fatal("session must survive a transient Auth0 failure")
+	}
+
+	sess, err := a.getSession(context.Background(), id)
+	if err != nil {
+		t.Fatalf("getSession: %v", err)
+	}
+	if !sess.RefreshRetryAt.After(time.Now()) {
+		t.Errorf("RefreshRetryAt = %v, want in the future", sess.RefreshRetryAt)
+	}
+
+	// Within the retry interval, requests serve stale without contacting
+	// Auth0 again.
+	calls := f.tokenCallCount()
+	uid, err = a.userIDFromSession(context.Background(), id)
+	if err != nil || uid != 7 {
+		t.Fatalf("userIDFromSession during backoff = (%d, %v), want (7, nil)", uid, err)
+	}
+	if got := f.tokenCallCount(); got != calls {
+		t.Errorf("token endpoint calls = %d during backoff, want %d", got, calls)
+	}
+}
+
+// A connection-level failure (Auth0 completely unreachable) is also treated
+// as an outage, not a rejection.
+func TestAuth0UnreachableServesStaleWithinGrace(t *testing.T) {
+	f := newFakeAuth0(t)
+	a, store := f.auth(t)
+	id := seedSession(t, a, session{
+		UserID:       7,
+		Sub:          "github|7",
+		RefreshToken: "rt-1",
+		TokenExpiry:  time.Now().Add(-time.Minute),
+		CreatedAt:    time.Now(),
+	})
+
+	f.srv.Close() // provider metadata is already cached; refresh now gets connection refused
+
+	uid, err := a.userIDFromSession(context.Background(), id)
+	if err != nil || uid != 7 {
+		t.Fatalf("userIDFromSession with auth0 unreachable = (%d, %v), want (7, nil)", uid, err)
+	}
+	if !store.has(sessionKey(id)) {
+		t.Fatal("session must survive auth0 being unreachable")
+	}
+}
+
+// Once the token has been expired for longer than the grace window, transient
+// failures no longer keep the session alive.
+func TestRefreshGraceWindowExhausted(t *testing.T) {
+	f := newFakeAuth0(t)
+	f.tokenHandler = func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}
+	a, store := f.auth(t)
+	id := seedSession(t, a, session{
+		UserID:       7,
+		Sub:          "github|7",
+		RefreshToken: "rt-1",
+		TokenExpiry:  time.Now().Add(-refreshGraceWindow - time.Hour),
+		CreatedAt:    time.Now().Add(-refreshGraceWindow - 2*time.Hour),
+	})
+
+	if _, err := a.userIDFromSession(context.Background(), id); err == nil {
+		t.Fatal("session should end once the grace window is exhausted")
+	}
+	if store.has(sessionKey(id)) {
+		t.Error("session should be deleted after grace exhaustion")
 	}
 }
 
