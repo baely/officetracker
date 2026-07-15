@@ -16,7 +16,11 @@ import (
 )
 
 const (
-	userCookieBase = "__session"
+	userCookieBase = "user"
+	// legacyCookieBase is the "__session" name briefly required by Firebase
+	// Hosting. Sessions issued under it are still accepted, and migrated to
+	// the current name on first sight, so they aren't invalidated.
+	legacyCookieBase = "__session"
 )
 
 func cookieName(cfg config.IntegratedApp) string {
@@ -24,6 +28,13 @@ func cookieName(cfg config.IntegratedApp) string {
 		return userCookieBase
 	}
 	return userCookieBase + "_" + cfg.App.Env
+}
+
+func legacyCookieName(cfg config.IntegratedApp) string {
+	if cfg.App.Env == "" || cfg.App.Env == "cloud" {
+		return legacyCookieBase
+	}
+	return legacyCookieBase + "_" + cfg.App.Env
 }
 
 type Method int
@@ -124,6 +135,23 @@ func issueToken(cfg config.IntegratedApp, w http.ResponseWriter, userID int) err
 	return nil
 }
 
+// MigrateLegacyCookie re-issues a session presented under the legacy cookie
+// name using the current cookie name, and expires the legacy cookie. No-op
+// unless the request authenticated via the legacy cookie alone.
+func MigrateLegacyCookie(cfg config.IntegratedApp, w http.ResponseWriter, r *http.Request, userID int) {
+	if _, err := r.Cookie(cookieName(cfg)); err == nil {
+		return
+	}
+	if _, err := r.Cookie(legacyCookieName(cfg)); err != nil {
+		return
+	}
+	if err := issueToken(cfg, w, userID); err != nil {
+		slog.Warn("failed to migrate legacy session cookie", "error", err.Error())
+		return
+	}
+	expireCookie(cfg, w, legacyCookieName(cfg))
+}
+
 func getUserIDFromToken(cfg config.IntegratedApp, token string) (int, error) {
 	claims := &tokenClaims{}
 
@@ -198,6 +226,12 @@ func validateDevSecret(secret string) string {
 func GetAuth(cfg config.IntegratedApp, r *http.Request) (string, Method) {
 	// try to get from cookie
 	cookie, err := r.Cookie(cookieName(cfg))
+	if err == nil && cookie != nil {
+		return cookie.Value, MethodSSO
+	}
+
+	// fall back to the legacy cookie name
+	cookie, err = r.Cookie(legacyCookieName(cfg))
 	if err == nil && cookie != nil {
 		return cookie.Value, MethodSSO
 	}

@@ -38,6 +38,24 @@ func TestCookieName(t *testing.T) {
 		env  string
 		want string
 	}{
+		{"", "user"},
+		{"cloud", "user"},
+		{"dev", "user_dev"},
+		{"staging", "user_staging"},
+	}
+	for _, c := range cases {
+		cfg := config.IntegratedApp{App: config.App{Env: c.env}}
+		if got := cookieName(cfg); got != c.want {
+			t.Errorf("cookieName(env=%q) = %q, want %q", c.env, got, c.want)
+		}
+	}
+}
+
+func TestLegacyCookieName(t *testing.T) {
+	cases := []struct {
+		env  string
+		want string
+	}{
 		{"", "__session"},
 		{"cloud", "__session"},
 		{"dev", "__session_dev"},
@@ -45,8 +63,8 @@ func TestCookieName(t *testing.T) {
 	}
 	for _, c := range cases {
 		cfg := config.IntegratedApp{App: config.App{Env: c.env}}
-		if got := cookieName(cfg); got != c.want {
-			t.Errorf("cookieName(env=%q) = %q, want %q", c.env, got, c.want)
+		if got := legacyCookieName(cfg); got != c.want {
+			t.Errorf("legacyCookieName(env=%q) = %q, want %q", c.env, got, c.want)
 		}
 	}
 }
@@ -241,6 +259,81 @@ func TestGetAuth(t *testing.T) {
 			t.Errorf("got (%q, %v), want cookie to win", tok, method)
 		}
 	})
+
+	t.Run("legacy cookie -> SSO", func(t *testing.T) {
+		r := httptest.NewRequest("GET", "/", nil)
+		r.AddCookie(&http.Cookie{Name: legacyCookieName(cfg), Value: "legacy-token"})
+		tok, method := GetAuth(cfg, r)
+		if tok != "legacy-token" || method != MethodSSO {
+			t.Errorf("got (%q, %v), want (legacy-token, SSO)", tok, method)
+		}
+	})
+
+	t.Run("current cookie takes precedence over legacy", func(t *testing.T) {
+		r := httptest.NewRequest("GET", "/", nil)
+		r.AddCookie(&http.Cookie{Name: cookieName(cfg), Value: "current-token"})
+		r.AddCookie(&http.Cookie{Name: legacyCookieName(cfg), Value: "legacy-token"})
+		tok, method := GetAuth(cfg, r)
+		if tok != "current-token" || method != MethodSSO {
+			t.Errorf("got (%q, %v), want current cookie to win", tok, method)
+		}
+	})
+}
+
+// A session presented under the legacy cookie name gets re-issued under the
+// current name and the legacy cookie is expired.
+func TestMigrateLegacyCookie(t *testing.T) {
+	cfg := testCfg()
+
+	t.Run("legacy only -> re-issued and legacy expired", func(t *testing.T) {
+		r := httptest.NewRequest("GET", "/", nil)
+		r.AddCookie(&http.Cookie{Name: legacyCookieName(cfg), Value: "legacy-token"})
+		w := httptest.NewRecorder()
+		MigrateLegacyCookie(cfg, w, r, 13)
+
+		var issued, expired *http.Cookie
+		for _, c := range w.Result().Cookies() {
+			switch c.Name {
+			case cookieName(cfg):
+				issued = c
+			case legacyCookieName(cfg):
+				expired = c
+			}
+		}
+		if issued == nil {
+			t.Fatal("expected session to be re-issued under the current cookie name")
+		}
+		uid, err := getUserIDFromToken(cfg, issued.Value)
+		if err != nil || uid != 13 {
+			t.Errorf("re-issued cookie token validates to (%d, %v), want (13, nil)", uid, err)
+		}
+		if expired == nil {
+			t.Fatal("expected legacy cookie to be expired")
+		}
+		if expired.Value != "" || !expired.Expires.Before(time.Now()) {
+			t.Errorf("legacy cookie = %+v, want empty and expired", expired)
+		}
+	})
+
+	t.Run("current cookie present -> no-op", func(t *testing.T) {
+		r := httptest.NewRequest("GET", "/", nil)
+		r.AddCookie(&http.Cookie{Name: cookieName(cfg), Value: "current-token"})
+		r.AddCookie(&http.Cookie{Name: legacyCookieName(cfg), Value: "legacy-token"})
+		w := httptest.NewRecorder()
+		MigrateLegacyCookie(cfg, w, r, 13)
+		if n := len(w.Result().Cookies()); n != 0 {
+			t.Errorf("expected no cookies set, got %d", n)
+		}
+	})
+
+	t.Run("no legacy cookie -> no-op", func(t *testing.T) {
+		r := httptest.NewRequest("GET", "/", nil)
+		w := httptest.NewRecorder()
+		MigrateLegacyCookie(cfg, w, r, 13)
+		if n := len(w.Result().Cookies()); n != 0 {
+			t.Errorf("expected no cookies set, got %d", n)
+		}
+	})
 }
 
 func TestMethodString(t *testing.T) {
@@ -294,24 +387,35 @@ func TestIssueTokenLocalhostDomain(t *testing.T) {
 	}
 }
 
+// ClearCookie expires the session cookie under both the current and legacy
+// names, so a legacy-cookie session can't survive a logout.
 func TestClearCookie(t *testing.T) {
 	cfg := testCfg()
 	w := httptest.NewRecorder()
 	ClearCookie(cfg, w)
 
 	cookies := w.Result().Cookies()
-	if len(cookies) != 1 {
-		t.Fatalf("expected 1 cookie, got %d", len(cookies))
+	if len(cookies) != 2 {
+		t.Fatalf("expected 2 cookies, got %d", len(cookies))
 	}
-	c := cookies[0]
-	if c.Name != cookieName(cfg) {
-		t.Errorf("cookie name = %q, want %q", c.Name, cookieName(cfg))
+	wantNames := map[string]bool{cookieName(cfg): false, legacyCookieName(cfg): false}
+	for _, c := range cookies {
+		if _, ok := wantNames[c.Name]; !ok {
+			t.Errorf("unexpected cookie %q cleared", c.Name)
+			continue
+		}
+		wantNames[c.Name] = true
+		if c.Value != "" {
+			t.Errorf("cleared cookie %q value = %q, want empty", c.Name, c.Value)
+		}
+		if !c.Expires.Before(time.Now()) {
+			t.Errorf("cleared cookie %q expiry = %v, want in the past", c.Name, c.Expires)
+		}
 	}
-	if c.Value != "" {
-		t.Errorf("cleared cookie value = %q, want empty", c.Value)
-	}
-	if !c.Expires.Before(time.Now()) {
-		t.Errorf("cleared cookie expiry = %v, want in the past", c.Expires)
+	for name, seen := range wantNames {
+		if !seen {
+			t.Errorf("cookie %q was not cleared", name)
+		}
 	}
 }
 
