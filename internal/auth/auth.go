@@ -55,8 +55,13 @@ func NewAuth(cfg config.AppConfigurer, db database.Databaser, redis *database.Re
 }
 
 func ClearCookie(cfg config.IntegratedApp, w http.ResponseWriter) {
+	expireCookie(cfg, w, cookieName(cfg))
+	expireCookie(cfg, w, legacyCookieName(cfg))
+}
+
+func expireCookie(cfg config.IntegratedApp, w http.ResponseWriter, name string) {
 	http.SetCookie(w, &http.Cookie{
-		Name:     cookieName(cfg),
+		Name:     name,
 		Value:    "",
 		Path:     util.BasePath(cfg.Domain),
 		Expires:  time.Unix(0, 0),

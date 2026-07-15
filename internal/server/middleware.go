@@ -78,6 +78,9 @@ func injectAuth(db database.Databaser, cfger config.AppConfigurer) func(http.Han
 					// Don't set userID in context when auth fails
 				} else {
 					val.Set(context2.CtxUserIDKey, userID)
+					if authMethod == auth.MethodSSO {
+						auth.MigrateLegacyCookie(cfg, w, r, userID)
+					}
 				}
 			}
 			ctx = context.WithValue(ctx, context2.CtxKey, val)
