@@ -17,7 +17,11 @@ import (
 func main() {
 	util.LoadEnv()
 
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	logLevel := slog.LevelInfo
+	if os.Getenv("APP_ENV") == "beta" {
+		logLevel = slog.LevelDebug
+	}
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: logLevel}))
 	slog.SetDefault(logger)
 
 	cfg, err := config.LoadIntegratedApp()

@@ -136,14 +136,19 @@ func (a *Auth) saveSession(ctx context.Context, id string, sess session) error {
 	if err != nil {
 		return fmt.Errorf("failed to marshal session: %w", err)
 	}
-	if err := a.store.SetState(ctx, sessionKey(id), string(b), remaining); err != nil {
+	start := time.Now()
+	err = a.store.SetState(ctx, sessionKey(id), string(b), remaining)
+	slog.Debug("session store set", "duration", time.Since(start).String(), "ok", err == nil)
+	if err != nil {
 		return fmt.Errorf("failed to save session: %w", err)
 	}
 	return nil
 }
 
 func (a *Auth) getSession(ctx context.Context, id string) (session, error) {
+	start := time.Now()
 	raw, err := a.store.GetState(ctx, sessionKey(id))
+	slog.Debug("session store get", "duration", time.Since(start).String(), "hit", err == nil)
 	if err != nil {
 		return session{}, errSessionInvalid
 	}
@@ -208,7 +213,9 @@ func (a *Auth) refreshSession(ctx context.Context, id string, sess session) (int
 
 	refreshCtx, cancel := context.WithTimeout(ctx, auth0Timeout)
 	defer cancel()
+	refreshStart := time.Now()
 	token, err := a.Auth0OauthCfg().TokenSource(refreshCtx, &oauth2.Token{RefreshToken: sess.RefreshToken}).Token()
+	slog.Debug("auth0 token refresh call", "duration", time.Since(refreshStart).String(), "ok", err == nil)
 	if err != nil {
 		if refreshRejected(err) {
 			slog.Info("auth0 refused token refresh; ending session", "userID", sess.UserID, "error", err.Error())
@@ -258,7 +265,8 @@ func (a *Auth) refreshSession(ctx context.Context, id string, sess session) (int
 
 	slog.Info("refreshed auth0 session",
 		"userID", sess.UserID,
-		"tokenExpiresAt", sess.TokenExpiry.Format(time.RFC3339))
+		"tokenExpiresAt", sess.TokenExpiry.Format(time.RFC3339),
+		"duration", time.Since(refreshStart).String())
 	return sess.UserID, nil
 }
 

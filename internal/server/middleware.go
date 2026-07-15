@@ -76,7 +76,12 @@ func injectAuth(cfger config.AppConfigurer, resolver userResolver) func(http.Han
 				val.Set(context2.CtxAuthMethodKey, authMethod)
 				if authMethod == auth.MethodSSO || authMethod == auth.MethodSecret {
 					w.Header().Set("Cache-Control", "private, no-store")
+					start := time.Now()
 					userID, err := resolver.GetUserID(ctx, token, authMethod)
+					slog.Debug("auth resolution",
+						"authMethod", authMethod,
+						"duration", time.Since(start).String(),
+						"ok", err == nil)
 					if err != nil {
 						auth.ClearCookie(cfg, w)
 						// Don't set userID in context when auth fails
