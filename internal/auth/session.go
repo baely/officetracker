@@ -248,17 +248,43 @@ func (a *Auth) awaitRefresh(ctx context.Context, id string, stale session) (int,
 	return stale.UserID, nil
 }
 
+// MigrateLegacyCookie re-issues a session presented under the legacy cookie
+// name using the current cookie name, and expires the legacy cookie. No-op
+// unless the request authenticated via the legacy cookie alone.
+func MigrateLegacyCookie(cfg config.IntegratedApp, w http.ResponseWriter, r *http.Request) {
+	if _, err := r.Cookie(cookieName(cfg)); err == nil {
+		return
+	}
+	legacy, err := r.Cookie(legacyCookieName(cfg))
+	if err != nil || legacy.Value == "" {
+		return
+	}
+	issueSessionCookie(cfg, w, legacy.Value)
+	expireCookie(cfg, w, legacyCookieName(cfg))
+}
+
+// sessionIDFromRequest returns the session ID presented on the request,
+// checking the current cookie name before the legacy one.
+func sessionIDFromRequest(cfg config.IntegratedApp, r *http.Request) string {
+	if cookie, err := r.Cookie(cookieName(cfg)); err == nil && cookie.Value != "" {
+		return cookie.Value
+	}
+	if cookie, err := r.Cookie(legacyCookieName(cfg)); err == nil && cookie.Value != "" {
+		return cookie.Value
+	}
+	return ""
+}
+
 // Logout ends the session both locally and at Auth0: the refresh token is
 // revoked so it can no longer mint tokens, and the session record and cookie
 // are removed.
 func (a *Auth) Logout(ctx context.Context, cfg config.IntegratedApp, w http.ResponseWriter, r *http.Request) {
 	defer ClearCookie(cfg, w)
 
-	cookie, err := r.Cookie(cookieName(cfg))
-	if err != nil || cookie.Value == "" {
+	id := sessionIDFromRequest(cfg, r)
+	if id == "" {
 		return
 	}
-	id := cookie.Value
 
 	sess, err := a.getSession(ctx, id)
 	if err == nil && sess.RefreshToken != "" {

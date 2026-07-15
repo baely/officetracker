@@ -12,7 +12,11 @@ import (
 )
 
 const (
-	userCookieBase = "__session"
+	userCookieBase = "user"
+	// legacyCookieBase is the "__session" name briefly required by Firebase
+	// Hosting. Sessions issued under it are still accepted, and migrated to
+	// the current name on first sight, so they aren't invalidated.
+	legacyCookieBase = "__session"
 )
 
 func cookieName(cfg config.IntegratedApp) string {
@@ -20,6 +24,13 @@ func cookieName(cfg config.IntegratedApp) string {
 		return userCookieBase
 	}
 	return userCookieBase + "_" + cfg.App.Env
+}
+
+func legacyCookieName(cfg config.IntegratedApp) string {
+	if cfg.App.Env == "" || cfg.App.Env == "cloud" {
+		return legacyCookieBase
+	}
+	return legacyCookieBase + "_" + cfg.App.Env
 }
 
 type Method int
@@ -71,6 +82,12 @@ func validateDevSecret(secret string) string {
 func GetAuth(cfg config.IntegratedApp, r *http.Request) (string, Method) {
 	// try to get from cookie
 	cookie, err := r.Cookie(cookieName(cfg))
+	if err == nil && cookie != nil {
+		return cookie.Value, MethodSSO
+	}
+
+	// fall back to the legacy cookie name
+	cookie, err = r.Cookie(legacyCookieName(cfg))
 	if err == nil && cookie != nil {
 		return cookie.Value, MethodSSO
 	}

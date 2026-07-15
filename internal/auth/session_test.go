@@ -406,8 +406,10 @@ func TestLogoutWithoutSession(t *testing.T) {
 
 	a.Logout(context.Background(), cfg, w, httptest.NewRequest("GET", "/logout", nil))
 
-	if len(w.Result().Cookies()) != 1 {
-		t.Fatal("expected the clearing cookie to be set")
+	// ClearCookie expires the session cookie under both the current and
+	// legacy names.
+	if len(w.Result().Cookies()) != 2 {
+		t.Fatal("expected the clearing cookies to be set")
 	}
 }
 
