@@ -14,7 +14,7 @@ func TestHandleLogout(t *testing.T) {
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest("GET", "/logout", nil)
 
-	handleLogout(cfg)(w, r)
+	handleLogout(cfg, &Auth{store: newFakeStore()})(w, r)
 
 	res := w.Result()
 	if res.StatusCode != http.StatusTemporaryRedirect {
@@ -46,7 +46,7 @@ func TestHandleLogoutDevEnv(t *testing.T) {
 		Domain: config.Domain{Domain: "localhost"},
 	}
 	w := httptest.NewRecorder()
-	handleLogout(cfg)(w, httptest.NewRequest("GET", "/logout", nil))
+	handleLogout(cfg, &Auth{store: newFakeStore()})(w, httptest.NewRequest("GET", "/logout", nil))
 
 	found := false
 	for _, c := range w.Result().Cookies() {

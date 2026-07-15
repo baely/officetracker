@@ -81,6 +81,7 @@ services:
               "http://localhost:8080/auth/callback/auth0"
             ],
             "AllowedScopes": ["openid", "profile"],
+            "AllowOfflineAccess": true,
             "IdentityTokenLifetime": 3600,
             "AccessTokenLifetime": 3600,
             "RequireClientSecret": false

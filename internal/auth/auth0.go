@@ -32,7 +32,9 @@ func (a *Auth) Auth0OauthCfg() *oauth2.Config {
 		ClientSecret: a.auth0Cfg.ClientSecret,
 		Endpoint:     a.provider.Endpoint(),
 		RedirectURL:  fmt.Sprintf("%sauth/callback/auth0", a.baseUri),
-		Scopes:       []string{oidc.ScopeOpenID, "profile"},
+		// offline_access asks Auth0 for a rotating refresh token so the
+		// session can be kept alive (and revoked) through Auth0.
+		Scopes: []string{oidc.ScopeOpenID, "profile", oidc.ScopeOfflineAccess},
 	}
 }
 
@@ -50,7 +52,7 @@ func (a *Auth) GenerateAuth0AuthLink(userId int) (string, error) {
 
 	// Store the state in Redis with 0 as userID (new user), expiring in 10 minutes
 	key := fmt.Sprintf("auth0:state:%s", state)
-	err := a.redis.SetState(context.Background(), key, userId, 10*time.Minute)
+	err := a.store.SetState(context.Background(), key, userId, 10*time.Minute)
 	if err != nil {
 		return "", fmt.Errorf("failed to store state: %v", err)
 	}
@@ -80,14 +82,14 @@ func (a *Auth) handleAuth0Callback(cfg config.IntegratedApp, db database.Databas
 
 		// Validate state for all flows
 		key := fmt.Sprintf("auth0:state:%s", state)
-		existingUserID, err := a.redis.GetStateInt(ctx, key)
+		existingUserID, err := a.store.GetStateInt(ctx, key)
 		if err != nil {
 			slog.Error(fmt.Sprintf("invalid or expired state: %v", err))
 			http.Redirect(w, r, "/login", http.StatusTemporaryRedirect)
 			return
 		}
 		// Delete the state key since it's been used
-		_ = a.redis.DeleteState(ctx, key)
+		_ = a.store.DeleteState(ctx, key)
 
 		token, err := a.Auth0OauthCfg().Exchange(ctx, code)
 		if err != nil {
@@ -163,9 +165,9 @@ func (a *Auth) handleAuth0Callback(cfg config.IntegratedApp, db database.Databas
 			return
 		}
 
-		err = issueToken(cfg, w, userID)
+		err = a.CreateSession(ctx, cfg, w, userID, profile.Sub, token)
 		if err != nil {
-			slog.Error(fmt.Sprintf("failed to issue token: %v", err))
+			slog.Error(fmt.Sprintf("failed to create session: %v", err))
 			http.Error(w, "Internal server error", http.StatusInternalServerError)
 			return
 		}

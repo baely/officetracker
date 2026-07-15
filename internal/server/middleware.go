@@ -11,7 +11,6 @@ import (
 	"github.com/baely/officetracker/internal/auth"
 	"github.com/baely/officetracker/internal/config"
 	context2 "github.com/baely/officetracker/internal/context"
-	"github.com/baely/officetracker/internal/database"
 )
 
 func AllowedAuthMethods(authMethods ...auth.Method) func(http.Handler) http.Handler {
@@ -56,7 +55,13 @@ func (s *Server) logRequest(next http.Handler) http.Handler {
 	})
 }
 
-func injectAuth(db database.Databaser, cfger config.AppConfigurer) func(http.Handler) http.Handler {
+// userResolver resolves a presented credential to a user ID; *auth.Auth is the
+// production implementation.
+type userResolver interface {
+	GetUserID(ctx context.Context, token string, authMethod auth.Method) (int, error)
+}
+
+func injectAuth(cfger config.AppConfigurer, resolver userResolver) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ctx := r.Context()
@@ -71,15 +76,20 @@ func injectAuth(db database.Databaser, cfger config.AppConfigurer) func(http.Han
 				val.Set(context2.CtxAuthMethodKey, authMethod)
 				if authMethod == auth.MethodSSO || authMethod == auth.MethodSecret {
 					w.Header().Set("Cache-Control", "private, no-store")
-				}
-				userID, err := auth.GetUserID(cfg, db, token, authMethod)
-				if err != nil {
-					auth.ClearCookie(cfg, w)
-					// Don't set userID in context when auth fails
-				} else {
-					val.Set(context2.CtxUserIDKey, userID)
-					if authMethod == auth.MethodSSO {
-						auth.MigrateLegacyCookie(cfg, w, r, userID)
+					start := time.Now()
+					userID, err := resolver.GetUserID(ctx, token, authMethod)
+					slog.Debug("auth resolution",
+						"authMethod", authMethod,
+						"duration", time.Since(start).String(),
+						"ok", err == nil)
+					if err != nil {
+						auth.ClearCookie(cfg, w)
+						// Don't set userID in context when auth fails
+					} else {
+						val.Set(context2.CtxUserIDKey, userID)
+						if authMethod == auth.MethodSSO {
+							auth.MigrateLegacyCookie(cfg, w, r)
+						}
 					}
 				}
 			}

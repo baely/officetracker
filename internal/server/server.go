@@ -49,7 +49,7 @@ func NewServer(cfg config.AppConfigurer, db database.Databaser, redis *database.
 	s.auth = author
 
 	limiter := newRateLimiter(redis, authedRateLimits, unauthedRateLimits)
-	r := chi.NewMux().With(injectAuth(db, cfg), s.logRequest, limiter.middleware)
+	r := chi.NewMux().With(injectAuth(cfg, s.auth), s.logRequest, limiter.middleware)
 
 	// Suspension page (must be accessible to suspended users)
 	r.Get("/suspended", s.handleSuspended)
@@ -252,7 +252,7 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
 	cfg := s.cfg.(config.IntegratedApp)
-	auth.ClearCookie(cfg, w)
+	s.auth.Logout(r.Context(), cfg, w, r)
 	http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
 }
 

@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -76,7 +77,7 @@ func TestInjectAuthStandalone(t *testing.T) {
 
 	cfg := config.StandaloneApp{}
 	w := httptest.NewRecorder()
-	injectAuth(nil, cfg)(next).ServeHTTP(w, httptest.NewRequest("GET", "/", nil))
+	injectAuth(cfg, nil)(next).ServeHTTP(w, httptest.NewRequest("GET", "/", nil))
 
 	if gotUserID != 1 {
 		t.Errorf("standalone userID = %d, want 1", gotUserID)
@@ -96,7 +97,7 @@ func TestInjectAuthIntegratedAnonymous(t *testing.T) {
 
 	cfg := config.IntegratedApp{Domain: config.Domain{Domain: "officetracker.com.au"}}
 	w := httptest.NewRecorder()
-	injectAuth(nil, cfg)(next).ServeHTTP(w, httptest.NewRequest("GET", "/", nil))
+	injectAuth(cfg, nil)(next).ServeHTTP(w, httptest.NewRequest("GET", "/", nil))
 
 	if gotMethod != auth.MethodNone {
 		t.Errorf("anonymous integrated method = %v, want none", gotMethod)
@@ -106,7 +107,17 @@ func TestInjectAuthIntegratedAnonymous(t *testing.T) {
 	}
 }
 
-// A cookie carrying an invalid token marks the request as SSO but fails user
+// fakeResolver stands in for *auth.Auth in middleware tests.
+type fakeResolver struct {
+	uid int
+	err error
+}
+
+func (f fakeResolver) GetUserID(context.Context, string, auth.Method) (int, error) {
+	return f.uid, f.err
+}
+
+// A cookie carrying an invalid session marks the request as SSO but fails user
 // resolution: the cookie is cleared, no user id is placed in context, and the
 // private Cache-Control header is set.
 func TestInjectAuthIntegratedInvalidCookie(t *testing.T) {
@@ -117,17 +128,16 @@ func TestInjectAuthIntegratedInvalidCookie(t *testing.T) {
 	})
 
 	cfg := config.IntegratedApp{
-		SigningKey: "k",
-		App:        config.App{Env: "cloud"},
-		Domain:     config.Domain{Domain: "officetracker.com.au"},
+		App:    config.App{Env: "cloud"},
+		Domain: config.Domain{Domain: "officetracker.com.au"},
 	}
 	r := httptest.NewRequest("GET", "/", nil)
-	r.AddCookie(&http.Cookie{Name: "__session", Value: "not-a-valid-jwt"})
+	r.AddCookie(&http.Cookie{Name: "__session", Value: "not-a-valid-session"})
 	w := httptest.NewRecorder()
-	injectAuth(nil, cfg)(next).ServeHTTP(w, r)
+	injectAuth(cfg, fakeResolver{err: errors.New("session invalid")})(next).ServeHTTP(w, r)
 
 	if hadUser {
-		t.Error("invalid token should not resolve a user id into context")
+		t.Error("invalid session should not resolve a user id into context")
 	}
 	if cc := w.Header().Get("Cache-Control"); cc != "private, no-store" {
 		t.Errorf("Cache-Control = %q, want private, no-store", cc)
@@ -141,6 +151,27 @@ func TestInjectAuthIntegratedInvalidCookie(t *testing.T) {
 	}
 	if !cleared {
 		t.Error("invalid session cookie should be cleared")
+	}
+}
+
+// A valid session cookie resolves to its user id.
+func TestInjectAuthIntegratedValidCookie(t *testing.T) {
+	var gotUserID int
+	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotUserID, _ = getUserID(r)
+	})
+
+	cfg := config.IntegratedApp{
+		App:    config.App{Env: "cloud"},
+		Domain: config.Domain{Domain: "officetracker.com.au"},
+	}
+	r := httptest.NewRequest("GET", "/", nil)
+	r.AddCookie(&http.Cookie{Name: "__session", Value: "opaque-session-id"})
+	w := httptest.NewRecorder()
+	injectAuth(cfg, fakeResolver{uid: 42})(next).ServeHTTP(w, r)
+
+	if gotUserID != 42 {
+		t.Errorf("resolved userID = %d, want 42", gotUserID)
 	}
 }
 

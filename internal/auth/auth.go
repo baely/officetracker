@@ -12,6 +12,16 @@ import (
 	"github.com/baely/officetracker/internal/util"
 )
 
+// SessionStore is the subset of the Redis client the auth package uses to keep
+// login state: OAuth state nonces, Auth0-backed sessions and refresh locks.
+type SessionStore interface {
+	SetState(ctx context.Context, key string, value interface{}, expiration time.Duration) error
+	GetState(ctx context.Context, key string) (string, error)
+	GetStateInt(ctx context.Context, key string) (int, error)
+	SetStateNX(ctx context.Context, key string, value interface{}, expiration time.Duration) (bool, error)
+	DeleteState(ctx context.Context, key string) error
+}
+
 type Auth struct {
 	baseUri string
 
@@ -21,7 +31,7 @@ type Auth struct {
 	nativeClientID string
 
 	db       database.Databaser
-	redis    *database.Redis
+	store    SessionStore
 	provider *oidc.Provider
 }
 
@@ -49,7 +59,7 @@ func NewAuth(cfg config.AppConfigurer, db database.Databaser, redis *database.Re
 		nativeClientID: appCfg.Auth0.NativeClientID,
 
 		db:       db,
-		redis:    redis,
+		store:    redis,
 		provider: provider,
 	}, nil
 }
@@ -67,6 +77,6 @@ func expireCookie(cfg config.IntegratedApp, w http.ResponseWriter, name string) 
 		Expires:  time.Unix(0, 0),
 		Domain:   util.QualifiedDomain(cfg.Domain),
 		HttpOnly: true,
-		Secure:   false,
+		Secure:   secureCookies(cfg),
 	})
 }
