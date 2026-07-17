@@ -11,6 +11,7 @@ var (
 	templates embed.FS
 
 	Form      = template.Must(template.ParseFS(templates, "html/bases/*", "html/form.html"))
+	Report    = template.Must(template.ParseFS(templates, "html/bases/*", "html/report.html"))
 	Hero      = template.Must(template.ParseFS(templates, "html/bases/*", "html/hero.html"))
 	Login     = template.Must(template.ParseFS(templates, "html/bases/*", "html/login.html"))
 	Settings  = template.Must(template.ParseFS(templates, "html/bases/*", "html/settings.html"))

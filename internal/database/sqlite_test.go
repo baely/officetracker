@@ -318,6 +318,45 @@ func TestSQLiteCalendarPreferences(t *testing.T) {
 	}
 }
 
+func TestSQLiteTargetPreferences(t *testing.T) {
+	db := newTestDB(t)
+
+	// Default is no target set.
+	prefs, err := db.GetTargetPreferences(1)
+	if err != nil {
+		t.Fatalf("GetTargetPreferences default: %v", err)
+	}
+	if prefs.DefaultTargetPercent != 0 {
+		t.Errorf("default target = %d, want 0", prefs.DefaultTargetPercent)
+	}
+
+	if err := db.SaveTargetPreferences(1, model.TargetPreferences{DefaultTargetPercent: 50}); err != nil {
+		t.Fatalf("SaveTargetPreferences: %v", err)
+	}
+	got, _ := db.GetTargetPreferences(1)
+	if got.DefaultTargetPercent != 50 {
+		t.Errorf("target round-trip = %d, want 50", got.DefaultTargetPercent)
+	}
+
+	// An out-of-range value is clamped on save.
+	if err := db.SaveTargetPreferences(1, model.TargetPreferences{DefaultTargetPercent: 150}); err != nil {
+		t.Fatalf("SaveTargetPreferences invalid: %v", err)
+	}
+	got, _ = db.GetTargetPreferences(1)
+	if got.DefaultTargetPercent != 100 {
+		t.Errorf("out-of-range target clamped to %d, want 100", got.DefaultTargetPercent)
+	}
+
+	// Zero clears the target.
+	if err := db.SaveTargetPreferences(1, model.TargetPreferences{DefaultTargetPercent: 0}); err != nil {
+		t.Fatalf("SaveTargetPreferences clear: %v", err)
+	}
+	got, _ = db.GetTargetPreferences(1)
+	if got.DefaultTargetPercent != 0 {
+		t.Errorf("cleared target = %d, want 0", got.DefaultTargetPercent)
+	}
+}
+
 // CountTrackedDays and CountEntriesByState both exclude untracked entries and
 // feed the public stats dashboard.
 func TestSQLiteAggregates(t *testing.T) {

@@ -43,6 +43,8 @@ type Databaser interface {
 	SaveSchedulePreferences(userID int, prefs model.SchedulePreferences) error
 	GetCalendarPreferences(userID int) (model.CalendarPreferences, error)
 	SaveCalendarPreferences(userID int, prefs model.CalendarPreferences) error
+	GetTargetPreferences(userID int) (model.TargetPreferences, error)
+	SaveTargetPreferences(userID int, prefs model.TargetPreferences) error
 
 	SaveSecret(userID int, secret string, name string) error
 	ListActiveTokens(userID int) ([]TokenMetadata, error)

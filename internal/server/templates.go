@@ -9,6 +9,7 @@ import (
 
 	"github.com/baely/officetracker/internal/auth"
 	"github.com/baely/officetracker/internal/embed"
+	"github.com/baely/officetracker/internal/util"
 	"github.com/baely/officetracker/pkg/model"
 )
 
@@ -22,6 +23,7 @@ type formPage struct {
 	YearlyState        template.JS
 	YearlyNotes        template.JS
 	TrackingStartMonth int
+	TargetPercent      int
 }
 
 func serveForm(w http.ResponseWriter, r *http.Request, page formPage) {
@@ -64,6 +66,7 @@ type settingsPage struct {
 	ThemePreferences    model.ThemePreferences
 	SchedulePreferences model.SchedulePreferences
 	CalendarPreferences model.CalendarPreferences
+	TargetPreferences   model.TargetPreferences
 }
 
 func serveSettings(w http.ResponseWriter, r *http.Request, page settingsPage) {
@@ -120,6 +123,76 @@ func serveSuspended(w http.ResponseWriter, r *http.Request, page suspendedPage) 
 		err = fmt.Errorf("failed to execute suspended template: %w", err)
 		errorPage(w, r, err, internalErrorMsg, http.StatusInternalServerError)
 	}
+}
+
+type reportRow struct {
+	Month   string
+	Present int
+	Total   int
+	Percent string
+}
+
+type reportPage struct {
+	basePage
+	Year     int
+	Rows     []reportRow
+	Headline string
+}
+
+func serveReport(w http.ResponseWriter, r *http.Request, page reportPage) {
+	page.basePage = getBasePageData(r)
+	if err := embed.Report.Execute(w, page); err != nil {
+		err = fmt.Errorf("failed to execute report template: %w", err)
+		errorPage(w, r, err, internalErrorMsg, http.StatusInternalServerError)
+	}
+}
+
+// buildReportSummary computes the per-month attendance breakdown for a tracking
+// year, mirroring how the form page's summary counted days: "present" is office
+// days (actual + scheduled), "total" is all work days (WFH + office, actual +
+// scheduled). Months with no work days are omitted.
+func buildReportSummary(state model.YearState, year, startMonth int) ([]reportRow, string) {
+	startMonth = util.NormaliseStartMonth(startMonth)
+	firstYear, secondYear := util.TrackingYearCalendarYears(year, startMonth)
+
+	var rows []reportRow
+	var totalPresent, totalDays int
+	for offset := 0; offset < 12; offset++ {
+		month := (startMonth-1+offset)%12 + 1
+		monthYear := secondYear
+		if month >= startMonth {
+			monthYear = firstYear
+		}
+
+		var present, total int
+		for _, day := range state.Months[month].Days {
+			switch day.State {
+			case model.StateWorkFromOffice, model.StateScheduledWorkFromOffice:
+				present++
+				total++
+			case model.StateWorkFromHome, model.StateScheduledWorkFromHome:
+				total++
+			}
+		}
+		if total == 0 {
+			continue
+		}
+		totalPresent += present
+		totalDays += total
+		rows = append(rows, reportRow{
+			Month:   fmt.Sprintf("%s %d", time.Month(month).String(), monthYear),
+			Present: present,
+			Total:   total,
+			Percent: fmt.Sprintf("%.2f%%", float64(present)/float64(total)*100),
+		})
+	}
+
+	var percent float64
+	if totalDays > 0 {
+		percent = float64(totalPresent) / float64(totalDays) * 100
+	}
+	headline := fmt.Sprintf("Present in office for %d out of %d days. (%.2f%%)", totalPresent, totalDays, percent)
+	return rows, headline
 }
 
 type statWidgetGroup struct {

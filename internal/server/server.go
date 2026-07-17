@@ -75,6 +75,9 @@ func NewServer(cfg config.AppConfigurer, db database.Databaser, redis *database.
 	// Settings available in both standalone and integrated modes
 	r.Get("/settings", s.handleSettings)
 
+	// Yearly report and export page
+	r.Get("/report", s.handleReport)
+
 	// Public stats dashboard (unauthenticated, aggregate-only).
 	r.Get("/stats", s.handleStats)
 
@@ -226,10 +229,70 @@ func (s *Server) handleForm(w http.ResponseWriter, r *http.Request) {
 	yearlyDataStr := string(yearlyDataByte)
 	yearlyNotesStr := string(yearlyNotesByte)
 
+	targetPrefs, err := s.db.GetTargetPreferences(userID)
+	if err != nil {
+		err = fmt.Errorf("failed to get target preferences: %w", err)
+		errorPage(w, r, err, internalErrorMsg, http.StatusInternalServerError)
+		return
+	}
+
 	serveForm(w, r, formPage{
 		YearlyState:        template.JS(yearlyDataStr),
 		YearlyNotes:        template.JS(yearlyNotesStr),
 		TrackingStartMonth: startMonth,
+		TargetPercent:      targetPrefs.DefaultTargetPercent,
+	})
+}
+
+// handleReport serves the yearly report page: the per-month attendance summary
+// for a tracking year plus the CSV/PDF export actions.
+func (s *Server) handleReport(w http.ResponseWriter, r *http.Request) {
+	userID, err := getUserID(r)
+	if errors.Is(err, ErrNoUserInCtx) || userID == 0 {
+		slog.Info("no user id in context, redirecting to login")
+		http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
+		return
+	}
+	if err != nil {
+		err = fmt.Errorf("failed to get user id: %w", err)
+		errorPage(w, r, err, internalErrorMsg, http.StatusInternalServerError)
+		return
+	}
+
+	calendarPrefs, err := s.db.GetCalendarPreferences(userID)
+	if err != nil {
+		err = fmt.Errorf("failed to get calendar preferences: %w", err)
+		errorPage(w, r, err, internalErrorMsg, http.StatusInternalServerError)
+		return
+	}
+	startMonth := util.NormaliseStartMonth(calendarPrefs.TrackingYearStartMonth)
+
+	// Default to the tracking year containing today, overridable via ?year=.
+	now := time.Now()
+	year := util.TrackingYear(int(now.Month()), now.Year(), startMonth)
+	if q := r.URL.Query().Get("year"); q != "" {
+		if y, err := strconv.Atoi(q); err == nil {
+			year = y
+		}
+	}
+
+	yearlyData, err := s.v1.GetYear(model.GetYearRequest{
+		Meta: model.GetYearRequestMeta{
+			UserID: userID,
+			Year:   year,
+		},
+	})
+	if err != nil {
+		err = fmt.Errorf("failed to get year data: %w", err)
+		errorPage(w, r, err, internalErrorMsg, http.StatusInternalServerError)
+		return
+	}
+
+	rows, headline := buildReportSummary(yearlyData.Data, year, startMonth)
+	serveReport(w, r, reportPage{
+		Year:     year,
+		Rows:     rows,
+		Headline: headline,
 	})
 }
 
@@ -302,6 +365,7 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 		ThemePreferences:    settings.ThemePreferences,
 		SchedulePreferences: settings.SchedulePreferences,
 		CalendarPreferences: settings.CalendarPreferences,
+		TargetPreferences:   settings.TargetPreferences,
 	})
 }
 

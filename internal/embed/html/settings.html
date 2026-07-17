@@ -168,6 +168,22 @@
 </div>
 
 <div class="settings-section">
+    <h3>Attendance target</h3>
+    <p class="section-desc">
+        Set a monthly office attendance target as a percentage of your tracked work days.
+        The form page shows your progress towards it each month. Leave empty for no target.
+    </p>
+
+    <div class="field-row">
+        <label for="target-percent">Monthly target</label>
+        <span>
+            <input type="number" id="target-percent" min="0" max="100" step="1" placeholder="none"
+                   style="width: 70px; padding: 8px 10px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.95rem;"> %
+        </span>
+    </div>
+</div>
+
+<div class="settings-section">
     <h3>Weekly schedule</h3>
     <p class="section-desc">
         Set the days you usually attend the office on a recurring cycle.
@@ -239,6 +255,9 @@
         // Server-provided tracking-year start month (1-12)
         const serverTrackingStartMonth = {{.CalendarPreferences.TrackingYearStartMonth}} || 10;
 
+        // Server-provided attendance target percentage (0 = no target)
+        const serverTargetPercent = {{.TargetPreferences.DefaultTargetPercent}} || 0;
+
         // State names mapping
         const stateNames = {
             0: "Untracked",
@@ -265,6 +284,9 @@
 
         // Initialize tracking-year start month
         initializeYearStartMonth();
+
+        // Initialize attendance target
+        initializeTargetPercent();
 
         // Save settings function
         function saveSettings() {
@@ -386,6 +408,37 @@
                 })
                 .catch(error => {
                     console.error('Error saving tracking year settings:', error);
+                });
+            });
+        }
+
+        // Initialize attendance target input with server data
+        function initializeTargetPercent() {
+            const input = document.getElementById('target-percent');
+            if (serverTargetPercent > 0) {
+                input.value = serverTargetPercent;
+            }
+
+            input.addEventListener('change', function() {
+                let target = parseInt(this.value, 10);
+                if (isNaN(target) || target < 0) { target = 0; }
+                if (target > 100) { target = 100; }
+                this.value = target > 0 ? target : '';
+
+                fetch('/api/v1/settings/target', {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        data: {
+                            default_target_percent: target
+                        }
+                    }),
+                    credentials: "include"
+                })
+                .catch(error => {
+                    console.error('Error saving attendance target:', error);
                 });
             });
         }

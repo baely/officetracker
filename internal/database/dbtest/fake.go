@@ -36,9 +36,10 @@ type Fake struct {
 	days  map[dayKey]model.DayState
 	notes map[monthKey]model.Note
 
-	theme model.ThemePreferences
-	sched model.SchedulePreferences
-	cal   model.CalendarPreferences
+	theme  model.ThemePreferences
+	sched  model.SchedulePreferences
+	cal    model.CalendarPreferences
+	target model.TargetPreferences
 
 	// LinkedAccounts is returned verbatim by GetUserLinkedAccounts.
 	LinkedAccounts []model.LinkedAccount
@@ -321,6 +322,21 @@ func (f *Fake) SaveCalendarPreferences(_ int, prefs model.CalendarPreferences) e
 		return err
 	}
 	f.cal = prefs
+	return nil
+}
+
+func (f *Fake) GetTargetPreferences(_ int) (model.TargetPreferences, error) {
+	if err := f.fail("GetTargetPreferences"); err != nil {
+		return model.TargetPreferences{}, err
+	}
+	return f.target, nil
+}
+
+func (f *Fake) SaveTargetPreferences(_ int, prefs model.TargetPreferences) error {
+	if err := f.fail("SaveTargetPreferences"); err != nil {
+		return err
+	}
+	f.target = prefs
 	return nil
 }
 

@@ -53,11 +53,17 @@ func (i *Service) GetSettings(req model.GetSettingsRequest) (model.GetSettingsRe
 	}
 	calendarPrefs.TrackingYearStartMonth = util.NormaliseStartMonth(calendarPrefs.TrackingYearStartMonth)
 
+	targetPrefs, err := i.db.GetTargetPreferences(req.Meta.UserID)
+	if err != nil {
+		return model.GetSettingsResponse{}, err
+	}
+
 	return model.GetSettingsResponse{
 		LinkedAccounts:      linkedAccounts,
 		ThemePreferences:    themePrefs,
 		SchedulePreferences: schedulePrefs,
 		CalendarPreferences: calendarPrefs,
+		TargetPreferences:   targetPrefs,
 	}, nil
 }
 
@@ -75,4 +81,10 @@ func (i *Service) UpdateCalendarPreferences(req model.UpdateCalendarPreferencesR
 	req.Data.TrackingYearStartMonth = util.NormaliseStartMonth(req.Data.TrackingYearStartMonth)
 	err := i.db.SaveCalendarPreferences(req.Meta.UserID, req.Data)
 	return model.UpdateCalendarPreferencesResponse{}, err
+}
+
+func (i *Service) UpdateTargetPreferences(req model.UpdateTargetPreferencesRequest) (model.UpdateTargetPreferencesResponse, error) {
+	req.Data.DefaultTargetPercent = util.ClampTargetPercent(req.Data.DefaultTargetPercent)
+	err := i.db.SaveTargetPreferences(req.Meta.UserID, req.Data)
+	return model.UpdateTargetPreferencesResponse{}, err
 }

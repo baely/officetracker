@@ -49,7 +49,7 @@
             margin-bottom: 20px;
         }
 
-        #calendar-nav #month-year {
+        #calendar-nav #month-year, #calendar-nav #report-year {
             font-weight: bold;
             font-size: 1.5em;
             margin: 10px;
@@ -99,6 +99,12 @@
             height: 1rem;
             border: 1px solid #dee2e6;
             margin-right: 0.5rem;
+        }
+
+        #target-progress {
+            text-align: center;
+            color: #495057;
+            margin: 0.25rem 0 0;
         }
 
         .untracked { background-color: #FFFFFF; }
@@ -274,6 +280,7 @@
         <div class="nav-links">
             {{if .IsLoggedIn}}
                 {{if not .IsStandalone}}<a href="/logout">/logout</a>{{end}}
+                <a href="/report">/report</a>
                 <a href="/settings">/settings</a>
                 {{if not .IsStandalone}}<a href="/developer">/developer</a>{{end}}
             {{else}}
