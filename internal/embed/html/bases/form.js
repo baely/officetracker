@@ -92,7 +92,7 @@ class Data {
         }
 
         elem.innerHTML = status + "<br>" +
-            'Target: <input type="number" id="target-inline" min="1" max="100" step="1"> % ' +
+            'Target: <input type="number" id="target-inline" min="0" max="100" step="10"> % ' +
             '<button id="target-inline-save">Save</button>';
         const input = document.getElementById("target-inline");
         if (targetPercent > 0) { input.value = targetPercent; }
