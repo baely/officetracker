@@ -105,7 +105,7 @@ func New() *Fake {
 		notes: make(map[monthKey]model.Note),
 		theme:  model.ThemePreferences{Theme: "default"},
 		cal:    model.CalendarPreferences{TrackingYearStartMonth: model.DefaultTrackingYearStartMonth},
-		target: model.TargetPreferences{DefaultTargetPercent: model.DefaultTargetPercent},
+		target: model.TargetPreferences{TargetPercent: model.DefaultTargetPercent},
 	}
 }
 

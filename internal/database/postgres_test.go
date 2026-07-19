@@ -319,25 +319,25 @@ func TestPostgresPreferences(t *testing.T) {
 
 	// Attendance target: defaults to the standard mandate before any save.
 	target, err := db.GetTargetPreferences(uid)
-	if err != nil || target.DefaultTargetPercent != model.DefaultTargetPercent {
+	if err != nil || target.TargetPercent != model.DefaultTargetPercent {
 		t.Errorf("default target = %+v, err %v, want %d", target, err, model.DefaultTargetPercent)
 	}
-	db.SaveTargetPreferences(uid, model.TargetPreferences{DefaultTargetPercent: 50})
+	db.SaveTargetPreferences(uid, model.TargetPreferences{TargetPercent: 50})
 	target, _ = db.GetTargetPreferences(uid)
-	if target.DefaultTargetPercent != 50 {
-		t.Errorf("target round-trip = %d, want 50", target.DefaultTargetPercent)
+	if target.TargetPercent != 50 {
+		t.Errorf("target round-trip = %d, want 50", target.TargetPercent)
 	}
 	// Out-of-range clamps on save.
-	db.SaveTargetPreferences(uid, model.TargetPreferences{DefaultTargetPercent: 150})
+	db.SaveTargetPreferences(uid, model.TargetPreferences{TargetPercent: 150})
 	target, _ = db.GetTargetPreferences(uid)
-	if target.DefaultTargetPercent != 100 {
-		t.Errorf("target out-of-range = %d, want 100", target.DefaultTargetPercent)
+	if target.TargetPercent != 100 {
+		t.Errorf("target out-of-range = %d, want 100", target.TargetPercent)
 	}
 	// Zero clears the target.
-	db.SaveTargetPreferences(uid, model.TargetPreferences{DefaultTargetPercent: 0})
+	db.SaveTargetPreferences(uid, model.TargetPreferences{TargetPercent: 0})
 	target, _ = db.GetTargetPreferences(uid)
-	if target.DefaultTargetPercent != 0 {
-		t.Errorf("cleared target = %d, want 0", target.DefaultTargetPercent)
+	if target.TargetPercent != 0 {
+		t.Errorf("cleared target = %d, want 0", target.TargetPercent)
 	}
 }
 

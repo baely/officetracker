@@ -104,7 +104,7 @@ class Data {
                 },
                 body: JSON.stringify({
                     data: {
-                        default_target_percent: value
+                        target_percent: value
                     }
                 }),
                 credentials: "include"

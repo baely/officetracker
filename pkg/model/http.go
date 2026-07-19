@@ -170,12 +170,12 @@ type CalendarPreferences struct {
 	TrackingYearStartMonth int `json:"tracking_year_start_month"`
 }
 
-// TargetPreferences holds the user's default monthly attendance target.
-// Targets are optional: a zero DefaultTargetPercent means no target is set.
+// TargetPreferences holds the user's monthly attendance target.
+// Targets are optional: a zero TargetPercent means no target is set.
 type TargetPreferences struct {
-	// DefaultTargetPercent is the attendance target (1-100) applied to every
-	// month unless overridden by a per-month target. 0 = no target.
-	DefaultTargetPercent int `json:"default_target_percent"`
+	// TargetPercent is the attendance target (1-100) applied to each month.
+	// 0 = no target.
+	TargetPercent int `json:"target_percent"`
 }
 
 type LinkedAccount struct {

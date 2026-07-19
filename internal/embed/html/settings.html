@@ -404,7 +404,7 @@
         const serverTrackingStartMonth = {{.CalendarPreferences.TrackingYearStartMonth}} || 10;
 
         // Server-provided attendance target percentage (0 = no target)
-        const serverTargetPercent = {{.TargetPreferences.DefaultTargetPercent}} || 0;
+        const serverTargetPercent = {{.TargetPreferences.TargetPercent}} || 0;
 
         // State names mapping
         const stateNames = {
@@ -580,7 +580,7 @@
                     },
                     body: JSON.stringify({
                         data: {
-                            default_target_percent: target
+                            target_percent: target
                         }
                     }),
                     credentials: "include"

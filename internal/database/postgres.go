@@ -558,8 +558,8 @@ func (p *postgres) SaveCalendarPreferences(userID int, prefs model.CalendarPrefe
 }
 
 func (p *postgres) GetTargetPreferences(userID int) (model.TargetPreferences, error) {
-	q := `SELECT default_target_percent FROM user_preferences WHERE user_id = $1;`
-	prefs := model.TargetPreferences{DefaultTargetPercent: model.DefaultTargetPercent}
+	q := `SELECT target_percent FROM user_preferences WHERE user_id = $1;`
+	prefs := model.TargetPreferences{TargetPercent: model.DefaultTargetPercent}
 
 	err := p.readOnlyTransaction(func(tx *sql.Tx) error {
 		row := tx.QueryRow(q, userID)
@@ -572,7 +572,7 @@ func (p *postgres) GetTargetPreferences(userID int) (model.TargetPreferences, er
 			return err
 		}
 		if target.Valid {
-			prefs.DefaultTargetPercent = util.ClampTargetPercent(int(target.Int64))
+			prefs.TargetPercent = util.ClampTargetPercent(int(target.Int64))
 		}
 		return nil
 	})
@@ -581,11 +581,11 @@ func (p *postgres) GetTargetPreferences(userID int) (model.TargetPreferences, er
 }
 
 func (p *postgres) SaveTargetPreferences(userID int, prefs model.TargetPreferences) error {
-	target := util.ClampTargetPercent(prefs.DefaultTargetPercent)
-	q := `INSERT INTO user_preferences (user_id, default_target_percent)
+	target := util.ClampTargetPercent(prefs.TargetPercent)
+	q := `INSERT INTO user_preferences (user_id, target_percent)
 		  VALUES ($1, $2)
 		  ON CONFLICT (user_id)
-		  DO UPDATE SET default_target_percent = $2;`
+		  DO UPDATE SET target_percent = $2;`
 
 	return p.readWriteTransaction(func(tx *sql.Tx) error {
 		_, err := tx.Exec(q, userID, target)

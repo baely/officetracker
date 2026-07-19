@@ -326,34 +326,34 @@ func TestSQLiteTargetPreferences(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetTargetPreferences default: %v", err)
 	}
-	if prefs.DefaultTargetPercent != model.DefaultTargetPercent {
-		t.Errorf("default target = %d, want %d", prefs.DefaultTargetPercent, model.DefaultTargetPercent)
+	if prefs.TargetPercent != model.DefaultTargetPercent {
+		t.Errorf("default target = %d, want %d", prefs.TargetPercent, model.DefaultTargetPercent)
 	}
 
-	if err := db.SaveTargetPreferences(1, model.TargetPreferences{DefaultTargetPercent: 50}); err != nil {
+	if err := db.SaveTargetPreferences(1, model.TargetPreferences{TargetPercent: 50}); err != nil {
 		t.Fatalf("SaveTargetPreferences: %v", err)
 	}
 	got, _ := db.GetTargetPreferences(1)
-	if got.DefaultTargetPercent != 50 {
-		t.Errorf("target round-trip = %d, want 50", got.DefaultTargetPercent)
+	if got.TargetPercent != 50 {
+		t.Errorf("target round-trip = %d, want 50", got.TargetPercent)
 	}
 
 	// An out-of-range value is clamped on save.
-	if err := db.SaveTargetPreferences(1, model.TargetPreferences{DefaultTargetPercent: 150}); err != nil {
+	if err := db.SaveTargetPreferences(1, model.TargetPreferences{TargetPercent: 150}); err != nil {
 		t.Fatalf("SaveTargetPreferences invalid: %v", err)
 	}
 	got, _ = db.GetTargetPreferences(1)
-	if got.DefaultTargetPercent != 100 {
-		t.Errorf("out-of-range target clamped to %d, want 100", got.DefaultTargetPercent)
+	if got.TargetPercent != 100 {
+		t.Errorf("out-of-range target clamped to %d, want 100", got.TargetPercent)
 	}
 
 	// Zero clears the target.
-	if err := db.SaveTargetPreferences(1, model.TargetPreferences{DefaultTargetPercent: 0}); err != nil {
+	if err := db.SaveTargetPreferences(1, model.TargetPreferences{TargetPercent: 0}); err != nil {
 		t.Fatalf("SaveTargetPreferences clear: %v", err)
 	}
 	got, _ = db.GetTargetPreferences(1)
-	if got.DefaultTargetPercent != 0 {
-		t.Errorf("cleared target = %d, want 0", got.DefaultTargetPercent)
+	if got.TargetPercent != 0 {
+		t.Errorf("cleared target = %d, want 0", got.TargetPercent)
 	}
 }
 

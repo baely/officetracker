@@ -240,7 +240,7 @@ func (s *Server) handleForm(w http.ResponseWriter, r *http.Request) {
 		YearlyState:        template.JS(yearlyDataStr),
 		YearlyNotes:        template.JS(yearlyNotesStr),
 		TrackingStartMonth: startMonth,
-		TargetPercent:      targetPrefs.DefaultTargetPercent,
+		TargetPercent:      targetPrefs.TargetPercent,
 	})
 }
 

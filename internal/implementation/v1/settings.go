@@ -84,7 +84,7 @@ func (i *Service) UpdateCalendarPreferences(req model.UpdateCalendarPreferencesR
 }
 
 func (i *Service) UpdateTargetPreferences(req model.UpdateTargetPreferencesRequest) (model.UpdateTargetPreferencesResponse, error) {
-	req.Data.DefaultTargetPercent = util.ClampTargetPercent(req.Data.DefaultTargetPercent)
+	req.Data.TargetPercent = util.ClampTargetPercent(req.Data.TargetPercent)
 	err := i.db.SaveTargetPreferences(req.Meta.UserID, req.Data)
 	return model.UpdateTargetPreferencesResponse{}, err
 }
