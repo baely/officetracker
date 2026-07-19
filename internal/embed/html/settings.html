@@ -3,11 +3,31 @@
 {{ define "content" }}
 
 <style>
+    .settings-toc {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px 18px;
+        margin: 0 0 4px;
+        font-size: 0.9rem;
+    }
+
+    .settings-toc a {
+        color: #6b7280;
+        text-decoration: none;
+    }
+
+    .settings-toc a:hover {
+        color: inherit;
+        text-decoration: underline;
+        text-underline-offset: 3px;
+    }
+
     .settings-section {
         border: 1px solid #e6e8eb;
         border-radius: 10px;
         padding: 20px 24px;
         margin: 20px 0;
+        scroll-margin-top: 16px;
     }
 
     .settings-section h3 {
@@ -81,6 +101,93 @@
         color: #6b7280;
     }
 
+    /* API tokens */
+    .token-form {
+        display: flex;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+    }
+    #token-name {
+        flex: 1;
+        padding: 0.5rem;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        background-color: #f8f9fa;
+        color: #495057;
+    }
+    #generate-token-btn, #copy-token-btn {
+        padding: 10px;
+        background: #24292e;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+    #generate-token-btn:hover, #copy-token-btn:hover {
+        background: #1c2025;
+    }
+    #new-token-display {
+        margin-bottom: 1rem;
+        padding: 1rem;
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+    }
+    .token-warning {
+        margin-bottom: 0.5rem;
+    }
+    .token-value-container {
+        display: flex;
+        gap: 0.5rem;
+    }
+    #new-token-value {
+        flex: 1;
+        padding: 0.5rem;
+        background: white;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        font-family: monospace;
+    }
+    .tokens-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    .tokens-table th {
+        background: #f4f4f4;
+        padding: 8px;
+        text-align: left;
+        border: 1px solid #ddd;
+    }
+    .tokens-table td {
+        padding: 8px;
+        border: 1px solid #ddd;
+    }
+    .revoke-btn {
+        padding: 6px 12px;
+        background: #24292e;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+    .revoke-btn:hover {
+        background: #1c2025;
+    }
+    .no-tokens {
+        padding: 1rem;
+        text-align: center;
+        color: #666;
+        background: #f8f9fa;
+        border-radius: 4px;
+    }
+    .error {
+        padding: 1rem;
+        background: #f8f9fa;
+        color: #495057;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+    }
+
     /* Schedule calendar tweaks */
     .schedule-container {
         margin: 0 0 16px;
@@ -96,8 +203,16 @@
     }
 </style>
 
+<nav class="settings-toc">
+    {{if .Auth0AuthURL}}<a href="#accounts">Accounts</a>{{end}}
+    <a href="#appearance">Appearance</a>
+    <a href="#tracking-year">Tracking year</a>
+    <a href="#schedule">Schedule</a>
+    {{if not .IsStandalone}}<a href="#api-tokens">API tokens</a>{{end}}
+</nav>
+
 {{if .Auth0AuthURL}}
-<div class="settings-section">
+<div class="settings-section" id="accounts">
     <h3>Connected accounts</h3>
     <p class="section-desc">
         Link an additional social login to your account. Connection links expire after 10 minutes.
@@ -115,7 +230,7 @@
 </div>
 {{end}}
 
-<div class="settings-section">
+<div class="settings-section" id="appearance">
     <h3>Appearance</h3>
     <p class="section-desc">
         Choose a visual theme for Officetracker.
@@ -141,7 +256,7 @@
     </div>
 </div>
 
-<div class="settings-section">
+<div class="settings-section" id="tracking-year">
     <h3>Tracking year</h3>
     <p class="section-desc">
         Choose the month your tracking year starts on. The yearly summary and exported
@@ -167,7 +282,7 @@
     </div>
 </div>
 
-<div class="settings-section">
+<div class="settings-section" id="schedule">
     <h3>Weekly schedule</h3>
     <p class="section-desc">
         Set the days you usually attend the office on a recurring cycle.
@@ -217,6 +332,38 @@
         </div>
     </div>
 </div>
+
+{{if not .IsStandalone}}
+<div class="settings-section" id="api-tokens">
+    <h3>API tokens</h3>
+    <p class="section-desc">
+        Create tokens for accessing the API from other applications.
+        Each token provides full API access, so keep them secure.
+    </p>
+
+    <div class="token-form">
+        <input type="text" id="token-name" placeholder="Token name (e.g. 'Mobile App', 'CI/CD')" maxlength="50">
+        <button id="generate-token-btn">Generate token</button>
+    </div>
+
+    <!-- Only shown when a new token is created -->
+    <div id="new-token-display" style="display: none;">
+        <div class="token-warning">
+            <strong>Important:</strong> Copy this token now. You won't be able to see it again!
+        </div>
+        <div class="token-value-container">
+            <input type="text" id="new-token-value" disabled readonly>
+            <button id="copy-token-btn">Copy</button>
+        </div>
+    </div>
+
+    <div id="tokens-list">
+        <!-- Populated by JavaScript -->
+    </div>
+</div>
+
+<script>{{ template "developer.js" . }}</script>
+{{end}}
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {

@@ -44,19 +44,6 @@ func serveHero(w http.ResponseWriter, r *http.Request, page heroPage) {
 	}
 }
 
-type loginPage struct {
-	basePage
-	SSOLink string
-}
-
-func serveLogin(w http.ResponseWriter, r *http.Request, page loginPage) {
-	page.basePage = getBasePageData(r)
-	if err := embed.Login.Execute(w, page); err != nil {
-		err = fmt.Errorf("failed to execute login template: %w", err)
-		errorPage(w, r, err, internalErrorMsg, http.StatusInternalServerError)
-	}
-}
-
 type settingsPage struct {
 	basePage
 	LinkedAccounts      []model.LinkedAccount
@@ -70,18 +57,6 @@ func serveSettings(w http.ResponseWriter, r *http.Request, page settingsPage) {
 	page.basePage = getBasePageData(r)
 	if err := embed.Settings.Execute(w, page); err != nil {
 		err = fmt.Errorf("failed to execute settings template: %w", err)
-		errorPage(w, r, err, internalErrorMsg, http.StatusInternalServerError)
-	}
-}
-
-type developerPage struct {
-	basePage
-}
-
-func serveDeveloper(w http.ResponseWriter, r *http.Request, page developerPage) {
-	page.basePage = getBasePageData(r)
-	if err := embed.Developer.Execute(w, page); err != nil {
-		err = fmt.Errorf("failed to execute developer template: %w", err)
 		errorPage(w, r, err, internalErrorMsg, http.StatusInternalServerError)
 	}
 }
