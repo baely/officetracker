@@ -12,7 +12,6 @@ import {
   View,
 } from 'react-native';
 import { Api, isUnauthorized, Settings, TokenInfo, Weekday } from '../api';
-import Header from '../components/Header';
 import Legend from '../components/Legend';
 import LocationPicker, { Coord } from '../components/LocationPicker';
 import ScheduleEditor from '../components/ScheduleEditor';
@@ -31,7 +30,6 @@ import { colors, radius, spacing } from '../theme';
 
 interface Props {
   conn: Connection;
-  onClose: () => void;
   onUnauthorized: () => void;
   onDisconnect: () => void;
 }
@@ -41,9 +39,11 @@ function formatDate(iso: string): string {
   return isNaN(d.getTime()) ? iso : d.toLocaleDateString();
 }
 
+// Attendance target choices, stepping by 10 like the web pickers. 0 = no target.
+const TARGET_OPTIONS = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
+
 export default function SettingsScreen({
   conn,
-  onClose,
   onUnauthorized,
   onDisconnect,
 }: Props) {
@@ -121,6 +121,17 @@ export default function SettingsScreen({
     api.updateTrackingYearStartMonth(month).catch((e: any) => {
       if (isUnauthorized(e)) return;
       setSettings((s) => (s ? { ...s, trackingYearStartMonth: prev } : s));
+      Alert.alert('Could not save', e?.message ?? 'Please try again.');
+    });
+  }
+
+  function setTarget(percent: number) {
+    if (!settings || percent === settings.targetPercent) return;
+    const prev = settings.targetPercent;
+    setSettings({ ...settings, targetPercent: percent });
+    api.updateTargetPercent(percent).catch((e: any) => {
+      if (isUnauthorized(e)) return;
+      setSettings((s) => (s ? { ...s, targetPercent: prev } : s));
       Alert.alert('Could not save', e?.message ?? 'Please try again.');
     });
   }
@@ -256,9 +267,6 @@ export default function SettingsScreen({
 
   return (
     <View style={styles.screen}>
-      {/* Fixed nav bar — pull-to-refresh only scrolls the content below it. */}
-      <Header rightLabel="Done" onRightPress={onClose} />
-
       <ScrollView
         style={styles.flex}
         contentContainerStyle={styles.content}
@@ -283,7 +291,7 @@ export default function SettingsScreen({
       ) : error ? (
         <View style={styles.card}>
           <Text style={styles.errorText}>{error}</Text>
-          <Pressable style={styles.button} onPress={() => load()}>
+          <Pressable style={[styles.button, styles.buttonInCard]} onPress={() => load()}>
             <Text style={styles.buttonText}>Retry</Text>
           </Pressable>
         </View>
@@ -377,6 +385,42 @@ export default function SettingsScreen({
             </ScrollView>
           </View>
 
+          {/* Attendance target */}
+          <Text style={styles.sectionLabel}>Attendance target</Text>
+          <Text style={styles.hint}>
+            The share of work days you aim to spend in the office each month.
+            The calendar shows progress against it.
+          </Text>
+          <View style={styles.card}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.monthRow}
+              keyboardShouldPersistTaps="handled"
+            >
+              {TARGET_OPTIONS.map((percent) => {
+                const selected = settings?.targetPercent === percent;
+                return (
+                  <Pressable
+                    key={percent}
+                    onPress={() => setTarget(percent)}
+                    disabled={readOnly}
+                    style={[styles.monthChip, selected && styles.monthChipSelected]}
+                  >
+                    <Text
+                      style={[
+                        styles.monthChipText,
+                        selected && styles.monthChipTextSelected,
+                      ]}
+                    >
+                      {percent === 0 ? 'Off' : `${percent}%`}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </View>
+
           {/* Work location (device feature; hidden on a read-only server) */}
           {!readOnly && (
             <>
@@ -401,10 +445,7 @@ export default function SettingsScreen({
                   >
                     <Text style={styles.buttonText}>Change</Text>
                   </Pressable>
-                  <Pressable
-                    style={[styles.workBtn, styles.workBtnDanger]}
-                    onPress={removeWorkLocation}
-                  >
+                  <Pressable style={styles.workBtn} onPress={removeWorkLocation}>
                     <Text style={[styles.buttonText, styles.dangerText]}>
                       Remove
                     </Text>
@@ -415,7 +456,7 @@ export default function SettingsScreen({
               <>
                 <Text style={styles.muted}>No work location set.</Text>
                 <Pressable
-                  style={styles.button}
+                  style={[styles.button, styles.buttonInCard]}
                   onPress={() => setPickerVisible(true)}
                 >
                   <Text style={styles.buttonText}>Set work location</Text>
@@ -465,7 +506,10 @@ export default function SettingsScreen({
               <Text style={styles.muted}>
                 Long-press to copy. It won't be shown again.
               </Text>
-              <Pressable style={styles.button} onPress={() => setNewSecret(null)}>
+              <Pressable
+                style={[styles.button, styles.buttonInCard]}
+                onPress={() => setNewSecret(null)}
+              >
                 <Text style={styles.buttonText}>Done</Text>
               </Pressable>
             </View>
@@ -522,7 +566,7 @@ const styles = StyleSheet.create({
   content: { paddingBottom: spacing.xl * 2 },
   body: { padding: spacing.lg },
   screenTitle: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: '700',
     color: colors.text,
     marginTop: spacing.sm,
@@ -532,8 +576,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
     borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
+    backgroundColor: colors.surface,
   },
   monthChipSelected: {
     backgroundColor: colors.accent,
@@ -544,9 +587,11 @@ const styles = StyleSheet.create({
   loading: { paddingVertical: spacing.xl * 2 },
   errorText: { color: colors.danger, marginBottom: spacing.md },
   sectionLabel: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: colors.text,
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textFaint,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
     marginTop: spacing.xl,
     marginBottom: spacing.sm,
   },
@@ -557,11 +602,9 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   card: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 10,
+    borderRadius: radius.lg,
     padding: spacing.lg,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.cellBg,
   },
   fieldLabel: { fontSize: 12, color: colors.textMuted, marginBottom: 2 },
   fieldValue: { fontSize: 15, color: colors.text },
@@ -569,23 +612,22 @@ const styles = StyleSheet.create({
   hr: { height: 1, backgroundColor: colors.border, marginVertical: spacing.md },
   button: {
     marginTop: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.border,
     borderRadius: radius.md,
     paddingVertical: spacing.md,
     alignItems: 'center',
+    backgroundColor: colors.cellBg,
   },
   buttonText: { fontSize: 15, fontWeight: '600', color: colors.text },
+  // Buttons that sit inside a grey card need a white fill to stay visible.
+  buttonInCard: { backgroundColor: colors.surface },
   workActions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
   workBtn: {
     flex: 1,
-    borderWidth: 1,
-    borderColor: colors.border,
     borderRadius: radius.md,
     paddingVertical: spacing.md,
     alignItems: 'center',
+    backgroundColor: colors.surface,
   },
-  workBtnDanger: { borderColor: '#fecaca' },
   legendWrap: { marginTop: spacing.lg },
   tokenRow: {
     flexDirection: 'row',
@@ -608,8 +650,6 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    borderWidth: 1,
-    borderColor: colors.border,
     borderRadius: radius.md,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
@@ -625,6 +665,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   createBtnText: { color: '#ffffff', fontSize: 15, fontWeight: '600' },
-  danger: { marginTop: spacing.xl, borderColor: '#fecaca' },
+  danger: { marginTop: spacing.xl },
   dangerText: { color: colors.danger },
 });

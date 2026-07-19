@@ -39,9 +39,9 @@ export const spacing = {
   xl: 24,
 };
 
-// The web app uses a consistent 4px corner radius; keep it subtle and flat.
+// Softer corners than the web's 4px: still flat, but sized for touch UI.
 export const radius = {
-  sm: 4,
-  md: 4,
-  lg: 6,
+  sm: 6,
+  md: 10,
+  lg: 14,
 };

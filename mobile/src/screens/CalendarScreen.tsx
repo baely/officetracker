@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -16,21 +17,18 @@ import Calendar from '../components/Calendar';
 import Header from '../components/Header';
 import Legend from '../components/Legend';
 import LocationPicker, { Coord } from '../components/LocationPicker';
-import Summary, { SummaryRow } from '../components/Summary';
+import TargetBox from '../components/TargetBox';
 import WorkLocationBanner from '../components/WorkLocationBanner';
 import {
   addMonths,
-  calendarYearForMonth,
   DEFAULT_TRACKING_YEAR_START_MONTH,
   formatMonthYear,
   MONTH_NAMES,
   thisMonth,
-  trackingMonthOrder,
   trackingYear,
   ViewMonth,
 } from '../dates';
 import { enableWorkTracking } from '../location';
-import { monthStats, yearStats } from '../stats';
 import { AttendanceState, cycleState } from '../states';
 import {
   cacheStartMonth,
@@ -44,15 +42,10 @@ import { colors, radius, spacing } from '../theme';
 
 interface Props {
   conn: Connection;
-  onOpenSettings: () => void;
   onUnauthorized: () => void;
 }
 
-export default function CalendarScreen({
-  conn,
-  onOpenSettings,
-  onUnauthorized,
-}: Props) {
+export default function CalendarScreen({ conn, onUnauthorized }: Props) {
   const api = useMemo(
     () => new Api(conn, onUnauthorized),
     [conn, onUnauthorized],
@@ -63,6 +56,8 @@ export default function CalendarScreen({
 
   const [view, setView] = useState<ViewMonth>(thisMonth());
   const [startMonth, setStartMonth] = useState(DEFAULT_TRACKING_YEAR_START_MONTH);
+  // Monthly attendance target (0 = none), fetched with the rest of settings.
+  const [targetPercent, setTargetPercent] = useState(0);
   const fy = trackingYear(view.year, view.month, startMonth);
 
   // Loaded tracking year, keyed month (1-12) -> day -> state.
@@ -132,7 +127,10 @@ export default function CalendarScreen({
     new Api(conn)
       .getSettings()
       .then((s) => {
-        if (!cancelled) setStartMonth(s.trackingYearStartMonth);
+        if (!cancelled) {
+          setStartMonth(s.trackingYearStartMonth);
+          setTargetPercent(s.targetPercent);
+        }
         // Cache for the background geofence task, which can't fetch settings.
         cacheStartMonth(s.trackingYearStartMonth);
       })
@@ -235,7 +233,7 @@ export default function CalendarScreen({
     });
   }, [api, noteText, notes, view, readOnly]);
 
-  // Save any pending note before leaving the current month/screen.
+  // Save any pending note before leaving the current month.
   const go = (delta: number) => {
     saveNote();
     setView((v) => addMonths(v, delta));
@@ -244,30 +242,17 @@ export default function CalendarScreen({
     saveNote();
     setView(thisMonth());
   };
-  const openSettings = () => {
-    saveNote();
-    onOpenSettings();
-  };
 
-  const year = useMemo(() => yearStats(yearData), [yearData]);
-
-  // One row per tracked month, ordered start-month-first, mirroring the web
-  // summary table.
-  const summaryRows = useMemo<SummaryRow[]>(() => {
-    return Object.keys(yearData)
-      .map(Number)
-      .map((m) => {
-        const s = monthStats(yearData[m] ?? {});
-        const calYear = calendarYearForMonth(m, fy, startMonth);
-        return { label: `${MONTH_NAMES[m - 1]} ${calYear}`, ...s, month: m };
-      })
-      .filter((r) => r.total > 0)
-      .sort(
-        (a, b) =>
-          trackingMonthOrder(a.month, startMonth) -
-          trackingMonthOrder(b.month, startMonth),
-      );
-  }, [yearData, fy, startMonth]);
+  // Switching tabs unmounts this screen before the note field can blur, so
+  // flush any pending note on unmount too (via a ref to dodge a stale closure).
+  const saveNoteRef = useRef(saveNote);
+  saveNoteRef.current = saveNote;
+  useEffect(
+    () => () => {
+      saveNoteRef.current();
+    },
+    [],
+  );
 
   // Swipe the calendar left/right to change months. Built once; reads the
   // latest navigation handler through a ref to avoid a stale closure.
@@ -289,7 +274,7 @@ export default function CalendarScreen({
   return (
     <View style={styles.screen}>
       {/* Fixed nav bar — pull-to-refresh only scrolls the content below it. */}
-      <Header rightLabel="Settings" onRightPress={openSettings} />
+      <Header />
 
       <ScrollView
         style={styles.flex}
@@ -318,7 +303,7 @@ export default function CalendarScreen({
           style={({ pressed }) => [styles.navBtn, pressed && styles.pressed]}
           hitSlop={8}
         >
-          <Text style={styles.navText}>‹</Text>
+          <Ionicons name="chevron-back" size={22} color={colors.text} />
         </Pressable>
         <Pressable onPress={goToday} hitSlop={8}>
           <Text style={styles.monthYear}>
@@ -330,7 +315,7 @@ export default function CalendarScreen({
           style={({ pressed }) => [styles.navBtn, pressed && styles.pressed]}
           hitSlop={8}
         >
-          <Text style={styles.navText}>›</Text>
+          <Ionicons name="chevron-forward" size={22} color={colors.text} />
         </Pressable>
       </View>
 
@@ -380,10 +365,19 @@ export default function CalendarScreen({
             />
           </View>
 
-          <View style={styles.section}>
-            <Text style={styles.heading}>Summary</Text>
-            <Summary rows={summaryRows} total={year} />
-          </View>
+          {/* On a read-only server there's no way to set a target, so only
+              show the section when one exists. */}
+          {(!readOnly || targetPercent > 0) && (
+            <View style={styles.section}>
+              <Text style={styles.heading}>Target</Text>
+              <TargetBox
+                days={days}
+                targetPercent={targetPercent}
+                year={view.year}
+                month={view.month}
+              />
+            </View>
+          )}
         </>
       )}
         </View>
@@ -422,15 +416,8 @@ const styles = StyleSheet.create({
     height: 36,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
     borderRadius: radius.md,
     backgroundColor: colors.cellBg,
-  },
-  navText: {
-    fontSize: 22,
-    color: colors.text,
-    lineHeight: 24,
   },
   monthYear: {
     fontSize: 22,
@@ -451,9 +438,8 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   retry: {
-    borderWidth: 1,
-    borderColor: colors.border,
     borderRadius: radius.md,
+    backgroundColor: colors.cellBg,
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.lg,
   },
@@ -482,10 +468,8 @@ const styles = StyleSheet.create({
   },
   notes: {
     minHeight: 96,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    padding: spacing.md,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
     fontSize: 15,
     color: colors.text,
     backgroundColor: colors.fieldBg,

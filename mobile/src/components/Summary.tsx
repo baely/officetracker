@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { formatPercent, Stats } from '../stats';
-import { colors, spacing } from '../theme';
+import { colors, radius, spacing } from '../theme';
 
 // One row per tracking-year month, mirroring the web summary table.
 export interface SummaryRow {
@@ -31,16 +31,16 @@ function Row({
   return (
     <View style={[styles.row, last && styles.rowLast]}>
       {cells.map((c, i) => (
-        <View
-          key={i}
-          style={[
-            styles.cell,
-            { flex: COLS[i] },
-            i < cells.length - 1 && styles.cellDivider,
-            header && styles.headerCell,
-          ]}
-        >
-          <Text style={[styles.cellText, header && styles.headerText]}>{c}</Text>
+        <View key={i} style={[styles.cell, { flex: COLS[i] }]}>
+          <Text
+            style={[
+              styles.cellText,
+              i > 0 && styles.numText,
+              header && styles.headerText,
+            ]}
+          >
+            {c}
+          </Text>
         </View>
       ))}
     </View>
@@ -85,36 +85,34 @@ const styles = StyleSheet.create({
     lineHeight: 21,
   },
   table: {
-    borderWidth: 1,
-    borderColor: colors.border,
+    backgroundColor: colors.cellBg,
+    borderRadius: radius.lg,
+    paddingHorizontal: spacing.xs,
     overflow: 'hidden',
   },
   row: {
     flexDirection: 'row',
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.border,
   },
   rowLast: {
     borderBottomWidth: 0,
   },
   cell: {
-    paddingVertical: spacing.sm,
+    paddingVertical: spacing.md,
     paddingHorizontal: spacing.sm,
     justifyContent: 'center',
   },
-  cellDivider: {
-    borderRightWidth: 1,
-    borderRightColor: colors.border,
-  },
-  headerCell: {
-    backgroundColor: colors.tableHeaderBg,
-  },
   cellText: {
-    fontSize: 13,
+    fontSize: 14,
     color: colors.textMuted,
   },
+  numText: {
+    textAlign: 'right',
+    fontVariant: ['tabular-nums'],
+  },
   headerText: {
-    fontWeight: '700',
+    fontWeight: '600',
     color: colors.text,
   },
 });
