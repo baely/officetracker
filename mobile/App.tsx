@@ -9,16 +9,20 @@ import { AUTH0_CLIENT_ID, AUTH0_DOMAIN } from './src/config';
 // which must happen at module load so it's available when iOS/Android relaunch
 // the app for a location event.
 import { checkProximityNow, syncWorkGeofence } from './src/location';
+import TabBar, { Tab } from './src/components/TabBar';
 import CalendarScreen from './src/screens/CalendarScreen';
 import LoginScreen from './src/screens/LoginScreen';
+import ReportScreen from './src/screens/ReportScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import { clearConnection, Connection, loadConnection } from './src/storage';
 import { colors } from './src/theme';
 
-type Screen = 'loading' | 'login' | 'calendar' | 'settings';
+type Screen = 'loading' | 'login' | 'app';
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>('loading');
+  // Which of the three pages the bottom tab bar shows when connected.
+  const [tab, setTab] = useState<Tab>('calendar');
   const [conn, setConn] = useState<Connection | null>(null);
   const [fontsLoaded] = useFonts({ Calistoga_400Regular });
   // Dedupes concurrent 401s so we only sign out / alert once.
@@ -27,7 +31,7 @@ export default function App() {
   useEffect(() => {
     loadConnection().then((c) => {
       setConn(c);
-      setScreen(c ? 'calendar' : 'login');
+      setScreen(c ? 'app' : 'login');
     });
   }, []);
 
@@ -60,7 +64,8 @@ export default function App() {
   const onConnected = useCallback((c: Connection) => {
     signingOut.current = false;
     setConn(c);
-    setScreen('calendar');
+    setTab('calendar');
+    setScreen('app');
   }, []);
 
   // Hold on the spinner until both the saved session and the brand font are ready.
@@ -77,26 +82,29 @@ export default function App() {
         <LoginScreen initialBaseUrl={conn?.baseUrl} onConnected={onConnected} />
       );
       break;
-    case 'calendar':
+    case 'app':
       body = conn ? (
-        <CalendarScreen
-          conn={conn}
-          onOpenSettings={() => setScreen('settings')}
-          onUnauthorized={handleUnauthorized}
-        />
-      ) : null;
-      break;
-    case 'settings':
-      body = conn ? (
-        <SettingsScreen
-          conn={conn}
-          onClose={() => setScreen('calendar')}
-          onUnauthorized={handleUnauthorized}
-          onDisconnect={() => {
-            setConn(null);
-            setScreen('login');
-          }}
-        />
+        <View style={styles.app}>
+          <View style={styles.page}>
+            {tab === 'calendar' && (
+              <CalendarScreen conn={conn} onUnauthorized={handleUnauthorized} />
+            )}
+            {tab === 'report' && (
+              <ReportScreen conn={conn} onUnauthorized={handleUnauthorized} />
+            )}
+            {tab === 'settings' && (
+              <SettingsScreen
+                conn={conn}
+                onUnauthorized={handleUnauthorized}
+                onDisconnect={() => {
+                  setConn(null);
+                  setScreen('login');
+                }}
+              />
+            )}
+          </View>
+          <TabBar active={tab} onSelect={setTab} />
+        </View>
       ) : null;
       break;
   }
@@ -116,4 +124,6 @@ export default function App() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  app: { flex: 1 },
+  page: { flex: 1 },
 });

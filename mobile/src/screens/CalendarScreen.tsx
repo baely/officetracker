@@ -16,22 +16,18 @@ import Calendar from '../components/Calendar';
 import Header from '../components/Header';
 import Legend from '../components/Legend';
 import LocationPicker, { Coord } from '../components/LocationPicker';
-import Summary, { SummaryRow } from '../components/Summary';
 import TargetBox from '../components/TargetBox';
 import WorkLocationBanner from '../components/WorkLocationBanner';
 import {
   addMonths,
-  calendarYearForMonth,
   DEFAULT_TRACKING_YEAR_START_MONTH,
   formatMonthYear,
   MONTH_NAMES,
   thisMonth,
-  trackingMonthOrder,
   trackingYear,
   ViewMonth,
 } from '../dates';
 import { enableWorkTracking } from '../location';
-import { monthStats, yearStats } from '../stats';
 import { AttendanceState, cycleState } from '../states';
 import {
   cacheStartMonth,
@@ -45,15 +41,10 @@ import { colors, radius, spacing } from '../theme';
 
 interface Props {
   conn: Connection;
-  onOpenSettings: () => void;
   onUnauthorized: () => void;
 }
 
-export default function CalendarScreen({
-  conn,
-  onOpenSettings,
-  onUnauthorized,
-}: Props) {
+export default function CalendarScreen({ conn, onUnauthorized }: Props) {
   const api = useMemo(
     () => new Api(conn, onUnauthorized),
     [conn, onUnauthorized],
@@ -241,7 +232,7 @@ export default function CalendarScreen({
     });
   }, [api, noteText, notes, view, readOnly]);
 
-  // Save any pending note before leaving the current month/screen.
+  // Save any pending note before leaving the current month.
   const go = (delta: number) => {
     saveNote();
     setView((v) => addMonths(v, delta));
@@ -250,30 +241,17 @@ export default function CalendarScreen({
     saveNote();
     setView(thisMonth());
   };
-  const openSettings = () => {
-    saveNote();
-    onOpenSettings();
-  };
 
-  const year = useMemo(() => yearStats(yearData), [yearData]);
-
-  // One row per tracked month, ordered start-month-first, mirroring the web
-  // summary table.
-  const summaryRows = useMemo<SummaryRow[]>(() => {
-    return Object.keys(yearData)
-      .map(Number)
-      .map((m) => {
-        const s = monthStats(yearData[m] ?? {});
-        const calYear = calendarYearForMonth(m, fy, startMonth);
-        return { label: `${MONTH_NAMES[m - 1]} ${calYear}`, ...s, month: m };
-      })
-      .filter((r) => r.total > 0)
-      .sort(
-        (a, b) =>
-          trackingMonthOrder(a.month, startMonth) -
-          trackingMonthOrder(b.month, startMonth),
-      );
-  }, [yearData, fy, startMonth]);
+  // Switching tabs unmounts this screen before the note field can blur, so
+  // flush any pending note on unmount too (via a ref to dodge a stale closure).
+  const saveNoteRef = useRef(saveNote);
+  saveNoteRef.current = saveNote;
+  useEffect(
+    () => () => {
+      saveNoteRef.current();
+    },
+    [],
+  );
 
   // Swipe the calendar left/right to change months. Built once; reads the
   // latest navigation handler through a ref to avoid a stale closure.
@@ -295,7 +273,7 @@ export default function CalendarScreen({
   return (
     <View style={styles.screen}>
       {/* Fixed nav bar — pull-to-refresh only scrolls the content below it. */}
-      <Header rightLabel="Settings" onRightPress={openSettings} />
+      <Header />
 
       <ScrollView
         style={styles.flex}
@@ -399,11 +377,6 @@ export default function CalendarScreen({
               />
             </View>
           )}
-
-          <View style={styles.section}>
-            <Text style={styles.heading}>Summary</Text>
-            <Summary rows={summaryRows} total={year} />
-          </View>
         </>
       )}
         </View>
