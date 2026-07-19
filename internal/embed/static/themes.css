@@ -244,8 +244,7 @@ body.theme-city-skyline main {
 }
 
 body.theme-dark main nav {
-    /* Base `main nav` sets #dee with !important, so this must be !important too. */
-    background-color: var(--secondary-bg) !important;
+    border-bottom-color: var(--border-color);
 }
 
 body.theme-dark .weekday-header, 
