@@ -61,18 +61,6 @@ func serveSettings(w http.ResponseWriter, r *http.Request, page settingsPage) {
 	}
 }
 
-type developerPage struct {
-	basePage
-}
-
-func serveDeveloper(w http.ResponseWriter, r *http.Request, page developerPage) {
-	page.basePage = getBasePageData(r)
-	if err := embed.Developer.Execute(w, page); err != nil {
-		err = fmt.Errorf("failed to execute developer template: %w", err)
-		errorPage(w, r, err, internalErrorMsg, http.StatusInternalServerError)
-	}
-}
-
 type tosPage struct {
 	basePage
 }

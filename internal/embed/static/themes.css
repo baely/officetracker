@@ -243,8 +243,8 @@ body.theme-city-skyline main {
     background-color: var(--content-bg);
 }
 
-body.theme-dark main nav {
-    /* Base `main nav` sets #dee with !important, so this must be !important too. */
+body.theme-dark main > nav {
+    /* Base `main > nav` sets #dee with !important, so this must be !important too. */
     background-color: var(--secondary-bg) !important;
 }
 
