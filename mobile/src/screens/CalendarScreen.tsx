@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -302,7 +303,7 @@ export default function CalendarScreen({ conn, onUnauthorized }: Props) {
           style={({ pressed }) => [styles.navBtn, pressed && styles.pressed]}
           hitSlop={8}
         >
-          <Text style={styles.navText}>‹</Text>
+          <Ionicons name="chevron-back" size={22} color={colors.text} />
         </Pressable>
         <Pressable onPress={goToday} hitSlop={8}>
           <Text style={styles.monthYear}>
@@ -314,7 +315,7 @@ export default function CalendarScreen({ conn, onUnauthorized }: Props) {
           style={({ pressed }) => [styles.navBtn, pressed && styles.pressed]}
           hitSlop={8}
         >
-          <Text style={styles.navText}>›</Text>
+          <Ionicons name="chevron-forward" size={22} color={colors.text} />
         </Pressable>
       </View>
 
@@ -415,15 +416,8 @@ const styles = StyleSheet.create({
     height: 36,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
     borderRadius: radius.md,
     backgroundColor: colors.cellBg,
-  },
-  navText: {
-    fontSize: 22,
-    color: colors.text,
-    lineHeight: 24,
   },
   monthYear: {
     fontSize: 22,
@@ -444,9 +438,8 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   retry: {
-    borderWidth: 1,
-    borderColor: colors.border,
     borderRadius: radius.md,
+    backgroundColor: colors.cellBg,
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.lg,
   },
@@ -475,10 +468,8 @@ const styles = StyleSheet.create({
   },
   notes: {
     minHeight: 96,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    padding: spacing.md,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
     fontSize: 15,
     color: colors.text,
     backgroundColor: colors.fieldBg,

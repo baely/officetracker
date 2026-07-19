@@ -2,7 +2,7 @@ import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { MonthDays } from '../api';
 import { targetProgress } from '../stats';
-import { colors, spacing } from '../theme';
+import { colors, radius, spacing } from '../theme';
 
 interface Props {
   days: MonthDays;
@@ -48,9 +48,9 @@ function TargetBox({ days, targetPercent, year, month }: Props) {
 
 const styles = StyleSheet.create({
   box: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.md,
+    backgroundColor: colors.cellBg,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
     gap: spacing.xs,
   },
   line: {

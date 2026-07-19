@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -9,7 +10,6 @@ import {
   View,
 } from 'react-native';
 import { Api, MonthDays } from '../api';
-import Header from '../components/Header';
 import Summary, { SummaryRow } from '../components/Summary';
 import {
   calendarYearForMonth,
@@ -110,9 +110,6 @@ export default function ReportScreen({ conn, onUnauthorized }: Props) {
 
   return (
     <View style={styles.screen}>
-      {/* Fixed nav bar — pull-to-refresh only scrolls the content below it. */}
-      <Header />
-
       <ScrollView
         style={styles.flex}
         contentContainerStyle={styles.content}
@@ -125,25 +122,28 @@ export default function ReportScreen({ conn, onUnauthorized }: Props) {
         }
       >
         <View style={styles.body}>
-          <View style={styles.yearNav}>
-            <Pressable
-              onPress={() => setFySel(fy - 1)}
-              style={({ pressed }) => [styles.navBtn, pressed && styles.pressed]}
-              hitSlop={8}
-            >
-              <Text style={styles.navText}>‹</Text>
-            </Pressable>
-            {/* Tap the year to jump back to the current tracking year. */}
-            <Pressable onPress={() => setFySel(null)} hitSlop={8}>
-              <Text style={styles.year}>{fy}</Text>
-            </Pressable>
-            <Pressable
-              onPress={() => setFySel(fy + 1)}
-              style={({ pressed }) => [styles.navBtn, pressed && styles.pressed]}
-              hitSlop={8}
-            >
-              <Text style={styles.navText}>›</Text>
-            </Pressable>
+          <View style={styles.titleRow}>
+            <Text style={styles.title}>Report</Text>
+            <View style={styles.yearNav}>
+              <Pressable
+                onPress={() => setFySel(fy - 1)}
+                style={({ pressed }) => [styles.navBtn, pressed && styles.pressed]}
+                hitSlop={8}
+              >
+                <Ionicons name="chevron-back" size={20} color={colors.text} />
+              </Pressable>
+              {/* Tap the year to jump back to the current tracking year. */}
+              <Pressable onPress={() => setFySel(null)} hitSlop={8}>
+                <Text style={styles.year}>{fy}</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => setFySel(fy + 1)}
+                style={({ pressed }) => [styles.navBtn, pressed && styles.pressed]}
+                hitSlop={8}
+              >
+                <Ionicons name="chevron-forward" size={20} color={colors.text} />
+              </Pressable>
+            </View>
           </View>
 
           {loading ? (
@@ -159,7 +159,6 @@ export default function ReportScreen({ conn, onUnauthorized }: Props) {
             </View>
           ) : (
             <View style={styles.section}>
-              <Text style={styles.heading}>Summary</Text>
               <Summary rows={rows} total={total} />
             </View>
           )}
@@ -174,32 +173,36 @@ const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: colors.surface },
   content: { paddingBottom: spacing.xl * 2 },
   body: { padding: spacing.lg },
-  yearNav: {
+  titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: spacing.lg,
-    marginBottom: spacing.md,
+    marginTop: spacing.sm,
+    marginBottom: spacing.lg,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  yearNav: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
   },
   navBtn: {
-    width: 44,
-    height: 36,
+    width: 36,
+    height: 32,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
     borderRadius: radius.md,
     backgroundColor: colors.cellBg,
   },
-  navText: {
-    fontSize: 22,
-    color: colors.text,
-    lineHeight: 24,
-  },
   year: {
-    fontSize: 22,
-    fontWeight: '700',
+    fontSize: 17,
+    fontWeight: '600',
     color: colors.text,
+    fontVariant: ['tabular-nums'],
   },
   pressed: { opacity: 0.6 },
   loading: { paddingVertical: spacing.xl * 2 },
@@ -213,9 +216,8 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   retry: {
-    borderWidth: 1,
-    borderColor: colors.border,
     borderRadius: radius.md,
+    backgroundColor: colors.cellBg,
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.lg,
   },
@@ -223,11 +225,5 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontWeight: '600',
   },
-  section: { marginTop: spacing.md },
-  heading: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: spacing.sm,
-  },
+  section: { marginTop: spacing.xs },
 });

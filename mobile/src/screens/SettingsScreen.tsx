@@ -12,7 +12,6 @@ import {
   View,
 } from 'react-native';
 import { Api, isUnauthorized, Settings, TokenInfo, Weekday } from '../api';
-import Header from '../components/Header';
 import Legend from '../components/Legend';
 import LocationPicker, { Coord } from '../components/LocationPicker';
 import ScheduleEditor from '../components/ScheduleEditor';
@@ -268,9 +267,6 @@ export default function SettingsScreen({
 
   return (
     <View style={styles.screen}>
-      {/* Fixed nav bar — pull-to-refresh only scrolls the content below it. */}
-      <Header />
-
       <ScrollView
         style={styles.flex}
         contentContainerStyle={styles.content}
@@ -295,7 +291,7 @@ export default function SettingsScreen({
       ) : error ? (
         <View style={styles.card}>
           <Text style={styles.errorText}>{error}</Text>
-          <Pressable style={styles.button} onPress={() => load()}>
+          <Pressable style={[styles.button, styles.buttonInCard]} onPress={() => load()}>
             <Text style={styles.buttonText}>Retry</Text>
           </Pressable>
         </View>
@@ -449,10 +445,7 @@ export default function SettingsScreen({
                   >
                     <Text style={styles.buttonText}>Change</Text>
                   </Pressable>
-                  <Pressable
-                    style={[styles.workBtn, styles.workBtnDanger]}
-                    onPress={removeWorkLocation}
-                  >
+                  <Pressable style={styles.workBtn} onPress={removeWorkLocation}>
                     <Text style={[styles.buttonText, styles.dangerText]}>
                       Remove
                     </Text>
@@ -463,7 +456,7 @@ export default function SettingsScreen({
               <>
                 <Text style={styles.muted}>No work location set.</Text>
                 <Pressable
-                  style={styles.button}
+                  style={[styles.button, styles.buttonInCard]}
                   onPress={() => setPickerVisible(true)}
                 >
                   <Text style={styles.buttonText}>Set work location</Text>
@@ -513,7 +506,10 @@ export default function SettingsScreen({
               <Text style={styles.muted}>
                 Long-press to copy. It won't be shown again.
               </Text>
-              <Pressable style={styles.button} onPress={() => setNewSecret(null)}>
+              <Pressable
+                style={[styles.button, styles.buttonInCard]}
+                onPress={() => setNewSecret(null)}
+              >
                 <Text style={styles.buttonText}>Done</Text>
               </Pressable>
             </View>
@@ -570,7 +566,7 @@ const styles = StyleSheet.create({
   content: { paddingBottom: spacing.xl * 2 },
   body: { padding: spacing.lg },
   screenTitle: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: '700',
     color: colors.text,
     marginTop: spacing.sm,
@@ -580,8 +576,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
     borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
+    backgroundColor: colors.surface,
   },
   monthChipSelected: {
     backgroundColor: colors.accent,
@@ -592,9 +587,11 @@ const styles = StyleSheet.create({
   loading: { paddingVertical: spacing.xl * 2 },
   errorText: { color: colors.danger, marginBottom: spacing.md },
   sectionLabel: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: colors.text,
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textFaint,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
     marginTop: spacing.xl,
     marginBottom: spacing.sm,
   },
@@ -605,11 +602,9 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   card: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 10,
+    borderRadius: radius.lg,
     padding: spacing.lg,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.cellBg,
   },
   fieldLabel: { fontSize: 12, color: colors.textMuted, marginBottom: 2 },
   fieldValue: { fontSize: 15, color: colors.text },
@@ -617,23 +612,22 @@ const styles = StyleSheet.create({
   hr: { height: 1, backgroundColor: colors.border, marginVertical: spacing.md },
   button: {
     marginTop: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.border,
     borderRadius: radius.md,
     paddingVertical: spacing.md,
     alignItems: 'center',
+    backgroundColor: colors.cellBg,
   },
   buttonText: { fontSize: 15, fontWeight: '600', color: colors.text },
+  // Buttons that sit inside a grey card need a white fill to stay visible.
+  buttonInCard: { backgroundColor: colors.surface },
   workActions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
   workBtn: {
     flex: 1,
-    borderWidth: 1,
-    borderColor: colors.border,
     borderRadius: radius.md,
     paddingVertical: spacing.md,
     alignItems: 'center',
+    backgroundColor: colors.surface,
   },
-  workBtnDanger: { borderColor: '#fecaca' },
   legendWrap: { marginTop: spacing.lg },
   tokenRow: {
     flexDirection: 'row',
@@ -656,8 +650,6 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    borderWidth: 1,
-    borderColor: colors.border,
     borderRadius: radius.md,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
@@ -673,6 +665,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   createBtnText: { color: '#ffffff', fontSize: 15, fontWeight: '600' },
-  danger: { marginTop: spacing.xl, borderColor: '#fecaca' },
+  danger: { marginTop: spacing.xl },
   dangerText: { color: colors.danger },
 });
