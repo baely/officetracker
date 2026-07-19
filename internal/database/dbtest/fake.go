@@ -103,9 +103,8 @@ func New() *Fake {
 	return &Fake{
 		days:  make(map[dayKey]model.DayState),
 		notes: make(map[monthKey]model.Note),
-		theme:  model.ThemePreferences{Theme: "default"},
-		cal:    model.CalendarPreferences{TrackingYearStartMonth: model.DefaultTrackingYearStartMonth},
-		target: model.TargetPreferences{TargetPercent: model.DefaultTargetPercent},
+		theme: model.ThemePreferences{Theme: "default"},
+		cal:   model.CalendarPreferences{TrackingYearStartMonth: model.DefaultTrackingYearStartMonth},
 	}
 }
 

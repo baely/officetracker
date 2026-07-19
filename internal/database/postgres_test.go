@@ -317,10 +317,10 @@ func TestPostgresPreferences(t *testing.T) {
 		t.Errorf("calendar out-of-range = %d, want 10", cal.TrackingYearStartMonth)
 	}
 
-	// Attendance target: defaults to the standard mandate before any save.
+	// Attendance target: no target before any save.
 	target, err := db.GetTargetPreferences(uid)
-	if err != nil || target.TargetPercent != model.DefaultTargetPercent {
-		t.Errorf("default target = %+v, err %v, want %d", target, err, model.DefaultTargetPercent)
+	if err != nil || target.TargetPercent != 0 {
+		t.Errorf("default target = %+v, err %v, want 0", target, err)
 	}
 	db.SaveTargetPreferences(uid, model.TargetPreferences{TargetPercent: 50})
 	target, _ = db.GetTargetPreferences(uid)

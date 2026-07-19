@@ -471,7 +471,7 @@ func (s *sqliteClient) SaveCalendarPreferences(_ int, prefs model.CalendarPrefer
 }
 
 func (s *sqliteClient) GetTargetPreferences(_ int) (model.TargetPreferences, error) {
-	prefs := model.TargetPreferences{TargetPercent: model.DefaultTargetPercent}
+	var prefs model.TargetPreferences
 
 	// Check if the preferences table exists; if not, return defaults.
 	q := `SELECT name FROM sqlite_master WHERE type='table' AND name='user_preferences';`
@@ -481,9 +481,9 @@ func (s *sqliteClient) GetTargetPreferences(_ int) (model.TargetPreferences, err
 	}
 
 	// Make sure the column exists (ignore error if it already does).
-	s.db.Exec(`ALTER TABLE user_preferences ADD COLUMN target_percent INTEGER DEFAULT 50;`)
+	s.db.Exec(`ALTER TABLE user_preferences ADD COLUMN target_percent INTEGER DEFAULT 0;`)
 
-	q = `SELECT COALESCE(target_percent, 50) FROM user_preferences LIMIT 1;`
+	q = `SELECT COALESCE(target_percent, 0) FROM user_preferences LIMIT 1;`
 	var target int
 	if err := s.db.QueryRow(q).Scan(&target); err != nil {
 		// No row yet (or other read issue) - fall back to defaults.
@@ -507,7 +507,7 @@ func (s *sqliteClient) SaveTargetPreferences(_ int, prefs model.TargetPreference
 	if _, err := s.db.Exec(q); err != nil {
 		return err
 	}
-	s.db.Exec(`ALTER TABLE user_preferences ADD COLUMN target_percent INTEGER DEFAULT 50;`)
+	s.db.Exec(`ALTER TABLE user_preferences ADD COLUMN target_percent INTEGER DEFAULT 0;`)
 
 	q = `SELECT COUNT(*) FROM user_preferences;`
 	var count int

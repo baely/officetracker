@@ -321,13 +321,13 @@ func TestSQLiteCalendarPreferences(t *testing.T) {
 func TestSQLiteTargetPreferences(t *testing.T) {
 	db := newTestDB(t)
 
-	// Defaults to the standard mandate before any save.
+	// No target before any save.
 	prefs, err := db.GetTargetPreferences(1)
 	if err != nil {
 		t.Fatalf("GetTargetPreferences default: %v", err)
 	}
-	if prefs.TargetPercent != model.DefaultTargetPercent {
-		t.Errorf("default target = %d, want %d", prefs.TargetPercent, model.DefaultTargetPercent)
+	if prefs.TargetPercent != 0 {
+		t.Errorf("default target = %d, want 0", prefs.TargetPercent)
 	}
 
 	if err := db.SaveTargetPreferences(1, model.TargetPreferences{TargetPercent: 50}); err != nil {

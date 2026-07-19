@@ -559,7 +559,7 @@ func (p *postgres) SaveCalendarPreferences(userID int, prefs model.CalendarPrefe
 
 func (p *postgres) GetTargetPreferences(userID int) (model.TargetPreferences, error) {
 	q := `SELECT target_percent FROM user_preferences WHERE user_id = $1;`
-	prefs := model.TargetPreferences{TargetPercent: model.DefaultTargetPercent}
+	var prefs model.TargetPreferences
 
 	err := p.readOnlyTransaction(func(tx *sql.Tx) error {
 		row := tx.QueryRow(q, userID)
