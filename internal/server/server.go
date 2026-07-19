@@ -245,9 +245,7 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		errorPage(w, r, err, internalErrorMsg, http.StatusInternalServerError)
 		return
 	}
-	serveLogin(w, r, loginPage{
-		SSOLink: ssoUri,
-	})
+	http.Redirect(w, r, ssoUri, http.StatusTemporaryRedirect)
 }
 
 func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
