@@ -98,7 +98,7 @@ class Data {
         if (targetPercent > 0) { input.value = targetPercent; }
         const save = () => {
             let value = parseInt(input.value, 10);
-            if (isNaN(value) || value < 1) { return; }
+            if (isNaN(value) || value < 0) { value = 0; } // 0 = no target
             if (value > 100) { value = 100; }
             fetch("/api/v1/settings/target", {
                 method: 'PUT',
