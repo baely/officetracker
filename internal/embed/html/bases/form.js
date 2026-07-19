@@ -76,14 +76,42 @@ class Data {
         Data.notesDOM.value = this.notes[this.currentMonth+1];
     }
 
-    // drawTarget renders the monthly attendance target line: progress so far
-    // this month and how many more office days are needed to meet the target.
+    // drawTarget renders the monthly attendance target: progress so far this
+    // month and how many more office days are needed to meet the target. When
+    // no target is set it offers a banner to set one in place; saving updates
+    // the projection immediately.
     drawTarget() {
         const elem = Data.targetDOM;
         if (targetPercent <= 0) {
-            elem.innerHTML = 'No monthly attendance target set. Set one in <a href="/settings">settings</a>.';
+            elem.classList.add("target-banner");
+            elem.innerHTML = 'No monthly attendance target set. Set one: ' +
+                '<input type="number" id="target-inline" min="1" max="100" step="1"> % ' +
+                '<button id="target-inline-save">Save</button>';
+            const input = document.getElementById("target-inline");
+            const save = () => {
+                let value = parseInt(input.value, 10);
+                if (isNaN(value) || value < 1) { return; }
+                if (value > 100) { value = 100; }
+                fetch("/api/v1/settings/target", {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        data: {
+                            default_target_percent: value
+                        }
+                    }),
+                    credentials: "include"
+                });
+                targetPercent = value;
+                this.drawTarget();
+            };
+            document.getElementById("target-inline-save").addEventListener("click", save);
+            input.addEventListener("keydown", (event) => { if (event.key === "Enter") { save(); } });
             return;
         }
+        elem.classList.remove("target-banner");
 
         // Count this month's work days the same way the yearly report does:
         // present = office (actual + scheduled), total = WFH + office.
@@ -116,13 +144,11 @@ class Data {
 
         const percentage = total > 0 ? ((present / total) * 100).toFixed(1) : "0.0";
         const needed = Math.max(0, Math.ceil(targetPercent / 100 * projectedTotal) - present);
-        let message = `Target: ${targetPercent}% · In office ${present} of ${total} tracked days (${percentage}%)`;
-        if (needed > 0) {
-            message += ` · ${needed} more office day${needed === 1 ? "" : "s"} needed this month`;
-        } else {
-            message += " · Target met";
-        }
-        elem.textContent = message;
+        const progressLine = `In office ${present} of ${total} tracked days (${percentage}%). Target is ${targetPercent}%.`;
+        const neededLine = needed > 0
+            ? `${needed} more office day${needed === 1 ? "" : "s"} needed this month.`
+            : "Target met for this month.";
+        elem.innerHTML = progressLine + "<br>" + neededLine;
     }
 
     fetchData() {
