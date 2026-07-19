@@ -17,6 +17,7 @@ import Header from '../components/Header';
 import Legend from '../components/Legend';
 import LocationPicker, { Coord } from '../components/LocationPicker';
 import Summary, { SummaryRow } from '../components/Summary';
+import TargetBox from '../components/TargetBox';
 import WorkLocationBanner from '../components/WorkLocationBanner';
 import {
   addMonths,
@@ -63,6 +64,8 @@ export default function CalendarScreen({
 
   const [view, setView] = useState<ViewMonth>(thisMonth());
   const [startMonth, setStartMonth] = useState(DEFAULT_TRACKING_YEAR_START_MONTH);
+  // Monthly attendance target (0 = none), fetched with the rest of settings.
+  const [targetPercent, setTargetPercent] = useState(0);
   const fy = trackingYear(view.year, view.month, startMonth);
 
   // Loaded tracking year, keyed month (1-12) -> day -> state.
@@ -132,7 +135,10 @@ export default function CalendarScreen({
     new Api(conn)
       .getSettings()
       .then((s) => {
-        if (!cancelled) setStartMonth(s.trackingYearStartMonth);
+        if (!cancelled) {
+          setStartMonth(s.trackingYearStartMonth);
+          setTargetPercent(s.targetPercent);
+        }
         // Cache for the background geofence task, which can't fetch settings.
         cacheStartMonth(s.trackingYearStartMonth);
       })
@@ -379,6 +385,20 @@ export default function CalendarScreen({
               textAlignVertical="top"
             />
           </View>
+
+          {/* On a read-only server there's no way to set a target, so only
+              show the section when one exists. */}
+          {(!readOnly || targetPercent > 0) && (
+            <View style={styles.section}>
+              <Text style={styles.heading}>Target</Text>
+              <TargetBox
+                days={days}
+                targetPercent={targetPercent}
+                year={view.year}
+                month={view.month}
+              />
+            </View>
+          )}
 
           <View style={styles.section}>
             <Text style={styles.heading}>Summary</Text>

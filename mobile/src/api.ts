@@ -40,6 +40,8 @@ export interface Settings {
   schedule: SchedulePreferences;
   // Month (1-12) the tracking year starts on (default October = 10).
   trackingYearStartMonth: number;
+  // Monthly attendance target percentage (0 = no target set).
+  targetPercent: number;
 }
 
 export interface TokenInfo {
@@ -252,6 +254,7 @@ export class Api {
       linked_accounts?: { provider: string; provider_display: string; nickname: string }[];
       schedule_preferences?: Partial<Record<Weekday, number>>;
       calendar_preferences?: { tracking_year_start_month?: number };
+      target_preferences?: { target_percent?: number };
     };
     const sp = p.schedule_preferences ?? {};
     const schedule = emptySchedule();
@@ -264,7 +267,9 @@ export class Api {
       nickname: a.nickname,
     }));
     const startMonth = p.calendar_preferences?.tracking_year_start_month ?? 10;
-    return { linkedAccounts, schedule, trackingYearStartMonth: startMonth };
+    // Servers that predate the target feature simply omit the field: 0 = no target.
+    const targetPercent = p.target_preferences?.target_percent ?? 0;
+    return { linkedAccounts, schedule, trackingYearStartMonth: startMonth, targetPercent };
   }
 
   async updateSchedule(schedule: SchedulePreferences): Promise<void> {
@@ -280,6 +285,15 @@ export class Api {
       method: 'PUT',
       headers: this.headers(true),
       body: JSON.stringify({ data: { tracking_year_start_month: startMonth } }),
+    });
+  }
+
+  // Saves the monthly attendance target percentage (0 clears the target).
+  async updateTargetPercent(percent: number): Promise<void> {
+    await this.request('/api/v1/settings/target', {
+      method: 'PUT',
+      headers: this.headers(true),
+      body: JSON.stringify({ data: { target_percent: percent } }),
     });
   }
 

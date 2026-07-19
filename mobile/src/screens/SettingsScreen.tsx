@@ -41,6 +41,9 @@ function formatDate(iso: string): string {
   return isNaN(d.getTime()) ? iso : d.toLocaleDateString();
 }
 
+// Attendance target choices, stepping by 10 like the web pickers. 0 = no target.
+const TARGET_OPTIONS = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
+
 export default function SettingsScreen({
   conn,
   onClose,
@@ -121,6 +124,17 @@ export default function SettingsScreen({
     api.updateTrackingYearStartMonth(month).catch((e: any) => {
       if (isUnauthorized(e)) return;
       setSettings((s) => (s ? { ...s, trackingYearStartMonth: prev } : s));
+      Alert.alert('Could not save', e?.message ?? 'Please try again.');
+    });
+  }
+
+  function setTarget(percent: number) {
+    if (!settings || percent === settings.targetPercent) return;
+    const prev = settings.targetPercent;
+    setSettings({ ...settings, targetPercent: percent });
+    api.updateTargetPercent(percent).catch((e: any) => {
+      if (isUnauthorized(e)) return;
+      setSettings((s) => (s ? { ...s, targetPercent: prev } : s));
       Alert.alert('Could not save', e?.message ?? 'Please try again.');
     });
   }
@@ -370,6 +384,42 @@ export default function SettingsScreen({
                       ]}
                     >
                       {name.slice(0, 3)}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </View>
+
+          {/* Attendance target */}
+          <Text style={styles.sectionLabel}>Attendance target</Text>
+          <Text style={styles.hint}>
+            The share of work days you aim to spend in the office each month.
+            The calendar shows progress against it.
+          </Text>
+          <View style={styles.card}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.monthRow}
+              keyboardShouldPersistTaps="handled"
+            >
+              {TARGET_OPTIONS.map((percent) => {
+                const selected = settings?.targetPercent === percent;
+                return (
+                  <Pressable
+                    key={percent}
+                    onPress={() => setTarget(percent)}
+                    disabled={readOnly}
+                    style={[styles.monthChip, selected && styles.monthChipSelected]}
+                  >
+                    <Text
+                      style={[
+                        styles.monthChipText,
+                        selected && styles.monthChipTextSelected,
+                      ]}
+                    >
+                      {percent === 0 ? 'Off' : `${percent}%`}
                     </Text>
                   </Pressable>
                 );
