@@ -90,11 +90,10 @@ class Data {
         }
 
         elem.innerHTML = status + "<br>" +
-            'Target: <input type="number" id="target-inline" min="0" max="100" step="10"> % ' +
-            '<button id="target-inline-save">Save</button>';
+            'Target: <input type="number" id="target-inline" min="0" max="100" step="10"> %';
         const input = document.getElementById("target-inline");
         if (targetPercent > 0) { input.value = targetPercent; }
-        const save = () => {
+        input.addEventListener("change", () => {
             let value = parseInt(input.value, 10);
             if (isNaN(value) || value < 0) { value = 0; } // 0 = no target
             if (value > 100) { value = 100; }
@@ -112,9 +111,7 @@ class Data {
             });
             targetPercent = value;
             this.drawTarget();
-        };
-        document.getElementById("target-inline-save").addEventListener("click", save);
-        input.addEventListener("keydown", (event) => { if (event.key === "Enter") { save(); } });
+        });
     }
 
     // targetStatus builds the progress sentences for the current month against
