@@ -308,9 +308,7 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		errorPage(w, r, err, internalErrorMsg, http.StatusInternalServerError)
 		return
 	}
-	serveLogin(w, r, loginPage{
-		SSOLink: ssoUri,
-	})
+	http.Redirect(w, r, ssoUri, http.StatusTemporaryRedirect)
 }
 
 func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
@@ -417,18 +415,8 @@ func (s *Server) handleLogoutToken(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleDeveloper(w http.ResponseWriter, r *http.Request) {
-	authMethod, err := getAuthMethod(r)
-	if err != nil {
-		err = fmt.Errorf("failed to get auth method: %w", err)
-		errorPage(w, r, err, internalErrorMsg, http.StatusInternalServerError)
-		return
-	}
-	if authMethod != auth.MethodSSO {
-		http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
-		return
-	}
-
-	serveDeveloper(w, r, developerPage{})
+	// API token management now lives on the settings page.
+	http.Redirect(w, r, "/settings#api-tokens", http.StatusTemporaryRedirect)
 }
 
 func (s *Server) handleTos(w http.ResponseWriter, r *http.Request) {

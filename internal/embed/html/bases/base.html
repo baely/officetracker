@@ -7,19 +7,19 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Calistoga&display=swap" rel="stylesheet">
-    <link href="/static/themes.css?v=3" rel="stylesheet">
+    <link href="/static/themes.css?v=4" rel="stylesheet">
     <style>
         html, body { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; margin: 0; padding: 0; }
         body { background-color: #f7f8f8; height: 100vh; overflow-x: hidden; overflow-y: auto; width: 100vw; }
         main { background-color: white; margin: 0 auto; max-width: 540px; min-height: calc(100vh - 96px); padding: 48px; }
-        main nav { background-color: #dee !important; margin: -48px -48px 0; padding: 48px 48px 32px; }
-        main nav h1 { font-family: "Calistoga", serif; font-size: 2em; margin: 0 24px 0 0; }
-        main nav h1 a:link, main nav h1 a:visited { text-decoration: none; }
-        main nav h1 img { height: 32px; margin: 0 4px -2px 0; }
-        main nav a:link, main nav a:visited { color: inherit; }
-        main nav div.nav-links { margin: 18px 0 0; }
-        main nav h1, main nav div.nav-links { display: inline-block; }
-        main nav div.nav-links > a { font-size: 1.25em; margin: 12px 12px 0; }
+        main > nav { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; column-gap: 24px; row-gap: 2px; background-color: #dee !important; margin: -48px -48px 0; padding: 36px 48px 24px; }
+        main > nav h1 { font-family: "Calistoga", serif; font-size: 1.6em; margin: 0; }
+        main > nav h1 a:link, main > nav h1 a:visited { text-decoration: none; }
+        main > nav h1 img { height: 26px; margin: 0 6px -3px 0; }
+        main > nav a:link, main > nav a:visited { color: inherit; }
+        main > nav div.nav-links { display: flex; gap: 18px; }
+        main > nav div.nav-links > a { font-size: 0.95em; opacity: 0.72; text-decoration: none; }
+        main > nav div.nav-links > a:hover { opacity: 1; text-decoration: underline; text-underline-offset: 4px; }
 
         section.notification {
             background-color: #fc0;
@@ -279,12 +279,11 @@
         <h1><a href="/"><img src="/static/office-building.png" alt="Office building"/>Officetracker</a></h1>
         <div class="nav-links">
             {{if .IsLoggedIn}}
-                {{if not .IsStandalone}}<a href="/logout">/logout</a>{{end}}
-                <a href="/report">/report</a>
-                <a href="/settings">/settings</a>
-                {{if not .IsStandalone}}<a href="/developer">/developer</a>{{end}}
+                <a href="/report">Report</a>
+                <a href="/settings">Settings</a>
+                {{if not .IsStandalone}}<a href="/logout">Log out</a>{{end}}
             {{else}}
-                <a href="/login">/login</a>
+                <a href="/login">Log in</a>
             {{end}}
         </div>
     </nav>
