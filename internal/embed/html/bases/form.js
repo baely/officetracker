@@ -5,18 +5,14 @@ const monthNames = ["January", "February", "March", "April", "May", "June", "Jul
 // The month (1-12) the tracking year starts on, configurable per user.
 let trackingStartMonth = {{ .TrackingStartMonth }} || 10;
 
+// The user's monthly attendance target percentage (0 = no target set).
+let targetPercent = {{ .TargetPercent }} || 0;
+
 // trackingYearForMonth0 maps a 0-indexed calendar month + calendar year to its
 // tracking-year label (mirrors util.TrackingYear in Go).
 function trackingYearForMonth0(month0, calYear) {
     if (trackingStartMonth === 1) { return calYear; }
     return month0 < (trackingStartMonth - 1) ? calYear : calYear + 1;
-}
-
-// calendarYearForMonth maps a 1-indexed calendar month to the calendar year it
-// falls in within the tracking year labelled fy (mirrors util.TrackingYearCalendarYears).
-function calendarYearForMonth(month1, fy) {
-    if (trackingStartMonth === 1) { return fy; }
-    return month1 >= trackingStartMonth ? fy - 1 : fy;
 }
 
 // trackingMonthOrder returns the position (0-11) of a 1-indexed month within the
@@ -25,116 +21,16 @@ function trackingMonthOrder(month1) {
     return (month1 - trackingStartMonth + 12) % 12;
 }
 
-class Summary {
-    constructor(data, year) {
-        this.updateYear(year, data);
-    }
-
-    refreshDOM() {
-        const elem = Data.summaryDOM;
-        const headings = ["Month", "Present", "Total", "Percent"];
-        elem.innerHTML = "";
-        let header = document.createElement("tr");
-        headings.forEach(heading => {
-            let th = document.createElement("th");
-            th.textContent = heading;
-            header.appendChild(th);
-        });
-        elem.appendChild(header);
-
-        let allTime = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
-
-        if (this.data == null) { return; }
-        let keys = Object.keys(this.data);
-        keys.sort();
-        for (let i = 0; i < keys.length; i++) {
-            let key = keys[i];
-            let stats = this.data[key];
-            for (let j = 0; j < 7; j++) {
-                allTime[j] += (stats[j] || 0);
-            }
-            let monthYear = key.split("-");
-            let month = parseInt(monthYear[1]) - 1;
-            let year = parseInt(monthYear[0]);
-
-            let row = document.createElement("tr");
-            let monthCell = document.createElement("td");
-            monthCell.textContent = monthNames[month] + " " + year;
-            row.appendChild(monthCell);
-
-            let presentCell = document.createElement("td");
-            // Count actual office days + scheduled office days
-            let actualPresent = stats[2] || 0;
-            let scheduledPresent = stats[5] || 0; // StateScheduledWorkFromOffice
-            presentCell.textContent = actualPresent + scheduledPresent;
-            row.appendChild(presentCell);
-
-            let totalCell = document.createElement("td");
-            // Count all work days (WFH + Office, both actual and scheduled)
-            let totalExpected = (stats[1] || 0) + (stats[2] || 0) + (stats[4] || 0) + (stats[5] || 0);
-            totalCell.textContent = totalExpected;
-            row.appendChild(totalCell);
-
-            let percentCell = document.createElement("td");
-            let percentage = totalExpected > 0 ? ((actualPresent + scheduledPresent) / totalExpected * 100).toFixed(2) : "0.00";
-            percentCell.textContent = percentage + "%";
-            row.appendChild(percentCell);
-
-            if (totalExpected <= 0) { continue; }
-
-            elem.appendChild(row);
-        }
-        let headline = Data.summaryHeadlineDOM;
-        let actualPresent = allTime[2] || 0;
-        let scheduledPresent = allTime[5] || 0;
-        let totalPresent = actualPresent + scheduledPresent;
-        let total = (allTime[1] || 0) + (allTime[2] || 0) + (allTime[4] || 0) + (allTime[5] || 0);
-        let percent = total > 0 ? ((totalPresent / total * 100) || 0).toFixed(2) : "0.00";
-        headline.textContent = `Present in office for ${totalPresent} out of ${total} days. (${percent}%)`;
-    }
-
-    updateMonth(year, month, state) {
-        let key = formatDate(year, month);
-        let stats = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
-        for (let day in state[month + 1]) {
-            stats[state[month + 1][day]] += 1;
-        }
-        
-        this.data[key] = stats;
-        this.refreshDOM();
-    }
-
-    updateYear(year, state) {
-        this.year = year;
-        this.data = {};
-        for (const [month, vals] of Object.entries(state)) {
-            let monthYear = calendarYearForMonth(parseInt(month), year);
-            let key = formatDate(monthYear, parseInt(month) - 1);
-            let stats = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
-            for (const [day, state] of Object.entries(vals)) {
-                stats[state] += 1;
-            }
-            
-            this.data[key] = stats;
-        }
-        this.refreshDOM();
-    }
-    
-}
-
 class Data {
     static titleDOM = document.getElementById("month-year");
     static calendarDOM = document.getElementById("calendar");
     static notesDOM = document.getElementById("notes");
-    static summaryDOM = document.getElementById("summary-table");
-    static summaryHeadlineDOM = document.getElementById("summary-headline");
+    static targetDOM = document.getElementById("target-progress");
 
     constructor(state, notes) {
         this.state = state;
         this.notes = notes;
         this.updateDate(true, false);
-        let year = trackingYearForMonth0(this.currentMonth, this.currentYear);
-        this.summary = new Summary(state, year);
         this.refreshDOM();
         Data.notesDOM.addEventListener("blur", () => { this.updateNote() });
         document.getElementById("prev-month").addEventListener("click", () => this.updateMonth(-1));
@@ -180,7 +76,84 @@ class Data {
         Data.notesDOM.value = this.notes[this.currentMonth+1];
     }
 
-    drawSummary() { this.summary.refreshDOM(); }
+    // drawTarget renders the monthly attendance target: progress so far this
+    // month, how many more office days are needed to meet the target, and an
+    // inline picker to set/adjust the target; saving updates the projection
+    // immediately.
+    drawTarget() {
+        const elem = Data.targetDOM;
+        let status;
+        if (targetPercent <= 0) {
+            status = "No monthly attendance target set.";
+        } else {
+            status = this.targetStatus();
+        }
+
+        elem.innerHTML = status + "<br>" +
+            'Target: <input type="number" id="target-inline" min="0" max="100" step="10"> %';
+        const input = document.getElementById("target-inline");
+        if (targetPercent > 0) { input.value = targetPercent; }
+        input.addEventListener("change", () => {
+            let value = parseInt(input.value, 10);
+            if (isNaN(value) || value < 0) { value = 0; } // 0 = no target
+            if (value > 100) { value = 100; }
+            fetch("/api/v1/settings/target", {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    data: {
+                        target_percent: value
+                    }
+                }),
+                credentials: "include"
+            });
+            targetPercent = value;
+            this.drawTarget();
+        });
+    }
+
+    // targetStatus builds the progress sentences for the current month against
+    // the set target.
+    targetStatus() {
+        // Count this month's work days the same way the yearly report does:
+        // present = office (actual + scheduled), total = WFH + office.
+        const days = this.state[this.currentMonth + 1] || {};
+        let present = 0, total = 0;
+        for (const day in days) {
+            const state = days[day];
+            if (state === 2 || state === 5) {
+                present++;
+                total++;
+            } else if (state === 1 || state === 4) {
+                total++;
+            }
+        }
+
+        // Project the month-end total: work days tracked so far plus remaining
+        // weekdays that aren't tracked yet (assume they will be work days).
+        let projectedTotal = total;
+        const now = new Date();
+        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const daysInMonth = new Date(this.currentYear, this.currentMonth + 1, 0).getDate();
+        for (let day = 1; day <= daysInMonth; day++) {
+            if ((days[day] || 0) !== 0) { continue; } // already tracked
+            const date = new Date(this.currentYear, this.currentMonth, day);
+            if (date < startOfToday) { continue; } // past untracked days don't count
+            const dow = date.getDay();
+            if (dow === 0 || dow === 6) { continue; } // weekends
+            projectedTotal++;
+        }
+
+        const percentage = total > 0 ? ((present / total) * 100).toFixed(1) : "0.0";
+        const needed = Math.max(0, Math.ceil(targetPercent / 100 * projectedTotal) - present);
+        const neededLine = needed > 0
+            ? `<span class="num">${needed}</span> more office day${needed === 1 ? "" : "s"} needed this month.`
+            : "Target met for this month.";
+        const progressLine = `In office <span class="num">${present}</span> of <span class="num">${total}</span> tracked days (<span class="num">${percentage}%</span>).`;
+        return neededLine + "<br>" + progressLine;
+    }
 
     fetchData() {
         let year = trackingYearForMonth0(this.currentMonth, this.currentYear);
@@ -189,7 +162,6 @@ class Data {
             .then(payload => {
                 this.state = mapState(payload);
                 this.refreshDOM();
-                this.summary.updateYear(year, this.state);
             });
     }
 
@@ -206,9 +178,8 @@ class Data {
     refreshDOM() {
         this.drawCalendar();
         this.drawNotes();
-        this.drawSummary();
+        this.drawTarget();
         this.updateTitle();
-        this.updateReportButtons();
     }
 
     updateBackend(day) {
@@ -302,30 +273,11 @@ class Data {
                 this.fetchData();
             }, 100); // Small delay to ensure backend update completes
         } else {
-            this.summary.updateMonth(this.currentYear, this.currentMonth, this.state);
+            this.drawTarget();
         }
     }
 
     updateTitle() { Data.titleDOM.textContent = monthNames[this.currentMonth] + " " + this.currentYear; }
-
-    updateReportButtons() {
-        const csvButton = document.getElementById("export-csv");
-        const pdfButton = document.getElementById("export-pdf");
-
-        if (csvButton.onclick) { csvButton.onclick = null; }
-        if (pdfButton.onclick) { pdfButton.onclick = null; }
-
-        let year = trackingYearForMonth0(this.currentMonth, this.currentYear);
-
-        csvButton.onclick = () => {
-            window.location.href = "/api/v1/report/csv/" + year + "-attendance";
-        }
-
-        pdfButton.onclick = () => {
-            let name = prompt("(Optional) Please enter your name", "");
-            window.location.href = "/api/v1/report/pdf/" + year + "-attendance?name=" + name;
-        }
-    }
 }
 
 let rawState = {{ .YearlyState }};

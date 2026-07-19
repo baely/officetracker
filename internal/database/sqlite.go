@@ -470,6 +470,59 @@ func (s *sqliteClient) SaveCalendarPreferences(_ int, prefs model.CalendarPrefer
 	return err
 }
 
+func (s *sqliteClient) GetTargetPreferences(_ int) (model.TargetPreferences, error) {
+	var prefs model.TargetPreferences
+
+	// Check if the preferences table exists; if not, return defaults.
+	q := `SELECT name FROM sqlite_master WHERE type='table' AND name='user_preferences';`
+	var tableName string
+	if err := s.db.QueryRow(q).Scan(&tableName); errors.Is(err, sql.ErrNoRows) {
+		return prefs, nil
+	}
+
+	// Make sure the column exists (ignore error if it already does).
+	s.db.Exec(`ALTER TABLE user_preferences ADD COLUMN target_percent INTEGER DEFAULT 0;`)
+
+	q = `SELECT COALESCE(target_percent, 0) FROM user_preferences LIMIT 1;`
+	var target int
+	if err := s.db.QueryRow(q).Scan(&target); err != nil {
+		// No row yet (or other read issue) - fall back to defaults.
+		return prefs, nil
+	}
+
+	prefs.TargetPercent = util.ClampTargetPercent(target)
+	return prefs, nil
+}
+
+func (s *sqliteClient) SaveTargetPreferences(_ int, prefs model.TargetPreferences) error {
+	target := util.ClampTargetPercent(prefs.TargetPercent)
+
+	// Make sure the table and column exist.
+	q := `CREATE TABLE IF NOT EXISTS user_preferences (
+        theme TEXT DEFAULT 'default',
+        weather_enabled INTEGER DEFAULT 0,
+        time_based_enabled INTEGER DEFAULT 0,
+        location TEXT DEFAULT NULL
+    );`
+	if _, err := s.db.Exec(q); err != nil {
+		return err
+	}
+	s.db.Exec(`ALTER TABLE user_preferences ADD COLUMN target_percent INTEGER DEFAULT 0;`)
+
+	q = `SELECT COUNT(*) FROM user_preferences;`
+	var count int
+	if err := s.db.QueryRow(q).Scan(&count); err != nil {
+		return err
+	}
+
+	if count == 0 {
+		_, err := s.db.Exec(`INSERT INTO user_preferences (target_percent) VALUES (?);`, target)
+		return err
+	}
+	_, err := s.db.Exec(`UPDATE user_preferences SET target_percent = ?;`, target)
+	return err
+}
+
 func (s *sqliteClient) IsUserSuspended(_ int) (bool, error) {
 	// Standalone mode doesn't support suspension
 	return false, nil

@@ -557,6 +557,42 @@ func (p *postgres) SaveCalendarPreferences(userID int, prefs model.CalendarPrefe
 	})
 }
 
+func (p *postgres) GetTargetPreferences(userID int) (model.TargetPreferences, error) {
+	q := `SELECT target_percent FROM user_preferences WHERE user_id = $1;`
+	var prefs model.TargetPreferences
+
+	err := p.readOnlyTransaction(func(tx *sql.Tx) error {
+		row := tx.QueryRow(q, userID)
+		var target sql.NullInt64
+		err := row.Scan(&target)
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		if target.Valid {
+			prefs.TargetPercent = util.ClampTargetPercent(int(target.Int64))
+		}
+		return nil
+	})
+
+	return prefs, err
+}
+
+func (p *postgres) SaveTargetPreferences(userID int, prefs model.TargetPreferences) error {
+	target := util.ClampTargetPercent(prefs.TargetPercent)
+	q := `INSERT INTO user_preferences (user_id, target_percent)
+		  VALUES ($1, $2)
+		  ON CONFLICT (user_id)
+		  DO UPDATE SET target_percent = $2;`
+
+	return p.readWriteTransaction(func(tx *sql.Tx) error {
+		_, err := tx.Exec(q, userID, target)
+		return err
+	})
+}
+
 func (p *postgres) IsUserSuspended(userID int) (bool, error) {
 	q := `SELECT suspended FROM users WHERE user_id = $1;`
 	var suspended bool

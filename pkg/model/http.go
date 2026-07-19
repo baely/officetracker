@@ -170,6 +170,14 @@ type CalendarPreferences struct {
 	TrackingYearStartMonth int `json:"tracking_year_start_month"`
 }
 
+// TargetPreferences holds the user's monthly attendance target.
+// Targets are optional: a zero TargetPercent means no target is set.
+type TargetPreferences struct {
+	// TargetPercent is the attendance target (1-100) applied to each month.
+	// 0 = no target.
+	TargetPercent int `json:"target_percent"`
+}
+
 type LinkedAccount struct {
 	Provider        string `json:"provider"`
 	ProviderDisplay string `json:"provider_display"`
@@ -181,6 +189,7 @@ type GetSettingsResponse struct {
 	ThemePreferences    ThemePreferences    `json:"theme_preferences"`
 	SchedulePreferences SchedulePreferences `json:"schedule_preferences"`
 	CalendarPreferences CalendarPreferences `json:"calendar_preferences"`
+	TargetPreferences   TargetPreferences   `json:"target_preferences"`
 }
 
 type UpdateThemePreferencesRequest struct {
@@ -215,6 +224,17 @@ type UpdateCalendarPreferencesRequestMeta struct {
 }
 
 type UpdateCalendarPreferencesResponse struct{}
+
+type UpdateTargetPreferencesRequest struct {
+	Meta UpdateTargetPreferencesRequestMeta `meta:"meta" json:"-"`
+	Data TargetPreferences                  `json:"data"`
+}
+
+type UpdateTargetPreferencesRequestMeta struct {
+	UserID int `meta:"user_id"`
+}
+
+type UpdateTargetPreferencesResponse struct{}
 
 // Token management models
 type PostSecretRequest struct {

@@ -316,6 +316,29 @@ func TestPostgresPreferences(t *testing.T) {
 	if cal.TrackingYearStartMonth != 10 {
 		t.Errorf("calendar out-of-range = %d, want 10", cal.TrackingYearStartMonth)
 	}
+
+	// Attendance target: no target before any save.
+	target, err := db.GetTargetPreferences(uid)
+	if err != nil || target.TargetPercent != 0 {
+		t.Errorf("default target = %+v, err %v, want 0", target, err)
+	}
+	db.SaveTargetPreferences(uid, model.TargetPreferences{TargetPercent: 50})
+	target, _ = db.GetTargetPreferences(uid)
+	if target.TargetPercent != 50 {
+		t.Errorf("target round-trip = %d, want 50", target.TargetPercent)
+	}
+	// Out-of-range clamps on save.
+	db.SaveTargetPreferences(uid, model.TargetPreferences{TargetPercent: 150})
+	target, _ = db.GetTargetPreferences(uid)
+	if target.TargetPercent != 100 {
+		t.Errorf("target out-of-range = %d, want 100", target.TargetPercent)
+	}
+	// Zero clears the target.
+	db.SaveTargetPreferences(uid, model.TargetPreferences{TargetPercent: 0})
+	target, _ = db.GetTargetPreferences(uid)
+	if target.TargetPercent != 0 {
+		t.Errorf("cleared target = %d, want 0", target.TargetPercent)
+	}
 }
 
 // Secrets/tokens: save, list active, look up by value, revoke.

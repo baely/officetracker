@@ -17,33 +17,13 @@
         <span class="legend-color other"></span> Other (Untracked)
     </div>
 </div>
+<p id="target-progress"></p>
 <div>
     <h2>Notes</h2>
     <p>
         <textarea name="notes" id="notes"></textarea>
     </p>
 </div>
-<div class="summary-container">
-    <h2>Summary</h2>
-    <p id="summary-headline"></p>
-    <table id="summary-table">
-        <tr>
-            <th>Month</th>
-            <th>Present</th>
-            <th>Total</th>
-            <th>Percent</th>
-        </tr>
-    </table>
-</div>
-<div>
-    <h2>Export</h2>
-    <p>
-        Export annual attendance as a PDF report or CSV
-    </p>
-    <p>
-        <button id="export-csv">Export to CSV</button>
-        <button id="export-pdf">Export to PDF</button>
-    </p>
-</div>
+<p class="moved-note">Summary stats have moved to <a href="/report">Report</a>.</p>
 <script>{{ template "form.js" . }}</script>
 {{ end }}

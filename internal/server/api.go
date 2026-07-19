@@ -62,6 +62,7 @@ func settingsRouter(service *v1.Service) func(router chi.Router) {
 		r.With(middlewares...).Method(http.MethodPut, "/theme", wrap(service.UpdateThemePreferences))
 		r.With(middlewares...).Method(http.MethodPut, "/schedule", wrap(service.UpdateSchedulePreferences))
 		r.With(middlewares...).Method(http.MethodPut, "/calendar", wrap(service.UpdateCalendarPreferences))
+		r.With(middlewares...).Method(http.MethodPut, "/target", wrap(service.UpdateTargetPreferences))
 	}
 }
 

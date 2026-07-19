@@ -1,0 +1,59 @@
+{{ template "base.html" . }}
+{{ define "title" }}Report{{ end }}
+{{ define "content" }}
+<div id="calendar-nav">
+    <button id="prev-year">Previous</button>
+    <span id="report-year">{{ .Year }}</span>
+    <button id="next-year">Next</button>
+</div>
+<div class="summary-container">
+    <h2>Summary</h2>
+    {{ if .Rows }}
+    <p id="summary-headline">{{ .Headline }}</p>
+    <table id="summary-table">
+        <tr>
+            <th>Month</th>
+            <th>Present</th>
+            <th>Total</th>
+            <th>Percent</th>
+        </tr>
+        {{ range .Rows }}
+        <tr>
+            <td>{{ .Month }}</td>
+            <td>{{ .Present }}</td>
+            <td>{{ .Total }}</td>
+            <td>{{ .Percent }}</td>
+        </tr>
+        {{ end }}
+    </table>
+    {{ else }}
+    <p id="summary-headline">No attendance tracked for this year yet.</p>
+    {{ end }}
+</div>
+<div>
+    <h2>Export</h2>
+    <p>
+        Export annual attendance as a PDF report or CSV
+    </p>
+    <p>
+        <button id="export-csv">Export to CSV</button>
+        <button id="export-pdf">Export to PDF</button>
+    </p>
+</div>
+<script>
+    const year = {{ .Year }};
+    document.getElementById("prev-year").addEventListener("click", () => {
+        window.location.href = "/report?year=" + (year - 1);
+    });
+    document.getElementById("next-year").addEventListener("click", () => {
+        window.location.href = "/report?year=" + (year + 1);
+    });
+    document.getElementById("export-csv").addEventListener("click", () => {
+        window.location.href = "/api/v1/report/csv/" + year + "-attendance";
+    });
+    document.getElementById("export-pdf").addEventListener("click", () => {
+        let name = prompt("(Optional) Please enter your name", "");
+        window.location.href = "/api/v1/report/pdf/" + year + "-attendance?name=" + name;
+    });
+</script>
+{{ end }}
