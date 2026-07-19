@@ -84,10 +84,8 @@ class Data {
         const elem = Data.targetDOM;
         let status;
         if (targetPercent <= 0) {
-            elem.classList.add("target-banner");
             status = "No monthly attendance target set.";
         } else {
-            elem.classList.remove("target-banner");
             status = this.targetStatus();
         }
 
@@ -153,11 +151,11 @@ class Data {
 
         const percentage = total > 0 ? ((present / total) * 100).toFixed(1) : "0.0";
         const needed = Math.max(0, Math.ceil(targetPercent / 100 * projectedTotal) - present);
-        const progressLine = `In office ${present} of ${total} tracked days (${percentage}%). Target is ${targetPercent}%.`;
         const neededLine = needed > 0
-            ? `${needed} more office day${needed === 1 ? "" : "s"} needed this month.`
+            ? `<span class="num">${needed}</span> more office day${needed === 1 ? "" : "s"} needed this month.`
             : "Target met for this month.";
-        return progressLine + "<br>" + neededLine;
+        const progressLine = `In office <span class="num">${present}</span> of <span class="num">${total}</span> days (<span class="num">${percentage}%</span>).`;
+        return neededLine + "<br>" + progressLine;
     }
 
     fetchData() {
