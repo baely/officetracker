@@ -154,7 +154,7 @@ class Data {
         const neededLine = needed > 0
             ? `<span class="num">${needed}</span> more office day${needed === 1 ? "" : "s"} needed this month.`
             : "Target met for this month.";
-        const progressLine = `In office <span class="num">${present}</span> of <span class="num">${total}</span> days (<span class="num">${percentage}%</span>).`;
+        const progressLine = `In office <span class="num">${present}</span> of <span class="num">${total}</span> tracked days (<span class="num">${percentage}%</span>).`;
         return neededLine + "<br>" + progressLine;
     }
 
