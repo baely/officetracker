@@ -77,42 +77,51 @@ class Data {
     }
 
     // drawTarget renders the monthly attendance target: progress so far this
-    // month and how many more office days are needed to meet the target. When
-    // no target is set it offers a banner to set one in place; saving updates
-    // the projection immediately.
+    // month, how many more office days are needed to meet the target, and an
+    // inline picker to set/adjust the target; saving updates the projection
+    // immediately.
     drawTarget() {
         const elem = Data.targetDOM;
+        let status;
         if (targetPercent <= 0) {
             elem.classList.add("target-banner");
-            elem.innerHTML = 'No monthly attendance target set. Set one: ' +
-                '<input type="number" id="target-inline" min="1" max="100" step="1"> % ' +
-                '<button id="target-inline-save">Save</button>';
-            const input = document.getElementById("target-inline");
-            const save = () => {
-                let value = parseInt(input.value, 10);
-                if (isNaN(value) || value < 1) { return; }
-                if (value > 100) { value = 100; }
-                fetch("/api/v1/settings/target", {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        data: {
-                            default_target_percent: value
-                        }
-                    }),
-                    credentials: "include"
-                });
-                targetPercent = value;
-                this.drawTarget();
-            };
-            document.getElementById("target-inline-save").addEventListener("click", save);
-            input.addEventListener("keydown", (event) => { if (event.key === "Enter") { save(); } });
-            return;
+            status = "No monthly attendance target set.";
+        } else {
+            elem.classList.remove("target-banner");
+            status = this.targetStatus();
         }
-        elem.classList.remove("target-banner");
 
+        elem.innerHTML = status + "<br>" +
+            'Target: <input type="number" id="target-inline" min="1" max="100" step="1"> % ' +
+            '<button id="target-inline-save">Save</button>';
+        const input = document.getElementById("target-inline");
+        if (targetPercent > 0) { input.value = targetPercent; }
+        const save = () => {
+            let value = parseInt(input.value, 10);
+            if (isNaN(value) || value < 1) { return; }
+            if (value > 100) { value = 100; }
+            fetch("/api/v1/settings/target", {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    data: {
+                        default_target_percent: value
+                    }
+                }),
+                credentials: "include"
+            });
+            targetPercent = value;
+            this.drawTarget();
+        };
+        document.getElementById("target-inline-save").addEventListener("click", save);
+        input.addEventListener("keydown", (event) => { if (event.key === "Enter") { save(); } });
+    }
+
+    // targetStatus builds the progress sentences for the current month against
+    // the set target.
+    targetStatus() {
         // Count this month's work days the same way the yearly report does:
         // present = office (actual + scheduled), total = WFH + office.
         const days = this.state[this.currentMonth + 1] || {};
@@ -148,7 +157,7 @@ class Data {
         const neededLine = needed > 0
             ? `${needed} more office day${needed === 1 ? "" : "s"} needed this month.`
             : "Target met for this month.";
-        elem.innerHTML = progressLine + "<br>" + neededLine;
+        return progressLine + "<br>" + neededLine;
     }
 
     fetchData() {
