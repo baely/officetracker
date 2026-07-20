@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -510,5 +511,87 @@ func TestPostgresStatsSnapshot(t *testing.T) {
 	}
 	if ts.IsZero() || time.Since(ts) > time.Hour {
 		t.Errorf("snapshot timestamp looks wrong: %v", ts)
+	}
+}
+
+// ExportUserData returns one table per store holding the user's rows only,
+// excluding credentials (secret values) and internal identifiers.
+func TestPostgresExportUserData(t *testing.T) {
+	db := pgTestDB(t)
+	uid, err := db.SaveUserByAuth0Sub("github|123", `{"nickname":"bailey"}`)
+	if err != nil {
+		t.Fatalf("SaveUserByAuth0Sub: %v", err)
+	}
+	other, err := db.SaveUserByAuth0Sub("github|999", `{"nickname":"other"}`)
+	if err != nil {
+		t.Fatalf("SaveUserByAuth0Sub other: %v", err)
+	}
+
+	db.SaveDay(uid, 5, 3, 2024, model.DayState{State: model.StateWorkFromOffice})
+	db.SaveNote(uid, 3, 2024, "a note")
+	db.SaveThemePreferences(uid, model.ThemePreferences{Theme: "dark"})
+	db.SaveSecret(uid, "supersecretvalue", "Test token")
+	db.SaveDay(other, 6, 3, 2024, model.DayState{State: model.StateWorkFromHome})
+
+	tables, err := db.ExportUserData(uid)
+	if err != nil {
+		t.Fatalf("ExportUserData: %v", err)
+	}
+
+	byName := make(map[string]model.ExportTable)
+	for _, table := range tables {
+		byName[table.Name] = table
+	}
+	for _, name := range []string{"entries", "notes", "user_preferences", "secrets", "gh_users", "auth0_users"} {
+		if _, ok := byName[name]; !ok {
+			t.Errorf("export missing table %q", name)
+		}
+	}
+	if len(tables) != 6 {
+		t.Errorf("export has %d tables, want 6", len(tables))
+	}
+
+	// Only the user's own rows appear.
+	entries := byName["entries"]
+	if len(entries.Rows) != 1 {
+		t.Fatalf("entries rows = %d, want 1 (other user's row must be excluded)", len(entries.Rows))
+	}
+	wantEntry := []string{"2024", "3", "5", "2"}
+	for i, want := range wantEntry {
+		if entries.Rows[0][i] != want {
+			t.Errorf("entries row = %v, want %v", entries.Rows[0], wantEntry)
+			break
+		}
+	}
+	if len(byName["notes"].Rows) != 1 || byName["notes"].Rows[0][2] != "a note" {
+		t.Errorf("notes rows = %v", byName["notes"].Rows)
+	}
+	if len(byName["user_preferences"].Rows) != 1 || byName["user_preferences"].Rows[0][0] != "dark" {
+		t.Errorf("user_preferences rows = %v", byName["user_preferences"].Rows)
+	}
+	if secrets := byName["secrets"]; len(secrets.Rows) != 1 || secrets.Rows[0][0] != "Test token" {
+		t.Errorf("secrets rows = %v", secrets.Rows)
+	}
+	if accounts := byName["auth0_users"]; len(accounts.Rows) != 1 || accounts.Rows[0][0] != "github|123" {
+		t.Errorf("auth0_users rows = %v", accounts.Rows)
+	}
+	if ghUsers := byName["gh_users"]; len(ghUsers.Rows) != 0 {
+		t.Errorf("gh_users rows = %v, want none", ghUsers.Rows)
+	}
+
+	// No credential or internal identifier anywhere in the export.
+	for _, table := range tables {
+		for _, col := range table.Header {
+			if col == "user_id" || col == "token_id" || col == "secret" {
+				t.Errorf("table %s exports internal column %q", table.Name, col)
+			}
+		}
+		for _, row := range table.Rows {
+			for _, cell := range row {
+				if strings.Contains(cell, "supersecretvalue") {
+					t.Errorf("table %s leaks the secret value", table.Name)
+				}
+			}
+		}
 	}
 }

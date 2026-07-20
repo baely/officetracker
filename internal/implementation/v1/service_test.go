@@ -1,6 +1,9 @@
 package v1
 
 import (
+	"archive/zip"
+	"bytes"
+	"io"
 	"strings"
 	"testing"
 	"time"
@@ -289,5 +292,79 @@ func TestHealthAndValidateAuth(t *testing.T) {
 	v, err := svc.ValidateAuth(model.ValidateAuthRequest{})
 	if err != nil || v.Status != "ok" {
 		t.Errorf("ValidateAuth = (%+v, %v)", v, err)
+	}
+}
+
+// ExportData zips one CSV per exported table, named after the table, with the
+// header row followed by the data rows.
+func TestExportData(t *testing.T) {
+	db := dbtest.New()
+	db.ExportTables = []model.ExportTable{
+		{
+			Name:   "entries",
+			Header: []string{"year", "month", "day", "state"},
+			Rows:   [][]string{{"2024", "3", "5", "2"}, {"2024", "3", "6", "1"}},
+		},
+		{
+			Name:   "notes",
+			Header: []string{"year", "month", "notes"},
+			Rows:   [][]string{{"2024", "3", "note with, comma"}},
+		},
+	}
+	svc := &Service{db: db}
+
+	resp, err := svc.ExportData(model.ExportDataRequest{
+		Meta: model.ExportDataRequestMeta{UserID: 1},
+	})
+	if err != nil {
+		t.Fatalf("ExportData: %v", err)
+	}
+	if resp.ContentType != "application/zip" {
+		t.Errorf("content type = %q, want application/zip", resp.ContentType)
+	}
+
+	data, ok := resp.Data.([]byte)
+	if !ok {
+		t.Fatalf("data is %T, want []byte", resp.Data)
+	}
+	zr, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
+	if err != nil {
+		t.Fatalf("zip.NewReader: %v", err)
+	}
+
+	files := make(map[string]string)
+	for _, f := range zr.File {
+		rc, err := f.Open()
+		if err != nil {
+			t.Fatalf("open %s: %v", f.Name, err)
+		}
+		b, err := io.ReadAll(rc)
+		rc.Close()
+		if err != nil {
+			t.Fatalf("read %s: %v", f.Name, err)
+		}
+		files[f.Name] = string(b)
+	}
+
+	if len(files) != 2 {
+		t.Fatalf("zip has %d files, want 2: %v", len(files), files)
+	}
+	wantEntries := "year,month,day,state\n2024,3,5,2\n2024,3,6,1\n"
+	if files["entries.csv"] != wantEntries {
+		t.Errorf("entries.csv = %q, want %q", files["entries.csv"], wantEntries)
+	}
+	wantNotes := "year,month,notes\n2024,3,\"note with, comma\"\n"
+	if files["notes.csv"] != wantNotes {
+		t.Errorf("notes.csv = %q, want %q", files["notes.csv"], wantNotes)
+	}
+}
+
+// ExportData propagates database errors.
+func TestExportDataError(t *testing.T) {
+	db := dbtest.New()
+	db.Errs = map[string]error{"ExportUserData": errInjected}
+	svc := &Service{db: db}
+	if _, err := svc.ExportData(model.ExportDataRequest{}); err == nil {
+		t.Fatal("expected ExportData to propagate the export error")
 	}
 }

@@ -54,6 +54,11 @@ type Databaser interface {
 
 	IsUserSuspended(userID int) (bool, error)
 
+	// ExportUserData returns every row the user has in each table, one
+	// ExportTable per table, excluding internal identifiers (user IDs, token
+	// IDs) and credentials (secret values).
+	ExportUserData(userID int) ([]model.ExportTable, error)
+
 	// Stats dashboard snapshots.
 	SaveStatsSnapshot(widgets []model.StatWidget) error
 	GetLatestStatsSnapshot() ([]model.StatWidget, time.Time, error)

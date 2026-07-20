@@ -607,6 +607,73 @@ func (p *postgres) IsUserSuspended(userID int) (bool, error) {
 	return suspended, err
 }
 
+// ExportUserData returns the user's rows from every table that stores data
+// against their account, one ExportTable per table. The users table itself is
+// skipped: beyond internal fields it only duplicates gh_users. Secret values
+// and internal identifiers are never included.
+func (p *postgres) ExportUserData(userID int) ([]model.ExportTable, error) {
+	queries := []exportQuery{
+		{
+			name:   "entries",
+			header: []string{"year", "month", "day", "state"},
+			query:  `SELECT year, month, day, state FROM entries WHERE user_id = $1 ORDER BY year, month, day;`,
+		},
+		{
+			name:   "notes",
+			header: []string{"year", "month", "notes"},
+			query:  `SELECT year, month, COALESCE(notes, '') FROM notes WHERE user_id = $1 ORDER BY year, month;`,
+		},
+		{
+			name: "user_preferences",
+			header: []string{"theme", "weather_enabled", "time_based_enabled", "location",
+				"schedule_monday_state", "schedule_tuesday_state", "schedule_wednesday_state",
+				"schedule_thursday_state", "schedule_friday_state", "schedule_saturday_state",
+				"schedule_sunday_state", "tracking_year_start_month", "target_percent"},
+			query: `SELECT theme, weather_enabled, time_based_enabled, COALESCE(location, ''),
+			               schedule_monday_state, schedule_tuesday_state, schedule_wednesday_state,
+			               schedule_thursday_state, schedule_friday_state, schedule_saturday_state,
+			               schedule_sunday_state, tracking_year_start_month, target_percent
+			        FROM user_preferences WHERE user_id = $1;`,
+		},
+		{
+			// Token metadata only: the secret value is a credential.
+			name:   "secrets",
+			header: []string{"name", "created_at", "active"},
+			query:  `SELECT name, created_at, active FROM secrets WHERE user_id = $1 ORDER BY created_at;`,
+		},
+		{
+			name:   "gh_users",
+			header: []string{"gh_id", "gh_user"},
+			query:  `SELECT gh_id, COALESCE(gh_user, '') FROM gh_users WHERE user_id = $1 ORDER BY gh_id;`,
+		},
+		{
+			name:   "auth0_users",
+			header: []string{"sub", "profile"},
+			query:  `SELECT sub, COALESCE(profile, '') FROM auth0_users WHERE user_id = $1 ORDER BY sub;`,
+		},
+	}
+
+	var tables []model.ExportTable
+	err := p.readOnlyTransaction(func(tx *sql.Tx) error {
+		for _, eq := range queries {
+			table := model.ExportTable{Name: eq.name, Header: eq.header}
+			rows, err := tx.Query(eq.query, userID)
+			if err != nil {
+				return fmt.Errorf("failed to export %s: %w", eq.name, err)
+			}
+			if err := scanExportRows(rows, &table); err != nil {
+				return fmt.Errorf("failed to export %s: %w", eq.name, err)
+			}
+			tables = append(tables, table)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return tables, nil
+}
+
 func (p *postgres) SaveStatsSnapshot(widgets []model.StatWidget) error {
 	payload, err := json.Marshal(widgets)
 	if err != nil {

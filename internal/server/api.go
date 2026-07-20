@@ -26,6 +26,7 @@ func apiRouter(service *v1.Service) func(chi.Router) {
 		r.Route("/settings", settingsRouter(service))
 		r.Route("/developer", developerRouter(service))
 		r.Route("/report", reportRouter(service))
+		r.Route("/export", exportRouter(service))
 		r.Route("/health", healthRouter(service))
 		// Public, unauthenticated stats endpoint. Returns aggregate-only data.
 		r.Method(http.MethodGet, "/stats", wrap(service.GetStats))
@@ -80,6 +81,14 @@ func reportRouter(service *v1.Service) func(chi.Router) {
 	return func(r chi.Router) {
 		r.With(middlewares...).Method(http.MethodGet, "/pdf/{year}-attendance", wrapRaw(service.GetReport))
 		r.With(middlewares...).Method(http.MethodGet, "/csv/{year}-attendance", wrapRaw(service.GetReportCSV))
+	}
+}
+
+func exportRouter(service *v1.Service) func(chi.Router) {
+	middlewares := chi.Middlewares{AllowedAuthMethods(auth.MethodSSO, auth.MethodExcluded)}
+	return func(r chi.Router) {
+		// The final path segment doubles as the download's filename.
+		r.With(middlewares...).Method(http.MethodGet, "/officetracker-data.zip", wrapRaw(service.ExportData))
 	}
 }
 

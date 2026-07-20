@@ -188,6 +188,19 @@
         border-radius: 4px;
     }
 
+    /* Data export */
+    .export-btn {
+        display: inline-block;
+        padding: 10px 14px;
+        background: #24292e;
+        color: #fff;
+        border-radius: 4px;
+        text-decoration: none;
+    }
+    .export-btn:hover {
+        background: #1c2025;
+    }
+
     /* Schedule calendar tweaks */
     .schedule-container {
         margin: 0 0 16px;
@@ -209,6 +222,7 @@
     <a href="#tracking-year">Tracking year</a>
     <a href="#schedule">Schedule</a>
     {{if not .IsStandalone}}<a href="#api-tokens">API tokens</a>{{end}}
+    <a href="#export">Export data</a>
 </nav>
 
 {{if .Auth0AuthURL}}
@@ -380,6 +394,15 @@
 
 <script>{{ template "developer.js" . }}</script>
 {{end}}
+
+<div class="settings-section" id="export">
+    <h3>Export data</h3>
+    <p class="section-desc">
+        Download a copy of the data stored against your account as a zip of
+        CSV files, one per table.
+    </p>
+    <a href="/api/v1/export/officetracker-data.zip" class="export-btn" download>Export data</a>
+</div>
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {

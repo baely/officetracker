@@ -52,6 +52,9 @@ type Fake struct {
 	// Suspended is returned by IsUserSuspended.
 	Suspended bool
 
+	// ExportTables is returned verbatim by ExportUserData.
+	ExportTables []model.ExportTable
+
 	// User-resolution hooks. When nil a sensible default is used
 	// (see the individual methods).
 	GetUserBySecretFn    func(secret string) (int, error)
@@ -372,6 +375,13 @@ func (f *Fake) IsUserSuspended(_ int) (bool, error) {
 		return false, err
 	}
 	return f.Suspended, nil
+}
+
+func (f *Fake) ExportUserData(_ int) ([]model.ExportTable, error) {
+	if err := f.fail("ExportUserData"); err != nil {
+		return nil, err
+	}
+	return f.ExportTables, nil
 }
 
 func (f *Fake) SaveStatsSnapshot(widgets []model.StatWidget) error {

@@ -441,3 +441,64 @@ func keysOf(m map[int]model.MonthState) []int {
 	}
 	return out
 }
+
+// ExportUserData exports the standalone tables: entries, notes and
+// user_preferences, with lazily-added preference columns defaulted.
+func TestSQLiteExportUserData(t *testing.T) {
+	db := newTestDB(t)
+	db.SaveDay(1, 5, 3, 2024, model.DayState{State: model.StateWorkFromOffice})
+	db.SaveNote(1, 3, 2024, "march note")
+	db.SaveThemePreferences(1, model.ThemePreferences{Theme: "dark"})
+
+	tables, err := db.ExportUserData(1)
+	if err != nil {
+		t.Fatalf("ExportUserData: %v", err)
+	}
+	if len(tables) != 3 {
+		t.Fatalf("export has %d tables, want 3", len(tables))
+	}
+
+	byName := make(map[string]model.ExportTable)
+	for _, table := range tables {
+		byName[table.Name] = table
+	}
+
+	entries := byName["entries"]
+	if len(entries.Rows) != 1 {
+		t.Fatalf("entries rows = %v", entries.Rows)
+	}
+	wantEntry := []string{"2024", "3", "5", "2"}
+	for i, want := range wantEntry {
+		if entries.Rows[0][i] != want {
+			t.Errorf("entries row = %v, want %v", entries.Rows[0], wantEntry)
+			break
+		}
+	}
+	if notes := byName["notes"]; len(notes.Rows) != 1 || notes.Rows[0][2] != "march note" {
+		t.Errorf("notes rows = %v", notes.Rows)
+	}
+	prefs := byName["user_preferences"]
+	if len(prefs.Rows) != 1 || prefs.Rows[0][0] != "dark" {
+		t.Errorf("user_preferences rows = %v", prefs.Rows)
+	}
+	if len(prefs.Header) != len(prefs.Rows[0]) {
+		t.Errorf("user_preferences header/row length mismatch: %d vs %d", len(prefs.Header), len(prefs.Rows[0]))
+	}
+}
+
+// An untouched database still exports all three tables, just with no rows.
+func TestSQLiteExportEmptyDatabase(t *testing.T) {
+	db := newTestDB(t)
+	tables, err := db.ExportUserData(1)
+	if err != nil {
+		t.Fatalf("ExportUserData: %v", err)
+	}
+	if len(tables) != 3 {
+		t.Fatalf("export has %d tables, want 3", len(tables))
+	}
+	for _, table := range tables {
+		if len(table.Rows) != 0 {
+			t.Errorf("table %s has %d rows, want 0", table.Name, len(table.Rows))
+		}
+	}
+}

@@ -285,6 +285,22 @@ type RevokeTokenResponse struct {
 	Success bool `json:"success"`
 }
 
+// ExportTable is one database table's worth of a user's data, ready to be
+// written out as a CSV file named after the table.
+type ExportTable struct {
+	Name   string
+	Header []string
+	Rows   [][]string
+}
+
+type ExportDataRequest struct {
+	Meta ExportDataRequestMeta `meta:"meta" json:"-"`
+}
+
+type ExportDataRequestMeta struct {
+	UserID int `meta:"user_id"`
+}
+
 type GetReportRequest struct {
 	Meta GetReportRequestMeta `meta:"meta" json:"-"`
 	Name string               `schema:"name"`
