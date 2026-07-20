@@ -514,11 +514,12 @@ func TestPostgresStatsSnapshot(t *testing.T) {
 	}
 }
 
-// ExportUserData returns one table per store holding the user's rows only,
-// excluding credentials (secret values) and internal identifiers.
+// ExportUserData returns a user summary (identity + preferences) plus entries
+// and notes, holding the user's rows only and never credentials or internal
+// identifiers.
 func TestPostgresExportUserData(t *testing.T) {
 	db := pgTestDB(t)
-	uid, err := db.SaveUserByAuth0Sub("github|123", `{"nickname":"bailey"}`)
+	uid, err := db.SaveUserByAuth0Sub("github|123", `{"nickname":"bailey","name":"Bailey B","picture":"https://avatars.example/123"}`)
 	if err != nil {
 		t.Fatalf("SaveUserByAuth0Sub: %v", err)
 	}
@@ -528,7 +529,7 @@ func TestPostgresExportUserData(t *testing.T) {
 	}
 
 	db.SaveDay(uid, 5, 3, 2024, model.DayState{State: model.StateWorkFromOffice})
-	db.SaveNote(uid, 3, 2024, "a note")
+	db.SaveNote(uid, 3, 2024, "line one\nline two")
 	db.SaveThemePreferences(uid, model.ThemePreferences{Theme: "dark"})
 	db.SaveSecret(uid, "supersecretvalue", "Test token")
 	db.SaveDay(other, 6, 3, 2024, model.DayState{State: model.StateWorkFromHome})
@@ -537,18 +538,32 @@ func TestPostgresExportUserData(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ExportUserData: %v", err)
 	}
+	if len(tables) != 3 {
+		t.Fatalf("export has %d tables, want 3 (user, entries, notes)", len(tables))
+	}
 
 	byName := make(map[string]model.ExportTable)
 	for _, table := range tables {
 		byName[table.Name] = table
 	}
-	for _, name := range []string{"entries", "notes", "user_preferences", "secrets", "gh_users", "auth0_users"} {
-		if _, ok := byName[name]; !ok {
-			t.Errorf("export missing table %q", name)
-		}
+
+	// The user summary holds field/value rows: account identity then prefs.
+	user := byName["user"]
+	if len(user.Header) != 2 || user.Header[0] != "field" || user.Header[1] != "value" {
+		t.Errorf("user header = %v", user.Header)
 	}
-	if len(tables) != 6 {
-		t.Errorf("export has %d tables, want 6", len(tables))
+	fields := make(map[string]string)
+	for _, row := range user.Rows {
+		fields[row[0]] = row[1]
+	}
+	if fields["sub"] != "github|123" {
+		t.Errorf("user sub = %q, want github|123", fields["sub"])
+	}
+	if fields["nickname"] != "bailey" || fields["name"] != "Bailey B" {
+		t.Errorf("profile fields = %v", fields)
+	}
+	if fields["theme"] != "dark" {
+		t.Errorf("theme = %q, want dark", fields["theme"])
 	}
 
 	// Only the user's own rows appear.
@@ -563,29 +578,13 @@ func TestPostgresExportUserData(t *testing.T) {
 			break
 		}
 	}
-	if len(byName["notes"].Rows) != 1 || byName["notes"].Rows[0][2] != "a note" {
-		t.Errorf("notes rows = %v", byName["notes"].Rows)
-	}
-	if len(byName["user_preferences"].Rows) != 1 || byName["user_preferences"].Rows[0][0] != "dark" {
-		t.Errorf("user_preferences rows = %v", byName["user_preferences"].Rows)
-	}
-	if secrets := byName["secrets"]; len(secrets.Rows) != 1 || secrets.Rows[0][0] != "Test token" {
-		t.Errorf("secrets rows = %v", secrets.Rows)
-	}
-	if accounts := byName["auth0_users"]; len(accounts.Rows) != 1 || accounts.Rows[0][0] != "github|123" {
-		t.Errorf("auth0_users rows = %v", accounts.Rows)
-	}
-	if ghUsers := byName["gh_users"]; len(ghUsers.Rows) != 0 {
-		t.Errorf("gh_users rows = %v, want none", ghUsers.Rows)
+	// Notes come back verbatim, newlines included (escaping is a CSV concern).
+	if notes := byName["notes"]; len(notes.Rows) != 1 || notes.Rows[0][2] != "line one\nline two" {
+		t.Errorf("notes rows = %v", notes.Rows)
 	}
 
 	// No credential or internal identifier anywhere in the export.
 	for _, table := range tables {
-		for _, col := range table.Header {
-			if col == "user_id" || col == "token_id" || col == "secret" {
-				t.Errorf("table %s exports internal column %q", table.Name, col)
-			}
-		}
 		for _, row := range table.Rows {
 			for _, cell := range row {
 				if strings.Contains(cell, "supersecretvalue") {

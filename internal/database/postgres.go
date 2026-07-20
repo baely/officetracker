@@ -607,55 +607,69 @@ func (p *postgres) IsUserSuspended(userID int) (bool, error) {
 	return suspended, err
 }
 
-// ExportUserData returns the user's rows from every table that stores data
-// against their account, one ExportTable per table. The users table itself is
-// skipped: beyond internal fields it only duplicates gh_users. Secret values
-// and internal identifiers are never included.
+// ExportUserData returns the user's data as three tables: a user summary
+// (linked account identity and preferences, as field/value rows) plus their
+// entries and notes verbatim. Credentials (secret values) and internal
+// identifiers are never included, and gh_users is skipped because its data is
+// duplicated in auth0_users.
 func (p *postgres) ExportUserData(userID int) ([]model.ExportTable, error) {
-	queries := []exportQuery{
-		{
-			name:   "entries",
-			header: []string{"year", "month", "day", "state"},
-			query:  `SELECT year, month, day, state FROM entries WHERE user_id = $1 ORDER BY year, month, day;`,
-		},
-		{
-			name:   "notes",
-			header: []string{"year", "month", "notes"},
-			query:  `SELECT year, month, COALESCE(notes, '') FROM notes WHERE user_id = $1 ORDER BY year, month;`,
-		},
-		{
-			name: "user_preferences",
-			header: []string{"theme", "weather_enabled", "time_based_enabled", "location",
-				"schedule_monday_state", "schedule_tuesday_state", "schedule_wednesday_state",
-				"schedule_thursday_state", "schedule_friday_state", "schedule_saturday_state",
-				"schedule_sunday_state", "tracking_year_start_month", "target_percent"},
-			query: `SELECT theme, weather_enabled, time_based_enabled, COALESCE(location, ''),
-			               schedule_monday_state, schedule_tuesday_state, schedule_wednesday_state,
-			               schedule_thursday_state, schedule_friday_state, schedule_saturday_state,
-			               schedule_sunday_state, tracking_year_start_month, target_percent
-			        FROM user_preferences WHERE user_id = $1;`,
-		},
-		{
-			// Token metadata only: the secret value is a credential.
-			name:   "secrets",
-			header: []string{"name", "created_at", "active"},
-			query:  `SELECT name, created_at, active FROM secrets WHERE user_id = $1 ORDER BY created_at;`,
-		},
-		{
-			name:   "gh_users",
-			header: []string{"gh_id", "gh_user"},
-			query:  `SELECT gh_id, COALESCE(gh_user, '') FROM gh_users WHERE user_id = $1 ORDER BY gh_id;`,
-		},
-		{
-			name:   "auth0_users",
-			header: []string{"sub", "profile"},
-			query:  `SELECT sub, COALESCE(profile, '') FROM auth0_users WHERE user_id = $1 ORDER BY sub;`,
-		},
-	}
-
 	var tables []model.ExportTable
 	err := p.readOnlyTransaction(func(tx *sql.Tx) error {
-		for _, eq := range queries {
+		user := model.ExportTable{Name: "user", Header: exportUserHeader}
+
+		// One block of rows per linked account: the Auth0 subject followed by
+		// the profile fields a user would recognise.
+		rows, err := tx.Query(`SELECT sub, COALESCE(profile, '') FROM auth0_users WHERE user_id = $1 ORDER BY sub;`, userID)
+		if err != nil {
+			return fmt.Errorf("failed to export accounts: %w", err)
+		}
+		if err := func() error {
+			defer rows.Close()
+			for rows.Next() {
+				var sub, profileJSON string
+				if err := rows.Scan(&sub, &profileJSON); err != nil {
+					return err
+				}
+				user.Rows = append(user.Rows, exportAccountRows(sub, profileJSON)...)
+			}
+			return rows.Err()
+		}(); err != nil {
+			return fmt.Errorf("failed to export accounts: %w", err)
+		}
+
+		// Preferences, when the user has saved any.
+		prefs := make([]string, len(exportPreferenceFields))
+		ptrs := make([]interface{}, len(prefs))
+		for i := range prefs {
+			ptrs[i] = &prefs[i]
+		}
+		err = tx.QueryRow(`SELECT theme, weather_enabled, time_based_enabled, COALESCE(location, ''),
+		                          schedule_monday_state, schedule_tuesday_state, schedule_wednesday_state,
+		                          schedule_thursday_state, schedule_friday_state, schedule_saturday_state,
+		                          schedule_sunday_state, tracking_year_start_month, target_percent
+		                   FROM user_preferences WHERE user_id = $1;`, userID).Scan(ptrs...)
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return fmt.Errorf("failed to export preferences: %w", err)
+		}
+		if err == nil {
+			for i, field := range exportPreferenceFields {
+				user.Rows = append(user.Rows, []string{field, prefs[i]})
+			}
+		}
+		tables = append(tables, user)
+
+		for _, eq := range []exportQuery{
+			{
+				name:   "entries",
+				header: []string{"year", "month", "day", "state"},
+				query:  `SELECT year, month, day, state FROM entries WHERE user_id = $1 ORDER BY year, month, day;`,
+			},
+			{
+				name:   "notes",
+				header: []string{"year", "month", "notes"},
+				query:  `SELECT year, month, COALESCE(notes, '') FROM notes WHERE user_id = $1 ORDER BY year, month;`,
+			},
+		} {
 			table := model.ExportTable{Name: eq.name, Header: eq.header}
 			rows, err := tx.Query(eq.query, userID)
 			if err != nil {

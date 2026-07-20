@@ -528,8 +528,10 @@ func (s *sqliteClient) IsUserSuspended(_ int) (bool, error) {
 	return false, nil
 }
 
-// ExportUserData exports the standalone database's tables. Standalone mode is
-// single-user, so every row belongs to the requesting user.
+// ExportUserData exports the standalone database as a user summary
+// (preferences as field/value rows; standalone mode has no linked accounts)
+// plus entries and notes verbatim. Standalone mode is single-user, so every
+// row belongs to the requesting user.
 func (s *sqliteClient) ExportUserData(_ int) ([]model.ExportTable, error) {
 	// Preference columns are added lazily elsewhere; make sure they exist so
 	// the export query sees a consistent schema (errors ignored when the
@@ -548,7 +550,30 @@ func (s *sqliteClient) ExportUserData(_ int) ([]model.ExportTable, error) {
 		s.db.Exec(`ALTER TABLE user_preferences ADD COLUMN ` + col + `;`)
 	}
 
-	queries := []exportQuery{
+	user := model.ExportTable{Name: "user", Header: exportUserHeader}
+	prefs := make([]string, len(exportPreferenceFields))
+	ptrs := make([]interface{}, len(prefs))
+	for i := range prefs {
+		ptrs[i] = &prefs[i]
+	}
+	err := s.db.QueryRow(`SELECT theme, weather_enabled, time_based_enabled, COALESCE(location, ''),
+	                             COALESCE(schedule_monday_state, 0), COALESCE(schedule_tuesday_state, 0),
+	                             COALESCE(schedule_wednesday_state, 0), COALESCE(schedule_thursday_state, 0),
+	                             COALESCE(schedule_friday_state, 0), COALESCE(schedule_saturday_state, 0),
+	                             COALESCE(schedule_sunday_state, 0), COALESCE(tracking_year_start_month, 10),
+	                             COALESCE(target_percent, 0)
+	                      FROM user_preferences LIMIT 1;`).Scan(ptrs...)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return nil, fmt.Errorf("failed to export preferences: %w", err)
+	}
+	if err == nil {
+		for i, field := range exportPreferenceFields {
+			user.Rows = append(user.Rows, []string{field, prefs[i]})
+		}
+	}
+	tables := []model.ExportTable{user}
+
+	for _, eq := range []exportQuery{
 		{
 			name:   "entries",
 			header: []string{"year", "month", "day", "state"},
@@ -559,24 +584,7 @@ func (s *sqliteClient) ExportUserData(_ int) ([]model.ExportTable, error) {
 			header: []string{"year", "month", "notes"},
 			query:  `SELECT Year, Month, COALESCE(Notes, '') FROM notes ORDER BY Year, Month;`,
 		},
-		{
-			name: "user_preferences",
-			header: []string{"theme", "weather_enabled", "time_based_enabled", "location",
-				"schedule_monday_state", "schedule_tuesday_state", "schedule_wednesday_state",
-				"schedule_thursday_state", "schedule_friday_state", "schedule_saturday_state",
-				"schedule_sunday_state", "tracking_year_start_month", "target_percent"},
-			query: `SELECT theme, weather_enabled, time_based_enabled, COALESCE(location, ''),
-			               COALESCE(schedule_monday_state, 0), COALESCE(schedule_tuesday_state, 0),
-			               COALESCE(schedule_wednesday_state, 0), COALESCE(schedule_thursday_state, 0),
-			               COALESCE(schedule_friday_state, 0), COALESCE(schedule_saturday_state, 0),
-			               COALESCE(schedule_sunday_state, 0), COALESCE(tracking_year_start_month, 10),
-			               COALESCE(target_percent, 0)
-			        FROM user_preferences;`,
-		},
-	}
-
-	var tables []model.ExportTable
-	for _, eq := range queries {
+	} {
 		table := model.ExportTable{Name: eq.name, Header: eq.header}
 		rows, err := s.db.Query(eq.query)
 		if err != nil {

@@ -442,12 +442,12 @@ func keysOf(m map[int]model.MonthState) []int {
 	return out
 }
 
-// ExportUserData exports the standalone tables: entries, notes and
-// user_preferences, with lazily-added preference columns defaulted.
+// ExportUserData exports a user summary (preferences; standalone has no
+// linked accounts) plus entries and notes.
 func TestSQLiteExportUserData(t *testing.T) {
 	db := newTestDB(t)
 	db.SaveDay(1, 5, 3, 2024, model.DayState{State: model.StateWorkFromOffice})
-	db.SaveNote(1, 3, 2024, "march note")
+	db.SaveNote(1, 3, 2024, "line one\nline two")
 	db.SaveThemePreferences(1, model.ThemePreferences{Theme: "dark"})
 
 	tables, err := db.ExportUserData(1)
@@ -455,12 +455,23 @@ func TestSQLiteExportUserData(t *testing.T) {
 		t.Fatalf("ExportUserData: %v", err)
 	}
 	if len(tables) != 3 {
-		t.Fatalf("export has %d tables, want 3", len(tables))
+		t.Fatalf("export has %d tables, want 3 (user, entries, notes)", len(tables))
 	}
 
 	byName := make(map[string]model.ExportTable)
 	for _, table := range tables {
 		byName[table.Name] = table
+	}
+
+	fields := make(map[string]string)
+	for _, row := range byName["user"].Rows {
+		fields[row[0]] = row[1]
+	}
+	if fields["theme"] != "dark" {
+		t.Errorf("theme = %q, want dark", fields["theme"])
+	}
+	if _, ok := fields["tracking_year_start_month"]; !ok {
+		t.Errorf("user summary missing preference fields: %v", fields)
 	}
 
 	entries := byName["entries"]
@@ -474,15 +485,9 @@ func TestSQLiteExportUserData(t *testing.T) {
 			break
 		}
 	}
-	if notes := byName["notes"]; len(notes.Rows) != 1 || notes.Rows[0][2] != "march note" {
+	// Notes come back verbatim, newlines included (escaping is a CSV concern).
+	if notes := byName["notes"]; len(notes.Rows) != 1 || notes.Rows[0][2] != "line one\nline two" {
 		t.Errorf("notes rows = %v", notes.Rows)
-	}
-	prefs := byName["user_preferences"]
-	if len(prefs.Rows) != 1 || prefs.Rows[0][0] != "dark" {
-		t.Errorf("user_preferences rows = %v", prefs.Rows)
-	}
-	if len(prefs.Header) != len(prefs.Rows[0]) {
-		t.Errorf("user_preferences header/row length mismatch: %d vs %d", len(prefs.Header), len(prefs.Rows[0]))
 	}
 }
 

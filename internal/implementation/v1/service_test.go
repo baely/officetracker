@@ -296,7 +296,8 @@ func TestHealthAndValidateAuth(t *testing.T) {
 }
 
 // ExportData zips one CSV per exported table, named after the table, with the
-// header row followed by the data rows.
+// header row followed by the data rows. Newlines in values are escaped so
+// every record stays on one physical line.
 func TestExportData(t *testing.T) {
 	db := dbtest.New()
 	db.ExportTables = []model.ExportTable{
@@ -308,7 +309,7 @@ func TestExportData(t *testing.T) {
 		{
 			Name:   "notes",
 			Header: []string{"year", "month", "notes"},
-			Rows:   [][]string{{"2024", "3", "note with, comma"}},
+			Rows:   [][]string{{"2024", "3", "note with, comma"}, {"2024", "4", "line one\nline two\r\nline three"}},
 		},
 	}
 	svc := &Service{db: db}
@@ -353,7 +354,7 @@ func TestExportData(t *testing.T) {
 	if files["entries.csv"] != wantEntries {
 		t.Errorf("entries.csv = %q, want %q", files["entries.csv"], wantEntries)
 	}
-	wantNotes := "year,month,notes\n2024,3,\"note with, comma\"\n"
+	wantNotes := "year,month,notes\n2024,3,\"note with, comma\"\n2024,4,line one\\nline two\\nline three\n"
 	if files["notes.csv"] != wantNotes {
 		t.Errorf("notes.csv = %q, want %q", files["notes.csv"], wantNotes)
 	}

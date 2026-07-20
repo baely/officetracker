@@ -5,12 +5,17 @@ import (
 	"bytes"
 	"encoding/csv"
 	"fmt"
+	"strings"
 
 	"github.com/baely/officetracker/pkg/model"
 )
 
-// ExportData returns a zip archive containing one CSV file per database table
-// holding the user's data, each file named after its table.
+// exportEscaper keeps every CSV record on one physical line: notes can contain
+// newlines, which would otherwise become (valid but hard to read) multi-line
+// quoted fields.
+var exportEscaper = strings.NewReplacer("\r\n", `\n`, "\n", `\n`, "\r", `\n`)
+
+// ExportData returns a zip archive containing the user's data as CSV files.
 func (i *Service) ExportData(req model.ExportDataRequest) (model.Response, error) {
 	tables, err := i.db.ExportUserData(req.Meta.UserID)
 	if err != nil {
@@ -28,8 +33,17 @@ func (i *Service) ExportData(req model.ExportDataRequest) (model.Response, error
 		if err := cw.Write(table.Header); err != nil {
 			return model.Response{}, fmt.Errorf("failed to write %s.csv header: %w", table.Name, err)
 		}
-		// WriteAll flushes the writer.
-		if err := cw.WriteAll(table.Rows); err != nil {
+		for _, row := range table.Rows {
+			cells := make([]string, len(row))
+			for j, cell := range row {
+				cells[j] = exportEscaper.Replace(cell)
+			}
+			if err := cw.Write(cells); err != nil {
+				return model.Response{}, fmt.Errorf("failed to write %s.csv: %w", table.Name, err)
+			}
+		}
+		cw.Flush()
+		if err := cw.Error(); err != nil {
 			return model.Response{}, fmt.Errorf("failed to write %s.csv: %w", table.Name, err)
 		}
 	}
