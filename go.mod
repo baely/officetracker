@@ -18,7 +18,7 @@ require (
 	golang.org/x/oauth2 v0.36.0
 	golang.org/x/text v0.41.0
 	golang.org/x/time v0.15.0
-	google.golang.org/api v0.294.0
+	google.golang.org/api v0.297.0
 )
 
 require (
