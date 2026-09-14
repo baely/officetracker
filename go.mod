@@ -15,7 +15,7 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.52
 	github.com/modelcontextprotocol/go-sdk v1.7.0
 	github.com/redis/go-redis/v9 v9.22.0
-	golang.org/x/oauth2 v0.36.0
+	golang.org/x/oauth2 v0.37.0
 	golang.org/x/text v0.41.0
 	golang.org/x/time v0.16.0
 	google.golang.org/api v0.297.0
